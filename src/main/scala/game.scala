@@ -17,20 +17,20 @@ object wallAvoid {
     // We want the agent to have 4 eyes, so we need 4 angles, one for each eye
     val viewAngles =
       (0 until viewPoints).toList
-        .map(λ =>
-          λ.toDouble
+        .map( λ =>
+          (λ.toDouble
           *(radFieldOfView/(viewPoints.toDouble - 1.0))
           - radFieldOfView/2.0 + heading)
-        .map(normalizeAngle)
+      ).map(normalizeAngle)
 
     val distances = viewAngles.map(traceObstacleDistance(loc, _))
 
     def processInput(input: (Double, Double)): Double =
-      normalizeAngle(heading*(input._1 - input._2)*turnRate)
+      normalizeAngle(heading + (input._1 - input._2)*turnRate)
 
     def update(input: (Double, Double)): Agent = {
-      val nextX = math.cos(heading)*speed + loc.x
-      val nextY = math.sin(heading)*speed + loc.y
+      val nextX = loc.x - math.cos(heading)*speed
+      val nextY = loc.y - math.sin(heading)*speed
 
       val normalizedNextX = if(nextX > width) width else (if (nextX < 0.0) 0 else nextX)
       val normalizedNextY = if(nextY > height) height else (if (nextY < 0.0) 0 else nextY)
@@ -52,8 +52,8 @@ object wallAvoid {
   val PI = 3.14
 
   def traceObstacleDistance(loc: Coord, angleRad: Double): Double = {
-    val xUnitDir = if(angleRad < PI/2 || angleRad > 3*PI/2) 1 else -1
-    val yUnitDir = if(angleRad < PI) 1 else -1
+    val xUnitDir = if(angleRad < PI/2 || angleRad > 3*PI/2) -1 else 1
+    val yUnitDir = if(angleRad < PI) -1 else 1
 
     val xWallDistance = math.abs(loc.x - (if(xUnitDir == 1) width else 0))
     val yWallDistance = math.abs(loc.y - (if(yUnitDir == 1) height else 0))
@@ -61,7 +61,16 @@ object wallAvoid {
     val xDistance = xWallDistance/math.cos(angleRad)
     val yDistance = yWallDistance/math.sin(angleRad)
 
-    if(xDistance > yDistance) yDistance else xDistance
+    // println(s"x: $xUnitDir")
+    // println(s"y: $yUnitDir")
+    // println(s"xDist: $xWallDistance")
+    // println(s"yDist: $yWallDistance")
+    // println(s"xDistS: $xDistance")
+    // println(s"yDistS: $yDistance")
+    // println(math.cos(angleRad))
+    // println(math.sin(angleRad))
+
+    if(math.abs(xDistance) > math.abs(yDistance)) yDistance else xDistance
   }
 
   def normalizeAngle(a: Double): Double =
