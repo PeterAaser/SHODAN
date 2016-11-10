@@ -20,6 +20,9 @@ lazy val root = (project in file(".")).
       , "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
       , "org.tpolecat" % "doobie-core-cats_2.11" % "0.3.1-M1"
       , "org.tpolecat" % "doobie-postgres-cats_2.11" % "0.3.1-M1"
+      , "org.scodec" %% "scodec-bits" % "1.1.2"
+      , "org.scodec" %% "scodec-protocols" % "1.0.2"
+      , "org.scodec" %% "scodec-stream" % "1.0.1"
     )
   )
 
