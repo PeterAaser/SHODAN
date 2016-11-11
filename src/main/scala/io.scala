@@ -38,17 +38,18 @@ object neurIO {
   val keepAlive = true
   val noDelay = true
 
-  val clientStream: Stream[Task, Socket[Task]] = client(
-     address
-  ,  reuseAddress
-  ,  sendBufferSize
-  ,  receiveBufferSize
-  ,  keepAlive
-  ,  noDelay
-  )
 
-  val byteStream: Stream[Task, Byte] =
-    clientStream.flatMap { x => x.reads(256, None) }
+  // TODO lag ordentlige metoder
+  val (byteStream: Stream[Task, Byte], byteSink: Sink[Task,Byte]) =
+    createClientStream(
+        ip
+      , port
+      , reuseAddress
+      , sendBufferSize
+      , receiveBufferSize
+      , keepAlive
+      , noDelay
+    )
 
   val intStream: Stream[Task, Int] =
     byteStream.through(utilz.bytesToInts)
@@ -63,17 +64,39 @@ object neurIO {
   xs(3).map(λ => print (s"[4 - $λ] ")))
   }
 
-
   // def explode = intStream.run.unsafeRunAsyncFuture
   def explode = crash.run.unsafeRunAsyncFuture
 
-  // val lineStream = byteStream.through(text.utf8Decode).through(text.lines)
-  // val wordStream = lineStream.flatMap { line =>
-  //   Stream.emits(line.split("\\W"))
-  // }.map(_.toLowerCase()).map(_.trim).filter(!_.isEmpty())
+  def createClientStream
+  ( ip: String
+  , port: Int
+  , reuseAddress: Boolean
+  , sendBufferSize: Int
+  , receiveBufferSize: Int
+  , keepAlive: Boolean
+  , noDelay: Boolean)
+      : (Stream[Task, Byte], Sink[Task, Byte]) = {
 
-  // val wordTask: Task[Unit] = wordStream.map(println(_)).run
+    val address = new InetSocketAddress(ip, port)
 
-  // def fuckingExplode = wordTask.unsafeRun
+    val clientStream: Stream[Task,Socket[Task]] = client(
+        address
+      , reuseAddress
+      , sendBufferSize
+      , receiveBufferSize
+      , keepAlive
+      , noDelay
+    )
 
+    // very sorry. FlatMap must return a stream.
+    // There is surely a better way than whatever the fuck this thing is
+    var s: Sink[Task,Byte] = {
+      def go: Handle[Task,Byte] => Pull[Task,Unit,Unit] = h => {
+        h.receive1 { (d, h) => go(h)}}
+      _.pull(go)
+    }
+
+    (clientStream.flatMap { x => s = x.writes(None); x.reads(256, None)},
+     s)
+  }
 }
