@@ -1,9 +1,24 @@
 package SHODAN
 
-// todo make generic and maybe also not suck
 object Filters {
   case class FeedForward[T](layout: List[Int], bias: List[T], weights: List[T])
                         (implicit ev: Numeric[T]) {
+
+    require((layout.size > 1), "No point making a single layer ANN")
+
+    val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
+    require(
+      neededWeights == weights.length,
+      s"incorrect amount of weights. Needed: $neededWeights, Provided: ${weights.length}"
+    )
+
+    val neededBias = layout.tail.sum
+    require(
+      neededBias == bias.length,
+      s"incorrect amount of bias weights. Needed: $neededBias, Provided: ${bias.length}"
+    )
+
+
 
     import ev._
 
@@ -36,7 +51,6 @@ object Filters {
                   .map(activator(_)))
       })
 
-
     val feed: List[T] => List[T] = input =>
       (input /: layerCalculations)((λ, f) => f(λ))
 
@@ -68,5 +82,31 @@ object Filters {
       (outputs zip bias).map(λ => λ._1 + λ._2)
 
     }
+  }
+
+  object ANNPipes {
+
+    import fs2._
+
+    def ffPipe[F[_]]
+      ( temporality: Int
+      , net: FeedForward[Double]): Pipe[F,Vector[Boolean], List[Double]] =
+    {
+
+      def go: Handle[F,Vector[Boolean]] => Pull[F,List[Double],Unit] = h => {
+        h.awaitN(temporality, false).flatMap {
+          case (chunks, h) => {
+            val inputs: Vector[Double] =
+              (chunks.foldLeft(Vector[Vector[Boolean]]())(_ ++ _.toVector))
+                .flatten
+                .map(λ => if(λ) 1.0 else 0.0)
+
+            Pull.output1(net.feed(inputs.toList)) >> go(h)
+          }
+        }
+      }
+      _.pull(go)
+    }
+
   }
 }

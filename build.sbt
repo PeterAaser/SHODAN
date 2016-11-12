@@ -23,6 +23,7 @@ lazy val root = (project in file(".")).
       , "org.scodec" %% "scodec-bits" % "1.1.2"
       , "org.scodec" %% "scodec-protocols" % "1.0.2"
       , "org.scodec" %% "scodec-stream" % "1.0.1"
+      , "com.chuusai" %% "shapeless" % "2.3.2"
     )
   )
 

@@ -123,7 +123,8 @@ object utilz {
 
   // Decodes a byte stream into a stream of 32 bit signed ints
   // I sincerely doubt it works...
-  // TODO use scodec
+  // Nvm, it works (in the simplest case at least)
+  // TODO use scodec maybe?
   def bytesToInts: Pipe[Task, Byte, Int] = {
 
     import java.nio.ByteBuffer
@@ -143,7 +144,37 @@ object utilz {
     _.pull(go)
   }
 
+  def doubleToByte: Pipe[Task, Double, Byte] = {
+
+    import java.nio.ByteBuffer
+
+    def doubleToByteArray(x: Double) = {
+      val l = java.lang.Double.doubleToLongBits(x)
+      ByteBuffer.allocate(8).putLong(l).array()
+    }
+
+    def go: Handle[Task,Double] => Pull[Task,Byte,Unit] = h => {
+      h.receive1 {
+        (d, h) => {
+          Pull.output(Chunk.seq(doubleToByteArray(d))) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
   def streamLogger[A](prefix: String): Pipe[Task,A,A] = {
     _.evalMap { a => Task.delay{ println(s"$prefix> $a"); a }}
+  }
+
+  def unpacker[I]: Pipe[Task,Vector[I],I] = {
+    def go: Handle[Task,Vector[I]] => Pull[Task,I,Unit] = h => {
+      h.receive1 {
+        (v, h) => {
+          Pull.output(Chunk.seq(v)) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
   }
 }
