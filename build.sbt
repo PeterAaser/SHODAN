@@ -14,7 +14,7 @@ lazy val root = (project in file(".")).
       , "com.typesafe.akka" % "akka-stream_2.11" % "2.4.11"
       , "co.fs2" %% "fs2-core" % "0.9.0"
       , "co.fs2" %% "fs2-io" % "0.9.0"
-      , "com.github.mpilquist" %% "simulacrum" % "0.10.0"
+      // , "com.github.mpilquist" %% "simulacrum" % "0.10.0"
       , "org.scalactic" %% "scalactic" % "3.0.0"
       , "org.scalactic" %% "scalactic" % "3.0.0" % "test"
       , "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
@@ -29,4 +29,8 @@ lazy val root = (project in file(".")).
 
 resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/repositories/releases/"
 
+resolvers += Opts.resolver.sonatypeSnapshots
+
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+
+// addCompilerPlugin("fail.sauce" %% "commas" % "0.1.1-SNAPSHOT")
