@@ -23,6 +23,8 @@ import scodec.codecs
 import scodec.stream.{encode,decode,StreamDecoder,StreamEncoder}
 import scodec.bits.ByteVector
 
+import scala.language.higherKinds
+
 object namedACG {
 
   def namedACG(name:String):AsynchronousChannelGroup = {
@@ -68,6 +70,7 @@ object utilz {
 
       h.awaitN(size, false).flatMap {
         case (chunks, h) => {
+          // println("loopin")
           Pull.eval(Qlist(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
             loop(((activeQ + 1) % outputs), Qlist)(h)
         }
@@ -109,12 +112,14 @@ object utilz {
     val stepsize = windowWidth - overlap
     def go(last: Vector[I]): Handle[F,I] => Pull[F,Vector[I],Unit] = h => {
       h.awaitN(stepsize, false).flatMap { case (chunks, h) =>
+        // println(s"strided slide got $chunks")
         val window = chunks.foldLeft(last)(_ ++ _.toVector)
         Pull.output1(window) >> go(window.drop(stepsize))(h)
       }
     }
 
     _ pull { h => h.awaitN(windowWidth, false).flatMap { case (chunks, h) =>
+              // println(s"strided slide fillin up with $chunks")
               val window = chunks.foldLeft(Vector.empty[I])(_ ++ _.toVector)
               Pull.output1(window) >> go(window.drop(stepsize))(h)
             }}
@@ -125,11 +130,11 @@ object utilz {
   // I sincerely doubt it works...
   // Nvm, it works (in the simplest case at least)
   // TODO use scodec maybe?
-  def bytesToInts: Pipe[Task, Byte, Int] = {
+  def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
     import java.nio.ByteBuffer
 
-    def go: Handle[Task,Byte] => Pull[Task,Int,Unit] = h => {
+    def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
       h.awaitN(256) flatMap {
         case (chunks, h) => {
           val bytes = (Vector[Byte]() /: chunks)(_++_.toVector)
@@ -144,7 +149,8 @@ object utilz {
     _.pull(go)
   }
 
-  def doubleToByte: Pipe[Task, Double, Byte] = {
+  // Decodes a double stream to a byte stream
+  def doubleToByte[F[_]]: Pipe[F, Double, Byte] = {
 
     import java.nio.ByteBuffer
 
@@ -153,10 +159,11 @@ object utilz {
       ByteBuffer.allocate(8).putLong(l).array()
     }
 
-    def go: Handle[Task,Double] => Pull[Task,Byte,Unit] = h => {
+    def go: Handle[F,Double] => Pull[F,Byte,Unit] = h => {
       h.receive1 {
         (d, h) => {
-          Pull.output(Chunk.seq(doubleToByteArray(d))) >> go(h)
+          val le_bytes = doubleToByteArray(d)
+          Pull.output(Chunk.seq(le_bytes)) >> go(h)
         }
       }
     }
@@ -167,14 +174,30 @@ object utilz {
     _.evalMap { a => Task.delay{ println(s"$prefix> $a"); a }}
   }
 
-  def unpacker[I]: Pipe[Task,Vector[I],I] = {
-    def go: Handle[Task,Vector[I]] => Pull[Task,I,Unit] = h => {
+  def unpacker[F[_],I]: Pipe[F,Vector[I],I] = {
+    def go: Handle[F,Vector[I]] => Pull[F,I,Unit] = h => {
       h.receive1 {
         (v, h) => {
+          // println("unpacker received sumfin")
+          // println(v)
           Pull.output(Chunk.seq(v)) >> go(h)
         }
       }
     }
+    _.pull(go)
+  }
+
+  def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
+
+    def go: Handle[F,Seq[I]] => Pull[F,I,Unit] = h => {
+      h.receive1 {
+        (v, h) => {
+          println(s"unchunked $v")
+          Pull.output(Chunk.seq(v)) >> go(h)
+        }
+      }
+    }
+
     _.pull(go)
   }
 }

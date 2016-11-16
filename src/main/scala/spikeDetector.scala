@@ -13,6 +13,7 @@ object spikeDetector {
   def singleSpikeDetectorPipe[F[_]](f: Vector[Int] => Boolean): Pipe[F,Vector[Int],Boolean] = {
     def go: Handle[F,Vector[Int]] => Pull[F,Boolean,Unit] = h => {
       h.receive1 { case (a, h) =>
+        // println(s"single spikedetector pipe got $a")
         Pull.output1(f(a)) >> go(h)
       }
     }

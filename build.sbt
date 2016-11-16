@@ -2,6 +2,13 @@ lazy val commonSettings = Seq(version := "0.1.0" , scalaVersion := "2.11.8")
 
 lazy val doobieVersion = "0.3.1-SNAPSHOT"
 
+scalaVersion := "2.11.8"
+
+// dunno lol
+scalaVersion in ThisBuild := "2.11.8"
+
+scalacOptions ++= Seq("-feature", "language:-higherKinds")
+
 lazy val root = (project in file(".")).
   settings(commonSettings: _*).
   settings(
@@ -31,6 +38,6 @@ resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/reposito
 
 resolvers += Opts.resolver.sonatypeSnapshots
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+// addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
 // addCompilerPlugin("fail.sauce" %% "commas" % "0.1.1-SNAPSHOT")

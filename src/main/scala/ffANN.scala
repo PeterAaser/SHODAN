@@ -1,5 +1,7 @@
 package SHODAN
 
+import scala.language.higherKinds
+
 object Filters {
   case class FeedForward[T](layout: List[Int], bias: List[T], weights: List[T])
                         (implicit ev: Numeric[T]) {
@@ -94,6 +96,7 @@ object Filters {
     {
 
       def go: Handle[F,Vector[Boolean]] => Pull[F,List[Double],Unit] = h => {
+        println(s"ANN awaiting $temporality pieces")
         h.awaitN(temporality, false).flatMap {
           case (chunks, h) => {
             val inputs: Vector[Double] =
@@ -101,7 +104,9 @@ object Filters {
                 .flatten
                 .map(λ => if(λ) 1.0 else 0.0)
 
-            Pull.output1(net.feed(inputs.toList)) >> go(h)
+            val outputs = net.feed(inputs.toList)
+            // println(s"outputs from ANN was $outputs")
+            Pull.output1(outputs) >> go(h)
           }
         }
       }

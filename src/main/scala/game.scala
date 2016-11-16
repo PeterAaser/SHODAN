@@ -1,5 +1,7 @@
 package SHODAN
 
+import scala.language.higherKinds
+
 object wallAvoid {
 
   val width = 10000.0
@@ -90,7 +92,8 @@ object agentPipe {
       h.receive1 {
         case(input, h) => {
           val (nextAgent, sensorData) = updateAgent(agent, input)
-          Pull.output1(input) >> go(nextAgent)(h)
+          // println(s"wow game thing, the agent saw $sensorData")
+          Pull.output1(sensorData) >> go(nextAgent)(h)
         }
       }
     }
