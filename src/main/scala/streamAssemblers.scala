@@ -17,7 +17,7 @@ object Assemblers {
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] = alternate(
       neuronInputs,
       sweepSize,
-      256*256*256,
+      256*256,
       channels
     )
 
@@ -25,7 +25,7 @@ object Assemblers {
       stridedSlide[F,Int](samplesPerSpike, samplesPerSpike/4)
 
     val spikeDetectorPipe: Pipe[F,Vector[Int],Boolean] =
-      spikeDetector.singleSpikeDetectorPipe(_ => true)
+      spikeDetector.singleSpikeDetectorPipe(spikeDetector.simpleDetector)
 
     val spikePatterns: Stream[F, Vector[Boolean]] = neuronChannels.flatMap {
       channels: List[Stream[F,Vector[Int]]] => {
