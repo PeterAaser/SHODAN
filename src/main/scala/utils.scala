@@ -65,33 +65,32 @@ object utilz {
     ): Stream[F, List[Stream[F, Vector[A]]]] = {
 
     def loop
-      ( activeQ: Int, Qlist: Vector[Queue[F, Vector[A]]]
-      ): Handle[F, A] => Pull[F, Vector[A], Unit] = h => {
+      ( activeQ: Int, Qlist: Vector[Queue[F, Vector[A]]])
+        : Handle[F, A] => Pull[F, Vector[A], Unit] = h => {
 
       h.awaitN(size, false).flatMap {
         case (chunks, h) => {
-          // println("loopin")
           Pull.eval(Qlist(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
             loop(((activeQ + 1) % outputs), Qlist)(h)
         }
       }
     }
 
-    val mkQueue: F[Queue[F,Vector[A]]] = async.boundedQueue[F, Vector[A]](maxQueued)
+    val makeQueue: F[Queue[F,Vector[A]]] = async.boundedQueue[F, Vector[A]](maxQueued)
 
-    def mkQs
+    def makeQueues
       ( qs: List[Queue[F,Vector[A]]]
       , bs: List[F[Queue[F,Vector[A]]]]): Stream[F, List[Stream[F,Vector[A]]]] =
 
       bs match {
         case Nil => gogo(qs)
-        case h :: t => Stream.eval(h).flatMap { qn => mkQs((qn :: qs),t) }
+        case h :: t => Stream.eval(h).flatMap { qn => makeQueues((qn :: qs),t) }
       }
 
     def gogo(qs: List[Queue[F,Vector[A]]])
       = src.pull(loop(0, qs.toVector)).drain merge Stream.emit((qs.map(_.dequeue)))
 
-    mkQs(List[Queue[F,Vector[A]]](), (List.fill(outputs)(mkQueue)))
+    makeQueues(List[Queue[F,Vector[A]]](), (List.fill(outputs)(makeQueue)))
   }
 
 
@@ -127,33 +126,31 @@ object utilz {
 
 
   // Decodes a byte stream into a stream of 32 bit signed ints
-  // I sincerely doubt it works...
-  // Nvm, it works (in the simplest case at least)
   // TODO use scodec maybe?
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
     import java.nio.ByteBuffer
 
     def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
-      h.awaitN(256) flatMap {
-        case (chunks, h) => {
-          val bytes = (Vector[Byte]() /: chunks)(_++_.toVector)
-          val intBuf = Array.ofDim[Int](64)
-          for(i <- 0 until 256){
-            intBuf(i / 4) = intBuf(i / 4) + (bytes(i) << (8*(i % 4)))
+      h.receive {
+        case (chunk, h) => {
+          if(chunk.size % 4 != 0)
+            assert(false)
+          val intBuf = Array.ofDim[Int](chunk.size/4)
+          for(i <- 0 until chunk.size){
+            intBuf(i / 4) = intBuf(i / 4) + (chunk(i) << (8*(i % 4)))
           }
-          Pull.output(Chunk.seq(intBuf.toVector)) >> go(h)
+          Pull.output(Chunk.seq(intBuf)) >> go(h)
         }
       }
     }
     _.pull(go)
   }
 
-  // Decodes a double stream to a byte stream
+  // Decodes a double stream to a byte stream, not really perf critical
   def doubleToByte[F[_]]: Pipe[F, Double, Byte] = {
 
     import java.nio.ByteBuffer
-
     def doubleToByteArray(x: Double) = {
       val l = java.lang.Double.doubleToLongBits(x)
       ByteBuffer.allocate(8).putLong(l).array()
