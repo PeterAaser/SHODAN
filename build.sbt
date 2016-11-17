@@ -9,11 +9,13 @@ scalaVersion in ThisBuild := "2.11.8"
 
 scalacOptions ++= Seq("-feature", "language:-higherKinds")
 
-lazy val root = (project in file(".")).
+lazy val clients = Seq(visualizer)
+
+lazy val closedLoop = (project in file("closed-loop")).
   settings(commonSettings: _*).
   settings(
     name := "SHODAN",
-
+    scalaJSProjects := clients,
     maxErrors := 20,
     pollInterval := 1000,
     libraryDependencies ++= Seq
@@ -33,6 +35,24 @@ lazy val root = (project in file(".")).
       , "com.chuusai" %% "shapeless" % "2.3.2"
     )
   )
+
+lazy val visualizer = (project in file("visualizer"))
+  .enablePlugins(ScalaJSPlugin, ScalaJSPlay)
+  .dependsOn(sharedJs)
+  .settings(
+    scalaVersion := "2.11.8",
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "0.9.1",
+      "io.monix" %%% "monix" % "2.0.0"
+    )
+)
+
+lazy val shared = (crossProject.crossType(CrossType.Pure) in file("shared"))
+  .settings(scalaVersion := "2.11.8")
+  .jsConfigure(_ enablePlugins ScalaJSPlay)
+
+lazy val sharedJvm = shared.jvm
+lazy val sharedJs = shared.js
 
 resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/repositories/releases/"
 
