@@ -1,10 +1,13 @@
+import sbt.Project.projectToRef
+
+
+
 lazy val commonSettings = Seq(version := "0.1.0" , scalaVersion := "2.11.8")
 
 lazy val doobieVersion = "0.3.1-SNAPSHOT"
 
 scalaVersion := "2.11.8"
 
-// dunno lol
 scalaVersion in ThisBuild := "2.11.8"
 
 scalacOptions ++= Seq("-feature", "language:-higherKinds")
@@ -34,7 +37,8 @@ lazy val closedLoop = (project in file("closed-loop")).
       , "org.scodec" %% "scodec-stream" % "1.0.1"
       , "com.chuusai" %% "shapeless" % "2.3.2"
     )
-  )
+ ).aggregate(clients.map(projectToRef): _*)
+  .dependsOn(sharedJvm)
 
 lazy val visualizer = (project in file("visualizer"))
   .enablePlugins(ScalaJSPlugin, ScalaJSPlay)
@@ -43,7 +47,9 @@ lazy val visualizer = (project in file("visualizer"))
     scalaVersion := "2.11.8",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "0.9.1",
-      "io.monix" %%% "monix" % "2.0.0"
+      // "org.scala-js" %%% "scalajs-dom" % "0.8.2",
+      "com.lihaoyi" %%% "scalatags" % "0.5.4"
+
     )
 )
 
@@ -58,6 +64,8 @@ resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/reposito
 
 resolvers += Opts.resolver.sonatypeSnapshots
 
-// addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+import com.lihaoyi.workbench.Plugin._
 
-// addCompilerPlugin("fail.sauce" %% "commas" % "0.1.1-SNAPSHOT")
+workbenchSettings.filterNot(p => p.key.key == extraLoggers.scopedKey.key)
+
+bootSnippet := "example.ScalaJSExample().main(document.getElementById('canvas'));"

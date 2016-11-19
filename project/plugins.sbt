@@ -34,3 +34,8 @@ addSbtPlugin("com.heroku" % "sbt-heroku" % "0.5.3.1")
 addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
+
+// js
+// addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.6")
+
+addSbtPlugin("com.lihaoyi" % "workbench" % "0.2.3")
