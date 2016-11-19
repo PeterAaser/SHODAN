@@ -32,24 +32,25 @@ object ScalaJSExample {
     val PI = 3.14
 
     var wallAvoider = wallAvoid.Agent(
-      wallAvoid.Coord(5000.0, 5000.0),
+      wallAvoid.Coord(8000.0, 4000.0),
       PI/2.0,
       120)
 
     def drawWalls: Unit = {
       renderer.save()
       renderer.fillStyle = "grey"
-      renderer.fillRect(10, 10, 30, canvas.height)
-      renderer.fillRect(10, 10, canvas.width, 30)
-      renderer.fillRect(canvas.width - 30, 10, 30, canvas.height)
-      renderer.fillRect(10, canvas.height - 30, canvas.width, 30)
+      renderer.fillRect(0, 0, 30, canvas.height)
+      renderer.fillRect(0, 0, canvas.width, 30)
+      renderer.fillRect(canvas.width - 30, 0, 30, canvas.height)
+      renderer.fillRect(0, canvas.height - 30, canvas.width, 30)
       renderer.restore()
     }
 
 
     def drawAgent(memer: Agent): Unit = {
 
-      val screenCoords = memer.loc.toPixelCoordinates(canvas.width, canvas.height)
+      val screenCoords = memer.loc.toPixelCoordinates(canvas.width - 2*30, canvas.height - 2*30)
+
 
       def drawBody: Unit = {
         renderer.save()
@@ -64,7 +65,7 @@ object ScalaJSExample {
       }
 
       def drawLoS: Unit = {
-        renderer.fillStyle = "cyan"
+        renderer.fillStyle = "blue"
         (memer.viewAngles zip memer.distances).foreach { case (angle, distance) =>
           renderer.save()
           renderer.rotate(angle)
@@ -72,16 +73,25 @@ object ScalaJSExample {
           renderer.save()
           renderer.beginPath()
           renderer.translate(26,0)
-          if (distance > 3000)
-            renderer.fillStyle = "blue"
-          else
-            renderer.fillStyle = "red"
+
 
           renderer.arc(0, 0, 5.0, 0, Math.PI*2.0, false)
           renderer.fill()
           renderer.restore()
 
           renderer.translate(30,0)
+
+          if (distance > 3000)
+            renderer.fillStyle = "rgb(0, 255, 255)"
+          else {
+            val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))
+            println((badness*255.0).toInt)
+            val badnessc = (badness*255.0).toInt
+            val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
+            println(memeString)
+            renderer.fillStyle = memeString
+          }
+
           renderer.fillRect(0, -4, 180, 8)
           renderer.restore()
         }
@@ -89,6 +99,7 @@ object ScalaJSExample {
 
       renderer.save()
 
+      renderer.translate(40, 40)
       renderer.translate(screenCoords.x, screenCoords.y)
 
       renderer.rotate(Math.PI)
@@ -103,6 +114,7 @@ object ScalaJSExample {
       renderer.save();
       drawAgent(agent)
       drawWalls
+      renderer.fillStyle = "black"
       val memeString1 = s"x: ${wallAvoider.loc.x}"
       val memeString2 = s"y: ${wallAvoider.loc.y}"
       val eyeString1 = s"eye 1: ${wallAvoider.distances(0)}"
@@ -122,75 +134,15 @@ object ScalaJSExample {
 
     def run: Unit = {
       renderer.clearRect(0, 0, canvas.width, canvas.height)
-      val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(0.3, -0.3))
+      renderer.fillStyle = "rgb(212, 212, 212)"
+      renderer.fillRect(0, 0, canvas.width, canvas.height)
+      val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(-0.1, 0.2))
       wallAvoider = nextAgent
       draw(nextAgent)
     }
 
-    js.timers.setInterval(50) {
+    js.timers.setInterval(20) {
       run
-    }
-
-    {
-      /*game logic*/
-
-      // def runLive() = {
-      //   frame += 2
-
-      //   if (frame >= 0 && frame % obstacleGap == 0)
-      //     obstacles.enqueue(Random.nextInt(canvas.height - 2 * holeSize) + holeSize)
-
-      //   if (obstacles.length > 7){
-      //     obstacles.dequeue()
-      //     frame -= obstacleGap
-      //   }
-
-
-      //   playerY = playerY + playerV
-      //   playerV = playerV + gravity
-
-      //   renderer.fillStyle = "darkblue"
-      //   for((holeY, i) <- obstacles.zipWithIndex){
-      //     val holeX = i * obstacleGap - frame + canvas.width
-      //     renderer.fillRect(holeX, 0, 5, holeY - holeSize)
-      //     renderer.fillRect(holeX, holeY + holeSize, 5, canvas.height - holeY - holeSize)
-
-      //     if (math.abs(holeX - canvas.width/2) > 5 &&
-      //           math.abs(holeY - playerY) > holeSize){
-
-      //       dead = 50
-      //     }
-      //   }
-
-      //   renderer.fillStyle = "darkgreen"
-      //   renderer.fillRect(canvas.width /2 - 5, playerY - 5, 10, 10)
-
-      //   if (playerY < 0 || playerY > canvas.height){
-      //     dead = 50
-      //   }
-      // }
-
-      // def runDead() = {
-      //   playerY = canvas.height / 2
-      //   playerV = 0
-      //   frame = -50
-      //   obstacles.clear()
-      //   dead -= 1
-      //   renderer.fillStyle = "darkred"
-      //   renderer.fillText("Game Over", canvas.width / 2, canvas.height / 2)
-      // }
-
-      // def run() = {
-      //   renderer.clearRect(0,0, canvas.width, canvas.height)
-      //   if( dead > 0) runDead()
-      //   else runLive()
-      // }
-
-      // dom.setInterval(run _, 20)
-
-      // canvas.onclick = (e: dom.MouseEvent) => {
-      //   playerV -= 5
-      // }
     }
   }
 }

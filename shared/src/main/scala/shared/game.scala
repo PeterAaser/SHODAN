@@ -67,17 +67,17 @@ object wallAvoid {
     val xDistance = xWallDistance/math.abs(math.cos(angleRad))
     val yDistance = yWallDistance/math.abs(math.sin(angleRad))
 
-    println(s"angle: $angleRad")
-    println(s"x unit direction: $xUnitDir")
-    println(s"y unit direction: $yUnitDir")
-    println(s"x normal dist: $xWallDistance")
-    println(s"y normal dist: $yWallDistance")
-    println(s"x perceived distance: $xDistance")
-    println(s"y perceived distance: $yDistance")
-    println(s"some angle ${math.cos(angleRad)}")
-    println(s"some other angle ${math.sin(angleRad)}")
-    println("\n\n")
-    println("----")
+    // println(s"angle: $angleRad")
+    // println(s"x unit direction: $xUnitDir")
+    // println(s"y unit direction: $yUnitDir")
+    // println(s"x normal dist: $xWallDistance")
+    // println(s"y normal dist: $yWallDistance")
+    // println(s"x perceived distance: $xDistance")
+    // println(s"y perceived distance: $yDistance")
+    // println(s"some angle ${math.cos(angleRad)}")
+    // println(s"some other angle ${math.sin(angleRad)}")
+    // println("\n\n")
+    // println("----")
 
     if(math.abs(xDistance) > math.abs(yDistance)) yDistance else xDistance
   }
