@@ -71,8 +71,9 @@ object Assemblers {
   , sendBufferSize: Int
   , receiveBufferSize: Int
   , keepAlive: Boolean
-  , noDelay: Boolean)
-      : (Stream[F,Byte], Sink[F,Byte]) = {
+  , noDelay: Boolean
+  , process: Pipe[F,Int,List[Double]])
+      : (F[Unit]) = {
 
     import utilz._
     import namedACG._
@@ -89,7 +90,16 @@ object Assemblers {
         , receiveBufferSize
         , keepAlive
         , noDelay
-    )
+    ).flatMap
+    { λ: Socket[F] => {
+       λ.reads(256, None)
+         .through(utilz.bytesToInts)
+         .through(process)
+         .through(utilz.chunkify)
+         .through(utilz.doubleToByte)
+         .through(λ.writes(None))
+     }
+    }.run
   }
 
   def assembleExperiment[F[_]: Async](
@@ -104,10 +114,7 @@ object Assemblers {
     sampleRate: Int,
     channels: Int
 
-  ) = {
-
-    val (inStream, outSink: Sink[F,Byte]) =
-      assembleIO(ip, port, reuseAddress, sendBufferSize, receiveBufferSize, keepAlive, noDelay)
+  ): F[Unit] = {
 
     // how many bytes of each channel?
     val sweepSize = 64
@@ -118,18 +125,16 @@ object Assemblers {
     val neuroProcess: Pipe[F,Int,List[Double]] =
       assembleProcess(channels, sweepSize, samplesPerSpike)
 
-    val serializeOutput: Pipe[F,List[Double],Byte] =
-      _.through(utilz.chunkify).through(utilz.doubleToByte)
-
-    val decodeInput: Pipe[F,Byte,Int] =
-      _.through(utilz.bytesToInts)
-
-    val experiment = inStream
-      .through(decodeInput)
-      .through(neuroProcess)
-      .through(serializeOutput)
-      .through(outSink)
-
-    experiment.run
+    val experiment = assembleIO(
+        ip
+      , port
+      , reuseAddress
+      , sendBufferSize
+      , receiveBufferSize
+      , keepAlive
+      , noDelay
+      , neuroProcess
+    )
+    experiment
   }
 }

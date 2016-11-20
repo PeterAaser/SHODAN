@@ -36,6 +36,12 @@ lazy val closedLoop = (project in file("closed-loop")).
       , "org.scodec" %% "scodec-protocols" % "1.0.2"
       , "org.scodec" %% "scodec-stream" % "1.0.1"
       , "com.chuusai" %% "shapeless" % "2.3.2"
+      // , "com.typesafe.akka" % "akka-http-core_2.11" % "3.0.0-RC1"
+      , "com.typesafe.akka" % "akka-http" % "3.0.0-RC1"
+      , "com.lihaoyi" % "upickle_2.11" % "0.4.4"
+
+
+
     )
  ).aggregate(clients.map(projectToRef): _*)
   .dependsOn(sharedJvm)
@@ -69,3 +75,5 @@ import com.lihaoyi.workbench.Plugin._
 workbenchSettings.filterNot(p => p.key.key == extraLoggers.scopedKey.key)
 
 bootSnippet := "example.ScalaJSExample().main(document.getElementById('canvas'));"
+
+Revolver.settings

@@ -44,7 +44,7 @@ object neurIO {
   , receiveBufferSize: Int
   , keepAlive: Boolean
   , noDelay: Boolean)
-      : (Stream[F, Byte], Sink[F, Byte]) = {
+      : (Stream[F, Socket[F]]) = {
 
     val address = new InetSocketAddress(ip, port)
 
@@ -59,15 +59,6 @@ object neurIO {
       , noDelay
     )
 
-    // very sorry. FlatMap must return a stream.
-    // There is surely a better way than whatever the fuck this thing is
-    var s: Sink[F,Byte] = {
-      def go: Handle[F,Byte] => Pull[F,Unit,Unit] = h => {
-        h.receive1 { (d, h) => go(h)}}
-      _.pull(go)
-    }
-
-    (clientStream.flatMap { x => s = x.writes(None); x.reads(256, None)},
-     s)
+    clientStream
   }
 }
