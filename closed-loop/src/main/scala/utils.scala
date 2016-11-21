@@ -197,4 +197,10 @@ object utilz {
 
     _.pull(go)
   }
+
+  def observerPipe[F[_]: Async](observer: Sink[F,Byte]): Pipe[F,List[Double],List[Double]] = { s =>
+
+    pipe.observeAsync(s, 256)(_.through(utilz.chunkify).through(utilz.doubleToByte).through(observer))
+  }
 }
+

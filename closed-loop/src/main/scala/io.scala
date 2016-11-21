@@ -62,3 +62,35 @@ object neurIO {
     clientStream
   }
 }
+
+object neuroServer {
+
+  import utilz._
+  import namedACG._
+
+  implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
+
+  val ip = "129.241.111.251"
+  val port = 9898
+  val address = new InetSocketAddress(ip, port)
+
+  val reuseAddress = true
+  val sendBufferSize = 256*1024
+  val receiveBufferSize = 256*1024
+  val keepAlive = true
+  val noDelay = true
+
+  def createObserverStream[F[_]: Async]:Stream[F,Socket[F]] = {
+
+    val clientStream: Stream[F,Socket[F]] = client(
+      address
+        , reuseAddress
+        , sendBufferSize
+        , receiveBufferSize
+        , keepAlive
+        , noDelay
+    )
+
+    clientStream
+  }
+}

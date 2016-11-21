@@ -72,8 +72,10 @@ object Assemblers {
   , receiveBufferSize: Int
   , keepAlive: Boolean
   , noDelay: Boolean
-  , process: Pipe[F,Int,List[Double]])
-      : (F[Unit]) = {
+  , process: Pipe[F,Int,List[Double]]
+  , observer: Sink[F,Byte]
+  )
+      : (Stream[F,Unit]) = {
 
     import utilz._
     import namedACG._
@@ -92,14 +94,20 @@ object Assemblers {
         , noDelay
     ).flatMap
     { λ: Socket[F] => {
-       λ.reads(256, None)
+
+       val obsPipe = utilz.observerPipe(observer)
+
+       val s = λ.reads(256, None)
          .through(utilz.bytesToInts)
          .through(process)
+         .through(obsPipe)
          .through(utilz.chunkify)
          .through(utilz.doubleToByte)
          .through(λ.writes(None))
+
+       s
      }
-    }.run
+    }
   }
 
   def assembleExperiment[F[_]: Async](
@@ -116,6 +124,13 @@ object Assemblers {
 
   ): F[Unit] = {
 
+    import utilz._
+    import namedACG._
+
+    import fs2.io.tcp._
+    import java.net.InetSocketAddress
+    import java.nio.channels.AsynchronousChannelGroup
+
     // how many bytes of each channel?
     val sweepSize = 64
 
@@ -125,16 +140,27 @@ object Assemblers {
     val neuroProcess: Pipe[F,Int,List[Double]] =
       assembleProcess(channels, sweepSize, samplesPerSpike)
 
-    val experiment = assembleIO(
-        ip
-      , port
-      , reuseAddress
-      , sendBufferSize
-      , receiveBufferSize
-      , keepAlive
-      , noDelay
-      , neuroProcess
-    )
-    experiment
+    val serverS = neuroServer.createObserverStream
+
+    serverS.flatMap
+    { λ: Socket[F] => {
+
+       val writeSink = λ.writes(None)
+       val readStream = λ.reads(256, None)
+
+       val experiment: Stream[F,Unit] = assembleIO(
+         ip
+           , port
+           , reuseAddress
+           , sendBufferSize
+           , receiveBufferSize
+           , keepAlive
+           , noDelay
+           , neuroProcess
+           , writeSink
+       )
+       experiment
+     }
+    }.run
   }
 }

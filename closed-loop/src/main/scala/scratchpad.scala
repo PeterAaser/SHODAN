@@ -574,3 +574,37 @@ object typeClutter {
     */
 
 }
+
+object Fugger2 {
+
+  import akka.actor.ActorSystem
+  import akka.http.scaladsl.model.ws.{ Message, TextMessage }
+  import akka.stream.stage._
+
+  import scala.concurrent.duration._
+
+  import akka.http.scaladsl.server.Directives
+  import akka.stream.Materializer
+  import akka.stream.scaladsl.Flow
+
+  import upickle.default._
+
+  import akka.actor.ActorSystem
+  import akka.http.scaladsl.Http
+  import akka.stream.ActorMaterializer
+  import scala.util.{ Success, Failure }
+
+  object Boot {
+    implicit val system = ActorSystem()
+    import system.dispatcher
+    implicit val materializer = ActorMaterializer()
+
+    // val config = system.settings.config
+    val interface = "localhost"
+    val port = 1488
+
+    // val service = new Webservice
+  }
+
+
+}
