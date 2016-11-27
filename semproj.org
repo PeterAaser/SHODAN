@@ -1,0 +1,192 @@
+* Abstract
+** Introduce reservoir computing, neurons as reservoir.
+** Introduce setup
+*** Possibly refer to diagram from initial proposal
+*** TODO Find out which paper the figure is from, should be in the read papers folder.
+** Possibly introduce work on RBN as suggested by Tufte to investigate and control attractor length
+** Introduce results
+
+   
+
+* Introduction
+
+** Introduce reservoir computing
+*** Possibly with RBN as example?
+** Motivate, i.e why neurons, and why use reservoir computing as context
+** Introduce what has actually been implemented architecture-wise
+*** Overview of MCS lab equipment
+*** Previous work done by Potter labs (hybrots, neurorighter)
+*** Our system
+
+
+   Reservoir Computing is a novel approach to machine learning, using reservoirs containing dynamic complex
+   systems as computational elements. Many different systems have been used as reservoirs, ranging from
+   virtual reservoirs containing random boolean networks, recurrent neural nets, to real physical systems
+   such as nano-carbon tubes.
+   Building on previous work we investigate using in-vitro neuron cultures as reservoirs,
+   TODO
+
+   In this paper we describe the necessary infrastructure for embodying neuronal cultures 
+   in order to perform closed loop experiments. Next we outline experiments 
+
+* Background
+
+** Briefly on reservoir computing
+   Reservoir computing is an approach to machine learning inspired by "naturally occurring computation"
+   such as in the human brain, or the organization of cells in ???.
+   More generally, a reservoir is a complex nonlinear system with irreducible properties
+   which we attempt to exploit in order to solve difficult problems such as classification.
+   
+   Linearly separable input output, detecting spikes vs more abstract spike encoding
+
+
+** Alternative reservoirs
+   Describe more recent reservoirs
+   
+
+** Post and preprocessing
+   This section should motivate why data is post and preprocessed wrt reservoir computing.
+   An important point is to show that these layers have no history, thus showing that a 
+   reservoir can help the agent to do some task it would be unable to perform with a linear
+   "uninteresting" reservoir. (even though a source of randomness would probably be enough 
+   for wall avoidance which should probably be emphasized). 
+
+** MCS
+*** Should the specifics of our system be listed here, or simply an overview of typical MCS systems?
+    To perform experiments a MEA2100 system has been purchased from multichannel systems.
+    The MEA2100 system is built to conduct experiments on in-vitro cell cultures, 
+    specifically (but not exclusively) neurons.
+    The principal components of the MEA2100 systems are:
+
+*** Micro electrode array
+    To experiment on the properties of cells or other electrically active subjects the
+    micro electrode array (MEA) is used. As the name implies the MEA is equipped with
+    an array of electrodes able to both measure the electrical properties of the 
+    experiment subjects, as well as applying outside stimuli, acting in a sense as
+    output and input for the subject.
+
+*** Headstage
+    The electrodes of the MEAs are measured and stimulated by the headstage which
+    contains the necessary high precision electronics needed for microvolt range readings.
+    
+    TODO skriv mer etter MCS besøk.
+*** Headstage
+*** STG (and the DSP)
+
+** Potter labs 
+*** Chapter 1 Computing with instinct
+*** TODO Find out which paper had the really informative neuron reservoir figure
+
+** Brief on neurons
+   Neurons are vastly complex entities, communicating through complex electric
+   and chemical signals. However, since we are more interested in the emergent
+   properties of neurons in the context of reservoir computing a superficial
+   description suffices.
+   We will only consider a generalized version of the neuron, but in our
+   experiments a plethora of different neurons are used, although they
+   all share the basic similarities described here.
+   The anatomy of a neuron is shown in fig TODO
+   Roughly we can divide a neuron into the following parts:
+*** Soma
+    The body of the cell, not interesting
+
+*** Dendrites
+    Short range, incoming from axons
+    
+*** Axon
+    Long range
+
+*** Axon Hillock
+    The "stem" of an axon, usually the starting point
+
+*** Axon terminals
+    Take a wild guess.
+    
+** Action Potentials
+   Neurons maintain an electric membrane potential by separating negative and 
+   positive ions with an insulated membrane.
+   When excited, something cool happens
+
+
+* Methodology
+  The closed loop system is a refinement of the neuro-robot architecture used in
+  (cite Application of dissasociated neural networks in closed loop hybrid systems).
+  The architecture has three different areas of concern:
+
+** Areas of concern
+*** Data acquisition
+   Data acquisition is the task of configuring the MEA2100, collecting 
+   data from the MEA2100 and triggering stimuli. The data acquisition software is
+   responsible only for sending unprocessed data and receiving stimuli requests, it 
+   does not do any processing of data. The data acquisition software should send and
+   receive data via TCP/IP, allowing remote access to the neurons.
+
+*** Data processing
+   The next area of concern is processing raw waveform data and decoding it into actions
+   that can be performed by an agent. A typical processing flow is receiving and buffering 
+   raw waveform data from a TCP socket, performing spike detection on this buffered data 
+   and then feeding the spike data into a feed forward neural network.
+   
+   The data processor is also responsible for receiving sensor data from the agent module.
+   A typical processing flow is receiving wall distance from an agents sensors, translating
+   these into spike train requests sent to the data acquisition module.
+
+*** Agent control
+   The last area of concern is the actual embodiment of the neuronal culture.
+   The agent control reads decoded neural input from the signal processor which it
+   translates into commands for an agent. This agent can be a simple simulated agent 
+   or a fully fledged robot
+
+** Implementation 
+   By separating the areas of concern and using a simple TCP/IP protocol to glue them
+   together the closed loop system can accommodate different modules as long as they
+   adhere to their areas of concern.
+
+   For this project two separate software modules have been implemented:
+
+*** MEAME
+    MEAME is responsible for data-acquisition and transmission. It is written in C#
+    and interfaces with an API provided by multichannel systems.
+    It features an API exposing the MEA to the internet by sending a TCP stream with
+    raw channel data, and accepting a stream of data for configuring stimuli.
+
+*** SHODAN
+    SHODAN is a framework for composing reservoir computing experiments written in scala.
+    The advantage of using a generic representation of reservoir computing systems is
+    that we can blah blah blah
+    SHODAN comes 
+
+** Describe the preproccesing and postprocessing of data
+   SHODAN 
+
+* Experiments
+** Should describe the experiments using the infrastructure
+*** Playing a simple game to show that we can use an arbitrary untrained neuron culture.
+*** Possibly see if we can train a culture using absence of stimuli. After training see if culture performs better on untrained tasks.
+*** The actual robot, Martinius should be on the case.
+
+* Results
+** TODO get some hot results
+
+* Discussion
+** TODO discuss some hot results
+* Conclusion
+
+
+* Text 
+  Keywords: self-organization, biological neuronal networks, cyborg, brain, robots, learning, neural computation, reservoir computing.
+  The NTNU Cyborg (https://www.ntnu.edu/cyborg)
+  Through NTNU biotechnology and NTNU ICT initiatives (part of the NTNU enabling technolgies), a project to develop a Cyborg (cybernetic organism), a combination of machine and living tissue, has been started. In this project, the aim is to enable communication between living nerve tissue and a robot. This project will raise awareness for biotechnology and ICT, bringing NTNU in the forefront of research and creating a platform for interdisciplinary collaborations and teaching.
+  Within this specialization project and master thesis, there will be a collaboration with the Departments of Neuroscience/Nanomedicine located at St. Olav Hospital and the Department of Engineering Cybernetics.
+  In particular, the goal is to contribute to the Cyborg infrastructure by buildind/testing the infrastructure for connecting alive neuronal cultures through a Micro-Electrode Array (MEA) that can be programmed to stimulate and record neural activity. The goal is to use such signals to control a real or simulated robot (e.g. Khepera robot). An intermediate layer will be used to process the neural signals, based on a feed forward artificial neural network (ANN), which will treat the biological network as a Reservoir of Computation.
+  Some tasks:
+  - connect and test MEA infrastructure
+  - record spontaneous neural activity and make sense of data / patterns
+  - apply neural stimulation and monitor input/output behavior
+  - close the loop: robot controlled by biological reservoir
+  The work may include some of the following tasks:
+  • Reading and thinking
+  • Experimenting
+  • Programming in C or Python (or other language that you are familiar with)
+  Initial Reading:
+  K. Warwick et al., Experiments with an in-vitro robot brain
