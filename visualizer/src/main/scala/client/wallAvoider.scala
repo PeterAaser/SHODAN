@@ -141,8 +141,15 @@ object ScalaJSExample {
       draw(nextAgent)
     }
 
-    js.timers.setInterval(20) {
-      run
+    noIdea
+    // js.timers.setInterval(20) {
+    //   run
+    // }
+
+    def dieFugger(a: dom.MessageEvent): Unit = {
+      println(a)
+      println(a.data)
+      println(a.data.toString)
     }
 
     def receive(e: dom.MessageEvent): Unit = {
@@ -164,11 +171,14 @@ object ScalaJSExample {
       draw(nextAgent)
     }
 
-    // def noIdea: Unit = {
-    //   val someUri = "ws://localhost:1488"
-    //   val socket = new dom.WebSocket(someUri)
-    //   socket.onmessage = receive _
+    def noIdea: Unit = {
+      val someUri = "ws://127.0.0.1:9897"
+      val socket = new dom.WebSocket(someUri)
+      socket.onmessage = dieFugger _
 
-    // }
+      js.timers.setInterval(20) {
+        socket.send("hello")
+      }
+    }
   }
 }

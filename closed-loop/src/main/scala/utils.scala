@@ -160,6 +160,7 @@ object utilz {
       h.receive1 {
         (d, h) => {
           val le_bytes = doubleToByteArray(d)
+          println(s"doubles 2 bytes seent $d which was packed to $le_bytes")
           Pull.output(Chunk.seq(le_bytes)) >> go(h)
         }
       }
@@ -198,9 +199,14 @@ object utilz {
     _.pull(go)
   }
 
-  def observerPipe[F[_]: Async](observer: Sink[F,Byte]): Pipe[F,List[Double],List[Double]] = { s =>
+  def observerPipe[F[_]: Async](observer: Sink[F,Byte]):
+      Pipe[F,(List[Double], List[Double]),(List[Double], List[Double])] = { s =>
 
-    pipe.observeAsync(s, 256)(_.through(utilz.chunkify).through(utilz.doubleToByte).through(observer))
+    pipe.observeAsync(s, 256)(
+      _.through(_.map(_._2))
+        .through(utilz.chunkify)
+        .through(utilz.doubleToByte)
+        .through(observer))
   }
 }
 

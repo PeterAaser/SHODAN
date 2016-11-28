@@ -9,7 +9,9 @@ object Assemblers {
   def assembleProcess[F[_]:Async]
     ( channels: Int
     , sweepSize: Int
-    , samplesPerSpike: Int): Pipe[F,Int,List[Double]] = neuronInputs => {
+    , samplesPerSpike: Int
+    , observer: Sink[F,Byte]):
+      Pipe[F,Int,List[Double]] = neuronInputs => {
 
     import neurIO._
     import utilz._
@@ -58,7 +60,9 @@ object Assemblers {
       spikePatterns.through(pipe)
     }
 
-    val gamePipe = agentPipe.wallAvoidancePipe[F]
+    val obsPipe = utilz.observerPipe(observer)
+
+    val gamePipe = agentPipe.wallAvoidancePipe[F](obsPipe)
     val gameOutput = processedSpikes.through(gamePipe)
     gameOutput
   }
@@ -100,7 +104,6 @@ object Assemblers {
        val s = λ.reads(256, None)
          .through(utilz.bytesToInts)
          .through(process)
-         .through(obsPipe)
          .through(utilz.chunkify)
          .through(utilz.doubleToByte)
          .through(λ.writes(None))
@@ -137,8 +140,6 @@ object Assemblers {
     // How many samples should we look at to detect a spike?
     val samplesPerSpike = 128
 
-    val neuroProcess: Pipe[F,Int,List[Double]] =
-      assembleProcess(channels, sweepSize, samplesPerSpike)
 
     val serverS = neuroServer.createObserverStream
 
@@ -147,6 +148,9 @@ object Assemblers {
 
        val writeSink = λ.writes(None)
        val readStream = λ.reads(256, None)
+
+       val neuroProcess: Pipe[F,Int,List[Double]] =
+         assembleProcess(channels, sweepSize, samplesPerSpike, writeSink)
 
        val experiment: Stream[F,Unit] = assembleIO(
          ip
