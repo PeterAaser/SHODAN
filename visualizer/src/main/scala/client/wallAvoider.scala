@@ -31,10 +31,10 @@ object ScalaJSExample {
 
     val PI = 3.14
 
-    var wallAvoider = wallAvoid.Agent(
-      wallAvoid.Coord(8000.0, 4000.0),
-      PI/2.0,
-      120)
+    // var wallAvoider = wallAvoid.Agent(
+    //   wallAvoid.Coord(8000.0, 4000.0),
+    //   PI/2.0,
+    //   120)
 
     def drawWalls: Unit = {
       renderer.save()
@@ -85,10 +85,8 @@ object ScalaJSExample {
             renderer.fillStyle = "rgb(0, 255, 255)"
           else {
             val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))
-            println((badness*255.0).toInt)
             val badnessc = (badness*255.0).toInt
             val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
-            println(memeString)
             renderer.fillStyle = memeString
           }
 
@@ -115,12 +113,12 @@ object ScalaJSExample {
       drawAgent(agent)
       drawWalls
       renderer.fillStyle = "black"
-      val memeString1 = s"x: ${wallAvoider.loc.x}"
-      val memeString2 = s"y: ${wallAvoider.loc.y}"
-      val eyeString1 = s"eye 1: ${wallAvoider.distances(0)}"
-      val eyeString2 = s"eye 2: ${wallAvoider.distances(1)}"
-      val eyeString3 = s"eye 3: ${wallAvoider.distances(2)}"
-      val eyeString4 = s"eye 4: ${wallAvoider.distances(3)}"
+      val memeString1 = s"x: ${agent.loc.x}"
+      val memeString2 = s"y: ${agent.loc.y}"
+      val eyeString1 = s"eye 1: ${agent.distances(0)}"
+      val eyeString2 = s"eye 2: ${agent.distances(1)}"
+      val eyeString3 = s"eye 3: ${agent.distances(2)}"
+      val eyeString4 = s"eye 4: ${agent.distances(3)}"
       renderer.fillText(memeString1, 200, 200)
       renderer.fillText(memeString2, 200, 230)
       renderer.fillText(eyeString1, 200, 260)
@@ -130,15 +128,12 @@ object ScalaJSExample {
       renderer.restore();
     }
 
-    drawAgent(wallAvoider)
-
-    def run: Unit = {
+    def run(agent: Agent): Unit = {
       renderer.clearRect(0, 0, canvas.width, canvas.height)
       renderer.fillStyle = "rgb(212, 212, 212)"
       renderer.fillRect(0, 0, canvas.width, canvas.height)
-      val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(-0.1, 0.2))
-      wallAvoider = nextAgent
-      draw(nextAgent)
+
+      draw(agent)
     }
 
     noIdea
@@ -147,28 +142,42 @@ object ScalaJSExample {
     // }
 
     def dieFugger(a: dom.MessageEvent): Unit = {
-      println(a)
-      println(a.data)
-      println(a.data.toString)
+
+      val ayy = a.data.toString.split(",")
+        .map(_.replace('[', ' '))
+        .map(_.replace(']', ' '))
+        .map(_.trim)
+        .map(_.toDouble)
+
+
+      val myAgent = Agent(
+        Coord(ayy(0), ayy(1)),
+        ayy(2),
+        120
+      )
+
+      println(myAgent)
+      run(myAgent)
+
     }
 
     def receive(e: dom.MessageEvent): Unit = {
       val data = js.JSON.parse(e.data.toString)
 
       // haha fug x---D
-      wallAvoider = wallAvoider.copy(
-        loc=wallAvoider.loc.copy(
-          x = data.x.toString.toDouble,
-          y = data.y.toString.toDouble
-        ),
-        heading=data.heading.toString.toDouble)
+      // wallAvoider = wallAvoider.copy(
+      //   loc=wallAvoider.loc.copy(
+      //     x = data.x.toString.toDouble,
+      //     y = data.y.toString.toDouble
+      //   ),
+      //   heading=data.heading.toString.toDouble)
 
-      renderer.clearRect(0, 0, canvas.width, canvas.height)
-      renderer.fillStyle = "rgb(212, 212, 212)"
-      renderer.fillRect(0, 0, canvas.width, canvas.height)
-      val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(-0.1, 0.2))
-      wallAvoider = nextAgent
-      draw(nextAgent)
+      // renderer.clearRect(0, 0, canvas.width, canvas.height)
+      // renderer.fillStyle = "rgb(212, 212, 212)"
+      // renderer.fillRect(0, 0, canvas.width, canvas.height)
+      // val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(-0.1, 0.2))
+      // wallAvoider = nextAgent
+      // draw(nextAgent)
     }
 
     def noIdea: Unit = {

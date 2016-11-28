@@ -148,19 +148,25 @@ object utilz {
   }
 
   // Decodes a double stream to a byte stream, not really perf critical
-  def doubleToByte[F[_]]: Pipe[F, Double, Byte] = {
+  def doubleToByte[F[_]](silent: Boolean): Pipe[F, Double, Byte] = {
 
     import java.nio.ByteBuffer
-    def doubleToByteArray(x: Double) = {
+    def doubleToByteArray(x: Double): Array[Byte] = {
       val l = java.lang.Double.doubleToLongBits(x)
-      ByteBuffer.allocate(8).putLong(l).array()
+      val bb = ByteBuffer.allocate(8).putLong(l).array().reverse
+      // if(!silent){
+      // println(s"$x converted to byte array: ")
+      // println(s"${bb(0)} ${bb(1)} ${bb(2)} ${bb(3)} ${bb(4)} ${bb(5)} ${bb(6)} ${bb(7)}")
+      // }
+      bb
     }
 
     def go: Handle[F,Double] => Pull[F,Byte,Unit] = h => {
       h.receive1 {
         (d, h) => {
           val le_bytes = doubleToByteArray(d)
-          println(s"doubles 2 bytes seent $d which was packed to $le_bytes")
+          if(!silent)
+            println(s"doubles 2 bytes seent $d which was packed to $le_bytes")
           Pull.output(Chunk.seq(le_bytes)) >> go(h)
         }
       }
@@ -190,7 +196,7 @@ object utilz {
     def go: Handle[F,Seq[I]] => Pull[F,I,Unit] = h => {
       h.receive1 {
         (v, h) => {
-          println(s"unchunked $v")
+          // println(s"unchunked $v")
           Pull.output(Chunk.seq(v)) >> go(h)
         }
       }
@@ -205,7 +211,7 @@ object utilz {
     pipe.observeAsync(s, 256)(
       _.through(_.map(_._2))
         .through(utilz.chunkify)
-        .through(utilz.doubleToByte)
+        .through(utilz.doubleToByte(false))
         .through(observer))
   }
 }

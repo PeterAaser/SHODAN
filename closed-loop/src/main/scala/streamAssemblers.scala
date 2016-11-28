@@ -51,8 +51,8 @@ object Assemblers {
 
     val FF = Filters.FeedForward(
       List(2, 3, 2)
-        , List(1.0, 2.0, 3.0, 1.0, 2.0)
-        , List(1.0, 2.0, 3.0, 1.0, 2.0, 3.0,1.0, 2.0, 3.0, 1.0, 2.0, 3.0))
+        , List(0.1, 0.2, 0.4, 0.0, 0.3)
+        , List(0.1, -0.2, 0.2, -0.1, 2.0, -0.4, 0.1, -0.2, 0.1, 1.0, 0.3, 0.3))
 
 
     val processedSpikes: Stream[F,List[Double]] = {
@@ -105,7 +105,7 @@ object Assemblers {
          .through(utilz.bytesToInts)
          .through(process)
          .through(utilz.chunkify)
-         .through(utilz.doubleToByte)
+         .through(utilz.doubleToByte(true))
          .through(λ.writes(None))
 
        s

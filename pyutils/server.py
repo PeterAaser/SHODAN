@@ -3,8 +3,9 @@ import thread
 import time
 import array
 import socket
+import struct
 
-direction = [0.0, 0.0]
+direction = [0.0, 0.0, 0.0]
 
 def memeRelay():
   global direction
@@ -19,10 +20,42 @@ def memeRelay():
     try:
       c, addr = s.accept()
       while True:
-        msg = c.recv(256)
-        doubles_seq = array.array('d', msg)
-        print doubles_seq
-        direction = doubles_seq
+        msg1 = c.recv(256)
+        msg2 = c.recv(256)
+        msg3 = c.recv(256)
+
+        # value = struct.unpack('f', msg)[0]
+
+        first = array.array('d', msg1)[0]
+        second = array.array('d', msg2)[0]
+        third = array.array('d', msg3)[0]
+
+        vals = [first, second, third]
+
+        smallest = vals.index(min(vals))
+
+        if(smallest == 0):
+          direction[0] = second
+          direction[1] = third
+          direction[2] = first
+        elif(smallest == 1):
+          direction[0] = third
+          direction[1] = first
+          direction[2] = second
+        else:
+          direction[0] = first
+          direction[1] = second
+          direction[2] = third
+
+        # print("\n\n----")
+        # print(first)
+        # print(second)
+        # print(third)
+        # print("----")
+
+        # direction[0] = first
+        # direction[1] = second
+        # direction[2] = third
 
     finally:
       s.close()
@@ -40,6 +73,8 @@ def client_left(client, server):
   print("client(%d) disconnected" % client['id'])
 
 def message_received(client, server, message):
+  # print("gotted messeg, sended:")
+  # print(str(direction))
   server.send_message_to_all(str(direction))
 
 PORT=9897

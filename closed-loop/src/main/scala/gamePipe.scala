@@ -21,7 +21,10 @@ object agentPipe {
           case(input, h) => {
             val (nextAgent, sensorData) = updateAgent(agent, input)
 
-            Pull.output1( (sensorData, List[Double](nextAgent.loc.x, nextAgent.loc.y)) ) >> go(nextAgent)(h)
+            Pull.output1(
+              (sensorData, List[Double](nextAgent.loc.x, nextAgent.loc.y, nextAgent.heading))
+            ) >>
+              go(nextAgent)(h)
           }
         }
       }
