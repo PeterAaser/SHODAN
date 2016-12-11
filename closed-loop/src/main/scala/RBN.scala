@@ -20,11 +20,18 @@ object BooleanNetwork {
       val next = copy(state = (0 until state.length).toList.map{ index =>
         val connections: List[Int] = connectivity(index)
         val key: Int = connections.zipWithIndex.map { case (element, index) => {
-          if(state(element)) 1 >> index - 1 else 0 }
+          if(state(element)) 1 << index else 0 }
         }.sum
         rules(index)(key)
       })
       (next, next.state)
+    }
+
+    override def toString: String = {
+      "connections:\n" +
+      connectivity +
+        "rules:\n" +
+        rules
     }
   }
 
@@ -101,7 +108,7 @@ object BooleanNetwork {
 
             val choices = Random.shuffle(indices)
             val connection = choices.take(k)
-            val rule = List.fill(k)(Random.nextBoolean)
+            val rule = List.fill(1 << k)(Random.nextBoolean)
 
             (connection :: connections, rule :: rules)
 
@@ -120,9 +127,15 @@ object BooleanNetwork {
 
     def stringify(xs: List[Boolean]): String = ("" /: xs)((µ, λ) => (µ + (if(λ) "#" else " " )))
     def stringify2(xs: List[String]): String = ("" /: xs)((µ, λ) => (µ + "\n" + λ))
-    val net = myRBN(20, 2, 0.5, None)
-    val memes = findAttractor(400)(net)._2.map(stringify(_))
-    println(stringify2(memes))
+    val net = myRBN(30, 2, 0.5, None)
+    println(net)
+    val memes = findAttractor(400)(net)
+    val memes2 = memes._2.map(stringify(_))
+    val memes3 = flatMap(perturb(perturbance1)){_: Unit => findAttractor(400)}(memes._1)
+    val memes4 = memes3._2.map(stringify(_))
+    println(stringify2(memes2))
+    println("perturbing")
+    println(stringify2(memes4))
   }
 
 }
