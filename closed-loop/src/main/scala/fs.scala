@@ -19,7 +19,7 @@ object FsMain {
 
   // import Assemblers._
 
-    BooleanNetwork.rbnTest
+    // BooleanNetwork.rbnTest
 
     implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
     implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)

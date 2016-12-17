@@ -151,7 +151,7 @@ object ScalaJSExample {
 
 
       val myAgent = Agent(
-        Coord(ayy(0), ayy(1)),
+        Coord(ayy(0) + 10000.0, ayy(1) + 10000.0),
         ayy(2),
         120
       )

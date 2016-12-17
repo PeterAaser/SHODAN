@@ -575,36 +575,227 @@ object typeClutter {
 
 }
 
-object Fugger2 {
-
-  import akka.actor.ActorSystem
-  import akka.http.scaladsl.model.ws.{ Message, TextMessage }
-  import akka.stream.stage._
-
-  import scala.concurrent.duration._
-
-  import akka.http.scaladsl.server.Directives
-  import akka.stream.Materializer
-  import akka.stream.scaladsl.Flow
-
-  import upickle.default._
-
-  import akka.actor.ActorSystem
-  import akka.http.scaladsl.Http
-  import akka.stream.ActorMaterializer
-  import scala.util.{ Success, Failure }
-
-  object Boot {
-    implicit val system = ActorSystem()
-    import system.dispatcher
-    implicit val materializer = ActorMaterializer()
-
-    // val config = system.settings.config
-    val interface = "localhost"
-    val port = 1488
-
-    // val service = new Webservice
-  }
-
-
-}
+// object ComponentTraitsDI {
+// 
+//   /**
+//     DI for getting users from a user repository
+//     */
+// 
+//   trait UserRepository {
+//     def get(id: Int): User
+//     def find(username: String): User
+//   }
+// 
+// 
+//   /**
+//     In the cake pattern we use component traits
+//     */
+// 
+//   trait UserRepositoryComponent {
+// 
+//     def userRepository: UserRepository
+// 
+//     trait UserRepository {
+//       def get(id: Int): User
+//       def find(username: String): User
+//     }
+//   }
+// 
+//   /**
+//     We then declare the dependency in abstract classes using self-type declarations
+//     */
+// 
+//   trait Users {
+//     this: UserRepositoryComponent =>
+// 
+//     def getUser(id: Int): User = {
+//       userRepository.get(id)
+//     }
+// 
+//     def findUser(username: String): User = {
+//       userRepository.find(username)
+//     }
+//   }
+// 
+//   /**
+//     Regular old composition
+//     */
+//   trait UserInfo extends Users {
+//     this: UserRepositoryComponent =>
+// 
+//     def userEmail(id: Int): String = {
+//       getUser(id).email
+//     }
+// 
+//     def userInfo(username: String): Map[String, String] = {
+//       val user = findUser(username)
+//       val boss = getUser(user.supervisorId)
+//       Map(
+//         "fullName" -> s"${user.firstName} ${user.lastName}",
+//         "email" -> s"${user.email}",
+//         "boss" -> s"${boss.firstName} ${boss.lastName}"
+//       )
+//     }
+//   }
+// 
+//   /**
+//     We extend the component trait to provide concrete implementations
+//     */
+//   trait UserRepositoryComponentImpl extends UserRepositoryComponent {
+// 
+//     def userRepository = new UserRepositoryImpl
+// 
+//     class UserRepositoryImpl extends UserRepository {
+// 
+//       def get(id: Int) = {
+//         ???
+//       }
+// 
+//       def find(username: String) = {
+//         ???
+//       }
+//     }
+//   }
+// 
+//   /**
+//     We can now create an instance of our class with the dependency
+//     by mixing in a concrete implementation
+//     */
+// 
+//   object UserInfoImpl extends
+//       UserInfo with
+//       UserRepositoryComponentImpl
+// 
+// }
+// 
+// object ImplicitsDI {
+//   /**
+//     We could have achieved something similar using implicits
+//     */
+// 
+//   trait Users {
+// 
+//     def getUser(id: Int)(implicit userRepository: UserRepository) = {
+//       userRepository.get(id)
+//     }
+// 
+//     def findUser(username: String)(implicit userRepository: UserRepository) = {
+//       userRepository.find(username)
+//     }
+//   }
+// 
+//   object UserInfo extends Users {
+// 
+//     def userEmail(id: Int)(implicit userRepository: UserRepository) = {
+//       getUser(id).email
+//     }
+// 
+//     def userInfo(username: String)(implicit userRepository: UserRepository) = {
+//       val user = findUser(username)
+//       val boss = getUser(user.supervisorId)
+// 
+//       Map(
+//         "fullName" -> s"${user.firstName} ${user.lastName}",
+//         "email" -> s"${user.email}",
+//         "boss" -> s"${boss.firstName} ${boss.lastName}"
+//       )
+//     }
+//   }
+// 
+// }
+// 
+// object ReaderDI {
+// 
+//   val triple: Func1[Int,Int] = (i: Int) => i * 3
+//   val thricePlus2: Func1[Int,Int] = triple andThen (i => i + 2)
+// 
+//   val thricePlus2asString: Func1[Int,String] = thricePlus2 andThen (i => i.toString)
+// 
+//   /**
+//     A reader monad has andThen as map over unary functions
+// 
+//     map[A,B,C](u: Func1[A,B])(f: B => C): Func1[A,C] =
+//       u andThen (i: B => f(i))
+// 
+//     flatMap[A,B,C](a: Func1[A,B])(f: B => Func[B,C]): Func[A,C] =
+//       g: A => f(a(g))
+// 
+// 
+//     with scalaz reader we get:
+//     */
+// 
+//   import scalaz.Reader
+// 
+//   val triple_ = Reader((i: Int) => i * 3)
+//   val thricePlus2_ = triple_ map (i => i + 2)
+// 
+//   val f = for (i <- thricePlus2) yield i.toString
+//   // f(3) => "11"
+// 
+// 
+// 
+//   trait Users {
+// 
+//     def getUser(id: Int) = Reader((userRepository: UserRepository) =>
+//       userRepository.get(id)
+//     )
+// 
+//     def findUser(username: String) = Reader((userRepository: UserRepository) =>
+//       userRepository.fing(username)
+//     )
+//   }
+// 
+//   /**
+//     Here the we only work Reader[UserRepository, User], not User
+//     nothing happens until the actual dependency is injected
+//     */
+// 
+//   object UserInfo extends Users {
+// 
+//     def userEmail(id: Int): Reader[UserRepository, String] = {
+//       getUser(id) map (_.email)
+//     }
+// 
+//     // we can (and should?) omit the reader return signature
+//     def userInfo(username: String): Reader[UserRepository, Map[String,String]] =
+//       for {
+//         user <- findUser(username)
+//         boss <- getUser(user.supervisorId)
+//       } yield Map(
+//         "fullName" -> s"${user.firstName} ${user.lastName}",
+//         "email" -> s"${user.email}",
+//         "boss" -> s"${boss.firstName} ${boss.lastName}"
+//       )
+//   }
+// 
+//   /**
+//     Say instead we wanted to add a mail service:
+//     */
+// 
+//   trait Config {
+//     def userRepository: UserRepository
+//     def mailService: MailService
+//   }
+// 
+//   /**
+//     All we'd have to add would be new primitives:
+//     */
+// 
+//   // Very similar to Users
+//   trait Users2 {
+// 
+//     def getUser(id: Int) = Reader((cfg: Config) =>
+//       cfg.userRepository.get(id)
+//     )
+// 
+//     def findUser(username: String) = Reader((cfg: Config) =>
+//       cfg.userRepository.fing(username)
+//     )
+//   }
+//   /**
+//     Bretty huge when we have few underlying primitives and many higher
+//     level readers
+//     */
+// 
+// 
+// }
