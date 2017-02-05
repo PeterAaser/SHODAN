@@ -35,19 +35,8 @@ object FsMain {
     val noDelay = true
 
 
-    val crash =
-      Assemblers.assembleExperiment[Task](
-        ip
-      , port
-      , reuseAddress
-      , sendBufferSize
-      , receiveBufferSize
-      , keepAlive
-      , noDelay
-      , 40000
-      , 4
-      )
+    val crash = neuroServer.runServer[Task]
 
-    val explode = crash.unsafeRunAsyncFuture()
+    val explode = crash.unsafeRun
   }
 }

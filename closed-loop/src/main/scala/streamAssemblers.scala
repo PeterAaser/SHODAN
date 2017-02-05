@@ -13,7 +13,6 @@ object Assemblers {
     , observer: Sink[F,Byte]):
       Pipe[F,Int,List[Double]] = neuronInputs => {
 
-    import neurIO._
     import utilz._
 
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] = alternate(
@@ -65,52 +64,6 @@ object Assemblers {
     val gamePipe = agentPipe.wallAvoidancePipe[F](obsPipe)
     val gameOutput = processedSpikes.through(gamePipe)
     gameOutput
-  }
-
-
-  def assembleIO[F[_]:Async]
-  ( ip: String
-  , port: Int
-  , reuseAddress: Boolean
-  , sendBufferSize: Int
-  , receiveBufferSize: Int
-  , keepAlive: Boolean
-  , noDelay: Boolean
-  , process: Pipe[F,Int,List[Double]]
-  , observer: Sink[F,Byte]
-  )
-      : (Stream[F,Unit]) = {
-
-    import utilz._
-    import namedACG._
-
-    import fs2.io.tcp._
-    import java.net.InetSocketAddress
-    import java.nio.channels.AsynchronousChannelGroup
-
-    neurIO.createClientStream(
-          ip
-        , port
-        , reuseAddress
-        , sendBufferSize
-        , receiveBufferSize
-        , keepAlive
-        , noDelay
-    ).flatMap
-    { λ: Socket[F] => {
-
-       val obsPipe = utilz.observerPipe(observer)
-
-       val s = λ.reads(256, None)
-         .through(utilz.bytesToInts)
-         .through(process)
-         .through(utilz.chunkify)
-         .through(utilz.doubleToByte(true))
-         .through(λ.writes(None))
-
-       s
-     }
-    }
   }
 
   def assembleExperiment[F[_]: Async](

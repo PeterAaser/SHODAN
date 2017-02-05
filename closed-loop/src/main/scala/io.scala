@@ -21,47 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.language.higherKinds
 
-object neurIO {
-
-  import utilz._
-  import namedACG._
-
-  val ip = "129.241.111.251"
-  val port = 1248
-  val address = new InetSocketAddress(ip, port)
-
-  val reuseAddress = true
-  val sendBufferSize = 256*1024
-  val receiveBufferSize = 256*1024
-  val keepAlive = true
-  val noDelay = true
-
-  def createClientStream[F[_]: Async]
-  ( ip: String
-  , port: Int
-  , reuseAddress: Boolean
-  , sendBufferSize: Int
-  , receiveBufferSize: Int
-  , keepAlive: Boolean
-  , noDelay: Boolean)
-      : (Stream[F, Socket[F]]) = {
-
-    val address = new InetSocketAddress(ip, port)
-
-    implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
-
-    val clientStream: Stream[F,Socket[F]] = client(
-        address
-      , reuseAddress
-      , sendBufferSize
-      , receiveBufferSize
-      , keepAlive
-      , noDelay
-    )
-
-    clientStream
-  }
-}
 
 object neuroServer {
 
@@ -72,8 +31,12 @@ object neuroServer {
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
+  def createInetSockAddress(ip: String, port: String): InetSocketAddress = {
+    new InetSocketAddress("0", 0)
+  }
 
-  def getLineChunk[F[_]](socket: Socket[Task]): F[Option[Chunk[Byte]]] = socket.read(1024)
+
+  def getLineChunk[F[_]](socket: Socket[F]): F[Option[Chunk[Byte]]] = socket.read(1024)
   def getLine[F[_]](l: Option[Chunk[Byte]]) = {
     l.map{λ => new String(λ.toArray)}.getOrElse("Nil")
   }
@@ -96,35 +59,48 @@ object neuroServer {
 
   val maxQueued = 3
 
-  val s: Stream[Task, Stream[Task, Socket[Task]]] =
-    server[Task](socketAddress, maxQueued, reuseAddress, 1024)
+  def s[F[_]: Async]: Stream[F, Stream[F, Socket[F]]] =
+    server[F](socketAddress, maxQueued, reuseAddress, 1024)
 
-  def handleConnection(socket: Stream[Task, Socket[Task]]): Stream[Task, Unit] = {
+  def handleConnection[F[_]: Async](socket: Stream[F, Socket[F]]): Stream[F, Unit] = {
     socket.flatMap {
-      socket: Socket[Task] => {
+      socket: Socket[F] => {
 
         println("new connection")
-        val readStream: Stream[Task, Byte] = socket.reads(1024)
-        val writeStream: Sink[Task, Byte] = socket.writes(None)
+        val readStream: Stream[F, Byte] = socket.reads(1024)
+        val writeStream: Sink[F, Byte] = socket.writes(None)
 
         val meme = for {
-          reservoirIP <- getLineChunk[Task](socket)
-          reservoirPort <- getLineChunk[Task](socket)
+          reservoirIP <- getLineChunk[F](socket)
+          reservoirPort <- getLineChunk[F](socket)
 
-          visualizerIP <- getLineChunk[Task](socket)
-          visualizerPort <- getLineChunk[Task](socket)
+          visualizerIP <- getLineChunk[F](socket)
+          visualizerPort <- getLineChunk[F](socket)
         } yield {
           println(reservoirIP)
           println(reservoirPort)
           println(visualizerIP)
           println(visualizerPort)
-          // some task of unit
+
+          val cheat1 = new InetSocketAddress("129.241.111.251", 9898)
+          val cheat2 = new InetSocketAddress("129.241.111.251", 9898)
+
+          assembleIO(cheat1, cheat2)
+
         }
 
-        ???
+        val meme2 = Stream.eval(meme).flatMap { λ => Stream.eval(λ) }
+        meme2
       }
     }
   }
+
+  def runServer[F[_]: Async]: F[Unit] =
+    s.flatMap {  socket: Stream[F, Socket[F]] =>
+      {
+        handleConnection(socket)
+      }
+    }.run
 
   def assembleIO[F[_]: Async](
     reservoir: InetSocketAddress,
