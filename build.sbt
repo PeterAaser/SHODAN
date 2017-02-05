@@ -26,7 +26,6 @@ lazy val closedLoop = (project in file("closed-loop")).
       , "com.typesafe.akka" % "akka-stream_2.11" % "2.4.11"
       , "co.fs2" %% "fs2-core" % "0.9.0"
       , "co.fs2" %% "fs2-io" % "0.9.0"
-      // , "com.github.mpilquist" %% "simulacrum" % "0.10.0"
       , "org.scalactic" %% "scalactic" % "3.0.0"
       , "org.scalactic" %% "scalactic" % "3.0.0" % "test"
       , "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
@@ -36,12 +35,9 @@ lazy val closedLoop = (project in file("closed-loop")).
       , "org.scodec" %% "scodec-protocols" % "1.0.2"
       , "org.scodec" %% "scodec-stream" % "1.0.1"
       , "com.chuusai" %% "shapeless" % "2.3.2"
-      // , "com.typesafe.akka" % "akka-http-core_2.11" % "3.0.0-RC1"
       , "com.typesafe.akka" % "akka-http" % "3.0.0-RC1"
       , "com.lihaoyi" % "upickle_2.11" % "0.4.4"
       , "org.scalaz" %% "scalaz-core" % "7.2.8"
-
-
 
     )
  ).aggregate(clients.map(projectToRef): _*)
