@@ -114,18 +114,14 @@ object Assemblers {
   }
 
   def assembleExperiment[F[_]: Async](
-    ip: String,
-    port: Int,
-    reuseAddress: Boolean,
-    sendBufferSize: Int,
-    receiveBufferSize: Int,
-    keepAlive: Boolean,
-    noDelay: Boolean,
+    meameReadStream: Stream[F, Byte],
+    meameWriteSink: Sink[F, Byte],
+    visualizerWriteSink: Sink[F, Byte],
 
     sampleRate: Int,
     channels: Int
 
-  ): F[Unit] = {
+  ): Stream[F, Unit] = {
 
     import utilz._
     import namedACG._
@@ -140,31 +136,22 @@ object Assemblers {
     // How many samples should we look at to detect a spike?
     val samplesPerSpike = 128
 
+    val process: Pipe[F, Int, List[Double]] = assembleProcess(
+      channels,
+      sweepSize,
+      samplesPerSpike,
+      visualizerWriteSink
+    )
 
-    val serverS = neuroServer.createObserverStream
+    val meme =
+      meameReadStream
+        .through(utilz.bytesToInts)
+        .through(process)
+        .through(utilz.chunkify)
+        .through(utilz.doubleToByte(true))
+        .through(meameWriteSink)
 
-    serverS.flatMap
-    { λ: Socket[F] => {
+    meme
 
-       val writeSink = λ.writes(None)
-       val readStream = λ.reads(256, None)
-
-       val neuroProcess: Pipe[F,Int,List[Double]] =
-         assembleProcess(channels, sweepSize, samplesPerSpike, writeSink)
-
-       val experiment: Stream[F,Unit] = assembleIO(
-         ip
-           , port
-           , reuseAddress
-           , sendBufferSize
-           , receiveBufferSize
-           , keepAlive
-           , noDelay
-           , neuroProcess
-           , writeSink
-       )
-       experiment
-     }
-    }.run
   }
 }
