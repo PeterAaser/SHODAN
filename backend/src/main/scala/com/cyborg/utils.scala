@@ -1,4 +1,4 @@
-package SHODAN
+package com.cyborg
 
 import fs2._
 import fs2.Stream._

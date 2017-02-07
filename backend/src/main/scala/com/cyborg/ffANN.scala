@@ -1,4 +1,4 @@
-package SHODAN
+package com.cyborg
 
 import scala.language.higherKinds
 

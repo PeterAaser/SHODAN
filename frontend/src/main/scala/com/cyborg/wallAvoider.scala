@@ -1,4 +1,4 @@
-package SHODAN
+package com.cyborg
 
 import scala.scalajs.js.annotation.JSExport
 import org.scalajs.dom
@@ -36,7 +36,7 @@ object ScalaJSExample {
     //   PI/2.0,
     //   120)
 
-    def drawWalls: Unit = {
+    def drawWalls(): Unit = {
       renderer.save()
       renderer.fillStyle = "grey"
       renderer.fillRect(0, 0, 30, canvas.height)
@@ -52,7 +52,7 @@ object ScalaJSExample {
       val screenCoords = memer.loc.toPixelCoordinates(canvas.width - 2*30, canvas.height - 2*30)
 
 
-      def drawBody: Unit = {
+      def drawBody(): Unit = {
         renderer.save()
         renderer.fillStyle = "green"
         renderer.rotate(memer.heading)
@@ -64,7 +64,7 @@ object ScalaJSExample {
 
       }
 
-      def drawLoS: Unit = {
+      def drawLoS(): Unit = {
         renderer.fillStyle = "blue"
         (memer.viewAngles zip memer.distances).foreach { case (angle, distance) =>
           renderer.save()
@@ -180,7 +180,7 @@ object ScalaJSExample {
       // draw(nextAgent)
     }
 
-    def noIdea: Unit = {
+    def noIdea(): Unit = {
       val someUri = "ws://127.0.0.1:9897"
       val socket = new dom.WebSocket(someUri)
       socket.onmessage = dieFugger _

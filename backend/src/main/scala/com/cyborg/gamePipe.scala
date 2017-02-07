@@ -1,4 +1,4 @@
-package SHODAN
+package com.cyborg
 
 import scala.language.higherKinds
 
@@ -6,7 +6,7 @@ object agentPipe {
 
   import fs2._
 
-  import wallAvoid._
+  import com.cyborg.wallAvoid._
   import Agent._
 
   def wallAvoidancePipe[F[_]](observerPipe: Pipe[F,(List[Double], List[Double]), (List[Double],List[Double])]):

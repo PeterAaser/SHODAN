@@ -1,4 +1,4 @@
-package SHODAN
+package com.cyborg
 
 object BooleanNetwork {
 

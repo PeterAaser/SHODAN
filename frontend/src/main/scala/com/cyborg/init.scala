@@ -17,7 +17,7 @@ object Context {
   import io.udash.rpc._
   import com.cyborg.rpc._
   val serverRpc = DefaultServerRPC[MainClientRPC, MainServerRPC](new RPCService)
-       
+
 }
 
 object Init extends JSApp with StrictLogging {
@@ -25,25 +25,26 @@ object Init extends JSApp with StrictLogging {
 
   @JSExport
   override def main(): Unit = {
-    jQ(document).ready((_: Element) => {
-      val appRoot = jQ("#application").get(0)
-      if (appRoot.isEmpty) {
-        logger.error("Application root element not found! Check your index.html file!")
-      } else {
-        applicationInstance.run(appRoot.get)
+    jQ(document).ready((_: Element) =>
+      {
+        val appRoot: Option[Element] = jQ("#application").get(0)
+        if (appRoot.isEmpty) {
+          logger.error("Application root element not found! Check your index.html file!")
+        } else {
+          applicationInstance.run(appRoot.get)
 
-import scalacss.Defaults._
-import scalacss.ScalatagsCss._
-import scalatags.JsDom._
-import com.cyborg.styles.GlobalStyles
-import com.cyborg.styles.DemoStyles
-import com.cyborg.styles.partials.FooterStyles
-import com.cyborg.styles.partials.HeaderStyles
-jQ(GlobalStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
-jQ(DemoStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
-jQ(FooterStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
-jQ(HeaderStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
-      }
-    })
+          import scalacss.Defaults._
+          import scalacss.ScalatagsCss._
+          import scalatags.JsDom._
+          import com.cyborg.styles.GlobalStyles
+          import com.cyborg.styles.DemoStyles
+          import com.cyborg.styles.partials.FooterStyles
+          import com.cyborg.styles.partials.HeaderStyles
+          jQ(GlobalStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
+          jQ(DemoStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
+          jQ(FooterStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
+          jQ(HeaderStyles.render[TypedTag[org.scalajs.dom.raw.HTMLStyleElement]].render).insertBefore(appRoot.get)
+        }
+      })
   }
 }
