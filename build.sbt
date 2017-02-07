@@ -1,76 +1,111 @@
-import sbt.Project.projectToRef
+import com.lihaoyi.workbench.Plugin._
+import UdashBuild._
+import Dependencies._
 
+name := "SHODAN"
 
-
-lazy val commonSettings = Seq(version := "0.1.0" , scalaVersion := "2.11.8")
-
-lazy val doobieVersion = "0.3.1-SNAPSHOT"
-
-scalaVersion := "2.11.8"
-
+version in ThisBuild := "0.1.0-SNAPSHOT"
 scalaVersion in ThisBuild := "2.11.8"
-
-scalacOptions ++= Seq("-feature", "language:-higherKinds")
-
-lazy val clients = Seq(visualizer)
-
-lazy val closedLoop = (project in file("closed-loop")).
-  settings(commonSettings: _*).
-  settings(
-    name := "SHODAN",
-    scalaJSProjects := clients,
-    maxErrors := 20,
-    pollInterval := 1000,
-    libraryDependencies ++= Seq
-      ( "com.typesafe.akka" %% "akka-actor" % "2.4.11"
-      , "com.typesafe.akka" % "akka-stream_2.11" % "2.4.11"
-      , "co.fs2" %% "fs2-core" % "0.9.0"
-      , "co.fs2" %% "fs2-io" % "0.9.0"
-      , "org.scalactic" %% "scalactic" % "3.0.0"
-      , "org.scalactic" %% "scalactic" % "3.0.0" % "test"
-      , "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
-      , "org.tpolecat" % "doobie-core-cats_2.11" % "0.3.1-M1"
-      , "org.tpolecat" % "doobie-postgres-cats_2.11" % "0.3.1-M1"
-      , "org.scodec" %% "scodec-bits" % "1.1.2"
-      , "org.scodec" %% "scodec-protocols" % "1.0.2"
-      , "org.scodec" %% "scodec-stream" % "1.0.1"
-      , "com.chuusai" %% "shapeless" % "2.3.2"
-      , "com.typesafe.akka" % "akka-http" % "3.0.0-RC1"
-      , "com.lihaoyi" % "upickle_2.11" % "0.4.4"
-      , "org.scalaz" %% "scalaz-core" % "7.2.8"
-
-    )
- ).aggregate(clients.map(projectToRef): _*)
-  .dependsOn(sharedJvm)
-
-lazy val visualizer = (project in file("visualizer"))
-  .enablePlugins(ScalaJSPlugin, ScalaJSPlay)
-  .dependsOn(sharedJs)
-  .settings(
-    scalaVersion := "2.11.8",
-    libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "0.9.1",
-      // "org.scala-js" %%% "scalajs-dom" % "0.8.2",
-      "com.lihaoyi" %%% "scalatags" % "0.5.4"
-
-    )
+organization in ThisBuild := "com.cyborg"
+crossPaths in ThisBuild := false
+scalacOptions in ThisBuild ++= Seq(
+  "-feature",
+  "-deprecation",
+  "-unchecked",
+  "-language:implicitConversions",
+  "-language:existentials",
+  "-language:dynamics",
+  "-Xfuture",
+  "-Xfatal-warnings",
+  "-Xlint:_,-missing-interpolator,-adapted-args"
 )
 
-lazy val shared = (crossProject.crossType(CrossType.Pure) in file("shared"))
-  .settings(scalaVersion := "2.11.8")
-  .jsConfigure(_ enablePlugins ScalaJSPlay)
+def crossLibs(configuration: Configuration) =
+  libraryDependencies ++= crossDeps.value.map(_ % configuration)
 
-lazy val sharedJvm = shared.jvm
-lazy val sharedJs = shared.js
+lazy val SHODAN = project.in(file("."))
+  .aggregate(sharedJS, sharedJVM, frontend, backend)
+  .dependsOn(backend)
+  .settings(
+    publishArtifact := false,
+    mainClass in Compile := Some("com.cyborg.Launcher")
+  )
 
-resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/repositories/releases/"
+lazy val shared = crossProject.crossType(CrossType.Pure).in(file("shared"))
+  .settings(
+    crossLibs(Provided)
+  )
 
-resolvers += Opts.resolver.sonatypeSnapshots
+lazy val sharedJVM = shared.jvm
+lazy val sharedJS = shared.js
 
-import com.lihaoyi.workbench.Plugin._
+lazy val backend = project.in(file("backend"))
+  .dependsOn(sharedJVM)
+  .settings(
+    libraryDependencies ++= backendDeps.value,
+    crossLibs(Compile),
 
-workbenchSettings.filterNot(p => p.key.key == extraLoggers.scopedKey.key)
+    compile <<= (compile in Compile),
+    (compile in Compile) <<= (compile in Compile).dependsOn(copyStatics),
+    copyStatics := IO.copyDirectory((crossTarget in frontend).value / StaticFilesDir, (target in Compile).value / StaticFilesDir),
+    copyStatics <<= copyStatics.dependsOn(compileStatics in frontend),
 
-bootSnippet := "example.ScalaJSExample().main(document.getElementById('canvas'));"
+    mappings in (Compile, packageBin) ++= {
+      copyStatics.value
+      ((target in Compile).value / StaticFilesDir).***.get map { file =>
+        file -> file.getAbsolutePath.stripPrefix((target in Compile).value.getAbsolutePath)
+      }
+    },
 
-Revolver.settings
+    watchSources ++= (sourceDirectory in frontend).value.***.get
+  )
+
+lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
+  .dependsOn(sharedJS)
+  .settings(
+    libraryDependencies ++= frontendDeps.value,
+    crossLibs(Compile),
+    jsDependencies ++= frontendJSDeps.value,
+    persistLauncher in Compile := true,
+
+    compile <<= (compile in Compile).dependsOn(compileStatics),
+    compileStatics := {
+      IO.copyDirectory(sourceDirectory.value / "main/assets/fonts", crossTarget.value / StaticFilesDir / WebContent / "assets/fonts")
+      IO.copyDirectory(sourceDirectory.value / "main/assets/images", crossTarget.value / StaticFilesDir / WebContent / "assets/images")
+      val statics = compileStaticsForRelease.value
+      (crossTarget.value / StaticFilesDir).***.get
+    },
+
+    artifactPath in(Compile, fastOptJS) :=
+      (crossTarget in(Compile, fastOptJS)).value / StaticFilesDir / WebContent / "scripts" / "frontend-impl-fast.js",
+    artifactPath in(Compile, fullOptJS) :=
+      (crossTarget in(Compile, fullOptJS)).value / StaticFilesDir / WebContent / "scripts" / "frontend-impl.js",
+    artifactPath in(Compile, packageJSDependencies) :=
+      (crossTarget in(Compile, packageJSDependencies)).value / StaticFilesDir / WebContent / "scripts" / "frontend-deps-fast.js",
+    artifactPath in(Compile, packageMinifiedJSDependencies) :=
+      (crossTarget in(Compile, packageMinifiedJSDependencies)).value / StaticFilesDir / WebContent / "scripts" / "frontend-deps.js",
+    artifactPath in(Compile, packageScalaJSLauncher) :=
+      (crossTarget in(Compile, packageScalaJSLauncher)).value / StaticFilesDir / WebContent / "scripts" / "frontend-init.js"
+  ).settings(workbenchSettings:_*)
+  .settings(
+    bootSnippet := "com.cyborg.Init().main();",
+    updatedJS := {
+      var files: List[String] = Nil
+      ((crossTarget in Compile).value / StaticFilesDir ** "*.js").get.foreach {
+        (x: File) =>
+          streams.value.log.info("workbench: Checking " + x.getName)
+          FileFunction.cached(streams.value.cacheDirectory / x.getName, FilesInfo.lastModified, FilesInfo.lastModified) {
+            (f: Set[File]) =>
+              val fsPath = f.head.getAbsolutePath.drop(new File("").getAbsolutePath.length)
+              files = "http://localhost:12345" + fsPath :: files
+              f
+          }(Set(x))
+      }
+      files
+    },
+    //// use either refreshBrowsers OR updateBrowsers
+    // refreshBrowsers <<= refreshBrowsers triggeredBy (compileStatics in Compile)
+    updateBrowsers <<= updateBrowsers triggeredBy (compileStatics in Compile)
+  )
+
+  
