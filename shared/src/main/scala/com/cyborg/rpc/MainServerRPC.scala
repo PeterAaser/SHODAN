@@ -10,6 +10,7 @@ trait MainServerRPC {
   def pushMe(): Unit
   def ping(id: Int): Future[Int]
   def notifications(): NotificationsServerRPC
+  def visualizer(): VisualizerRPC
 }
 
 @RPC
@@ -20,6 +21,6 @@ trait NotificationsServerRPC {
 
 @RPC
 trait VisualizerRPC {
-  def register(): Future[Unit]
-  def unregister(): Future[Unit]
+  def registerAgent(): Future[Unit]
+  def unregisterAgent(): Future[Unit]
 }

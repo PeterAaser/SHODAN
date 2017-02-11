@@ -13,14 +13,11 @@ case class Point(x: Int, y: Int){
   def /(d: Int) = Point(x / d, y / d)
 }
 
-@JSExport
-object ScalaJSExample {
-  @JSExport
-  def main(canvas: html.Canvas): Unit = {
+object Visualizer {
+  class VisualizerControl(canvas: html.Canvas) {
 
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
-
 
     canvas.width = 800
     canvas.height = 800
@@ -31,18 +28,13 @@ object ScalaJSExample {
 
     val PI = 3.14
 
-    // var wallAvoider = wallAvoid.Agent(
-    //   wallAvoid.Coord(8000.0, 4000.0),
-    //   PI/2.0,
-    //   120)
-
     def drawWalls(): Unit = {
       renderer.save()
       renderer.fillStyle = "grey"
-      renderer.fillRect(0, 0, 30, canvas.height)
-      renderer.fillRect(0, 0, canvas.width, 30)
-      renderer.fillRect(canvas.width - 30, 0, 30, canvas.height)
-      renderer.fillRect(0, canvas.height - 30, canvas.width, 30)
+      renderer.fillRect(0, 0, 30, canvas.height.toDouble)
+      renderer.fillRect(0, 0, canvas.width.toDouble, 30)
+      renderer.fillRect(canvas.width - 30.0, 0, 30, canvas.height.toDouble)
+      renderer.fillRect(0, canvas.height - 30.0, canvas.width.toDouble, 30.0)
       renderer.restore()
     }
 
@@ -50,7 +42,6 @@ object ScalaJSExample {
     def drawAgent(memer: Agent): Unit = {
 
       val screenCoords = memer.loc.toPixelCoordinates(canvas.width - 2*30, canvas.height - 2*30)
-
 
       def drawBody(): Unit = {
         renderer.save()
@@ -66,33 +57,33 @@ object ScalaJSExample {
 
       def drawLoS(): Unit = {
         renderer.fillStyle = "blue"
-        (memer.viewAngles zip memer.distances).foreach { case (angle, distance) =>
-          renderer.save()
-          renderer.rotate(angle)
+          (memer.viewAngles zip memer.distances).foreach { case (angle, distance) =>
+            renderer.save()
+            renderer.rotate(angle)
 
-          renderer.save()
-          renderer.beginPath()
-          renderer.translate(26,0)
+            renderer.save()
+            renderer.beginPath()
+            renderer.translate(26,0)
 
 
-          renderer.arc(0, 0, 5.0, 0, Math.PI*2.0, false)
-          renderer.fill()
-          renderer.restore()
+            renderer.arc(0, 0, 5.0, 0, Math.PI*2.0, false)
+            renderer.fill()
+            renderer.restore()
 
-          renderer.translate(30,0)
+            renderer.translate(30,0)
 
-          if (distance > 3000)
-            renderer.fillStyle = "rgb(0, 255, 255)"
-          else {
-            val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))
-            val badnessc = (badness*255.0).toInt
-            val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
-            renderer.fillStyle = memeString
+            if (distance > 3000)
+              renderer.fillStyle = "rgb(0, 255, 255)"
+            else {
+              val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))
+              val badnessc = (badness*255.0).toInt
+              val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
+              renderer.fillStyle = memeString
+            }
+
+            renderer.fillRect(0, -4, 180, 8)
+            renderer.restore()
           }
-
-          renderer.fillRect(0, -4, 180, 8)
-          renderer.restore()
-        }
       }
 
       renderer.save()
@@ -129,51 +120,15 @@ object ScalaJSExample {
     }
 
     def run(agent: Agent): Unit = {
-      renderer.clearRect(0, 0, canvas.width, canvas.height)
+      renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
       renderer.fillStyle = "rgb(212, 212, 212)"
-      renderer.fillRect(0, 0, canvas.width, canvas.height)
+      renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
 
       draw(agent)
     }
 
-    noIdea
-    // js.timers.setInterval(20) {
-    //   run
-    // }
-
-    def dieFugger(a: dom.MessageEvent): Unit = {
-
-      val ayy = a.data.toString.split(",")
-        .map(_.replace('[', ' '))
-        .map(_.replace(']', ' '))
-        .map(_.trim)
-        .map(_.toDouble)
-
-
-      val myAgent = Agent(
-        Coord(ayy(0) + 10000.0, ayy(1) + 10000.0),
-        ayy(2),
-        120
-      )
-
-      println(myAgent)
-      run(myAgent)
-
-    }
-
-    def receive(e: dom.MessageEvent): Unit = {
-      val data = js.JSON.parse(e.data.toString)
-
-    }
-
-    def noIdea(): Unit = {
-      val someUri = "ws://127.0.0.1:9897"
-      val socket = new dom.WebSocket(someUri)
-      socket.onmessage = dieFugger _
-
-      js.timers.setInterval(20) {
-        socket.send("hello")
-      }
+    def update(a: Agent): Unit = {
+      run(a)
     }
   }
 }

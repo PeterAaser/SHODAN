@@ -8,6 +8,7 @@ import io.udash.rpc._
 trait MainClientRPC {
   def push(number: Int): Unit
   def notifications(): NotificationsClientRPC
+  def visualizer(): ClientVisualizerRPC
 }
 
 @RPC
