@@ -16,5 +16,6 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
     case "/binding" /:/ arg => BindingDemoState(arg)
     case "/rpc" => RPCDemoState
     case "/scalacss" => DemoStylesState
+    case "/MEAME" => MEAMEState
   }
 }

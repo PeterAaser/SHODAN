@@ -17,3 +17,5 @@ case class BindingDemoState(urlArg: String = "") extends RoutingState(RootState)
 case object RPCDemoState extends RoutingState(RootState)
 
 case object DemoStylesState extends RoutingState(RootState)
+
+case object MEAMEState extends RoutingState(RootState)

@@ -164,20 +164,6 @@ object ScalaJSExample {
     def receive(e: dom.MessageEvent): Unit = {
       val data = js.JSON.parse(e.data.toString)
 
-      // haha fug x---D
-      // wallAvoider = wallAvoider.copy(
-      //   loc=wallAvoider.loc.copy(
-      //     x = data.x.toString.toDouble,
-      //     y = data.y.toString.toDouble
-      //   ),
-      //   heading=data.heading.toString.toDouble)
-
-      // renderer.clearRect(0, 0, canvas.width, canvas.height)
-      // renderer.fillStyle = "rgb(212, 212, 212)"
-      // renderer.fillRect(0, 0, canvas.width, canvas.height)
-      // val (nextAgent, output) = Agent.updateAgent(wallAvoider, List(-0.1, 0.2))
-      // wallAvoider = nextAgent
-      // draw(nextAgent)
     }
 
     def noIdea(): Unit = {

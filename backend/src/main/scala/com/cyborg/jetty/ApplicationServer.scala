@@ -1,5 +1,6 @@
 package com.cyborg.jetty
 
+import io.udash.rpc.utils.DefaultAtmosphereFramework
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.gzip.GzipHandler
 import org.eclipse.jetty.server.session.SessionHandler
@@ -49,7 +50,5 @@ class ApplicationServer(val port: Int, resourceBase: String) {
     atmosphereHolder
   }
   contextHandler.addServlet(atmosphereHolder, "/atm/*")
-       
-}
 
-       
+}

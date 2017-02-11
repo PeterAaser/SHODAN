@@ -10,6 +10,7 @@ class StatesToViewPresenterDef extends ViewPresenterRegistry[RoutingState] {
     case BindingDemoState(urlArg) => BindingDemoViewPresenter(urlArg)
     case RPCDemoState => RPCDemoViewPresenter
     case DemoStylesState => DemoStylesViewPresenter
+    case MEAMEState => MEAMEPresenter
     case _ => ErrorViewPresenter
   }
 }

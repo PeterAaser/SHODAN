@@ -1,7 +1,5 @@
 package com.cyborg
 
-import scala.language.higherKinds
-
 object wallAvoid {
 
   val width = 10000.0

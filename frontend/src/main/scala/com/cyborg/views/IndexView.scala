@@ -18,7 +18,8 @@ class IndexView extends View {
       li(a(DemoStyles.underlineLinkBlack, href := BindingDemoState().url)("Binding demo")),
       li(a(DemoStyles.underlineLinkBlack, href := BindingDemoState("From index").url)("Binding demo with URL argument")),
       li(a(DemoStyles.underlineLinkBlack, href := RPCDemoState.url)("RPC demo")),
-      li(a(DemoStyles.underlineLinkBlack, href := DemoStylesState.url)("ScalaCSS demo view"))
+      li(a(DemoStyles.underlineLinkBlack, href := DemoStylesState.url)("ScalaCSS demo view")),
+      li(a(DemoStyles.underlineLinkBlack, href := MEAMEState.url)("MEAME"))
     ),
     h3("Read more"),
     ul(

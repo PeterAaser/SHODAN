@@ -28,6 +28,8 @@ case object RPCDemoViewPresenter extends DefaultViewPresenterFactory[RPCDemoStat
 class RPCDemoView(input: Property[String], serverResponse: Property[String]) extends View {
   import scalatags.JsDom.all._
 
+  import com.cyborg.Context._
+
   private val content = div(
     h2(
       "You can find this demo source code in: ",
@@ -37,7 +39,9 @@ class RPCDemoView(input: Property[String], serverResponse: Property[String]) ext
     TextInput.debounced(input, placeholder := "Type your name..."),
     p("Server response: ", bind(serverResponse)),
     h3("Read more"),
-    a(DemoStyles.underlineLinkBlack)(href := "http://guide.udash.io/#/rpc", target := "_blank")("Read more in Udash Guide.")
+    a(DemoStyles.underlineLinkBlack)(href := "http://guide.udash.io/#/rpc", target := "_blank")("Read more in Udash Guide."),
+    h4("testan")
+
   )
 
   override def getTemplate: Modifier = content

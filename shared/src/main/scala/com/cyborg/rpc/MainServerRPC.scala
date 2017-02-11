@@ -8,6 +8,18 @@ import scala.concurrent.Future
 trait MainServerRPC {
   def hello(name: String): Future[String]
   def pushMe(): Unit
+  def ping(id: Int): Future[Int]
+  def notifications(): NotificationsServerRPC
 }
 
-       
+@RPC
+trait NotificationsServerRPC {
+  def register(): Future[Unit]
+  def unregister(): Future[Unit]
+}
+
+@RPC
+trait VisualizerRPC {
+  def register(): Future[Unit]
+  def unregister(): Future[Unit]
+}
