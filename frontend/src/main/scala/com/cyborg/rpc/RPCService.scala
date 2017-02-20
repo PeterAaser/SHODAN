@@ -66,5 +66,14 @@ object VisualizerClient extends ClientVisualizerRPC {
   override def update(agent: Agent): Unit = {
     listeners.foreach(_(agent))
   }
+}
 
+object MEAMEControlClient {
+
+  import Context._
+
+  def startMEAME: Future[Unit] = {
+    println("crashing server now")
+    serverRpc.MEAMEControl().start()
+  }
 }

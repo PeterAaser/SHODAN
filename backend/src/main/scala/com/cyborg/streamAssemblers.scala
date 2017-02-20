@@ -9,8 +9,7 @@ object Assemblers {
   def assembleProcess[F[_]:Async]
     ( channels: Int
     , sweepSize: Int
-    , samplesPerSpike: Int
-    , observer: Sink[F,Byte]):
+    , samplesPerSpike: Int):
       Pipe[F,Int,List[Double]] = neuronInputs => {
 
     import utilz._
@@ -59,9 +58,7 @@ object Assemblers {
       spikePatterns.through(pipe)
     }
 
-    val obsPipe = utilz.observerPipe(observer)
-
-    val gamePipe = agentPipe.wallAvoidancePipe[F](obsPipe)
+    val gamePipe = agentPipe.wallAvoidancePipe[F]
     val gameOutput = processedSpikes.through(gamePipe)
     gameOutput
   }
@@ -69,7 +66,6 @@ object Assemblers {
   def assembleExperiment[F[_]: Async](
     meameReadStream: Stream[F, Byte],
     meameWriteSink: Sink[F, Byte],
-    visualizerWriteSink: Sink[F, Byte],
 
     sampleRate: Int,
     channels: Int
@@ -92,9 +88,7 @@ object Assemblers {
     val process: Pipe[F, Int, List[Double]] = assembleProcess(
       channels,
       sweepSize,
-      samplesPerSpike,
-      visualizerWriteSink
-    )
+      samplesPerSpike)
 
     val meme =
       meameReadStream

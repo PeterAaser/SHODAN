@@ -11,12 +11,18 @@ trait MainServerRPC {
   def ping(id: Int): Future[Int]
   def notifications(): NotificationsServerRPC
   def visualizer(): VisualizerRPC
+  def MEAMEControl(): MEAMEControlRPC
 }
 
 @RPC
 trait NotificationsServerRPC {
   def register(): Future[Unit]
   def unregister(): Future[Unit]
+}
+
+@RPC
+trait MEAMEControlRPC {
+  def start(): Future[Unit]
 }
 
 @RPC

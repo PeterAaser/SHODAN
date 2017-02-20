@@ -1,5 +1,6 @@
 package com.cyborg.rpc
 
+import com.cyborg.neuroServer
 import com.cyborg.wallAvoid.{ Agent, Coord }
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
@@ -21,6 +22,7 @@ class ExposedRpcInterfaces(implicit clientId: ClientId) extends MainServerRPC {
 
   override def notifications(): NotificationsServerRPC = new NotificationsServer
   override def visualizer(): VisualizerRPC = new AgentServer
+  override def MEAMEControl(): MEAMEControlRPC = {println("making new memectrl"); new MEAMEControlServer}
 }
 
 class NotificationsServer(implicit clientId: ClientId) extends NotificationsServerRPC {
@@ -58,7 +60,7 @@ object NotificationsService {
                               ClientRPC(clientId).notifications().notify(msg)
                             })
           }
-          TimeUnit.SECONDS.sleep(1)
+          TimeUnit.SECONDS.sleep(100)
         }
       }
     }
@@ -87,38 +89,44 @@ object AgentService {
     clients -= clientId
   }
 
-  backendExecutionContext.execute(
-    new Runnable {
-      override def run(): Unit = {
-        var meme1 = 0.0
-        var meme2 = 0.0
-        var meme3 = 0.0
-        while (true) {
-
-          val agent: Agent =
-            Agent(
-              Coord(1000.0 + meme1, 1000.0 + meme2),
-              meme3,
-              120
-            )
-
-          println("Agent ctrl updating")
-
-          meme1 = meme1 + 100.0
-          meme2 = meme2 + 100.0
-          meme3 = meme3 + 0.1
-          if (meme3 > 3.14)
-            meme3 = 0.0
-          clients.synchronized {
-            clients.foreach(
-              clientId => {
-                ClientRPC(clientId).visualizer().update(agent)
-              }
-            )
-          }
-          TimeUnit.SECONDS.sleep(1)
-        }
+  def agentUpdate(agent: Agent): Unit = {
+    println("agent ctrl updating")
+    clients.foreach(
+      clientId => {
+        ClientRPC(clientId).visualizer().update(agent)
       }
-    }
-  )
+    )
+  }
+}
+
+
+class MEAMEControlServer(implicit clientId: ClientId) extends MEAMEControlRPC {
+
+  override def start(): Future[Unit] = {
+    println("exploding")
+    Future { println("Starting MEAME"); MEAMEControlService.gogo }
+  }
+
+}
+
+object MEAMEControlService {
+
+  import fs2._
+  import fs2.Stream._
+  import fs2.util.Async
+  import fs2.Task
+
+  import fs2.io.tcp._
+  import java.net.InetSocketAddress
+  import java.nio.channels.AsynchronousChannelGroup
+
+  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
+  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
+
+  def gogo(implicit clientId: ClientId): Unit = {
+    val MEAMESocket = new InetSocketAddress("129.241.111.251", 9898)
+    val meme = neuroServer.gogo[Task]
+    meme.unsafeRun
+
+  }
 }

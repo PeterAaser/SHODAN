@@ -31,11 +31,6 @@ object neuroServer {
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
-  def createInetSockAddress(ip: String, port: String): InetSocketAddress = {
-    new InetSocketAddress("0", 0)
-  }
-
-
   def getLineChunk[F[_]](socket: Socket[F]): F[Option[Chunk[Byte]]] = socket.read(1024)
   def getLine[F[_]](l: Option[Chunk[Byte]]) = {
     l.map{λ => new String(λ.toArray)}.getOrElse("Nil")
@@ -46,9 +41,8 @@ object neuroServer {
     socket.write(bytes)
   }
 
-
-  val ip = "129.241.111.251"
-  val port = 9898
+  val ip = "129.241.67.103"
+  val port = 1255
   val socketAddress = new InetSocketAddress(ip, port)
 
   val reuseAddress = true
@@ -59,96 +53,35 @@ object neuroServer {
 
   val maxQueued = 3
 
-  def s[F[_]: Async]: Stream[F, Stream[F, Socket[F]]] =
-    server[F](socketAddress, maxQueued, reuseAddress, 1024)
+  def c[F[_]: Async]: Stream[F, Socket[F]] =
+    client(
+      socketAddress,
+      reuseAddress,
+      sendBufferSize,
+      receiveBufferSize,
+      keepAlive,
+      noDelay)
 
-  def handleConnection[F[_]: Async](socket: Stream[F, Socket[F]]): Stream[F, Unit] = {
-    socket.flatMap {
-      socket: Socket[F] => {
+  def assembleClient[F[_]: Async](socket: Socket[F]): Stream[F, Unit] = {
+    val reads: Stream[F, Byte] = socket.reads(1024)
+    val writes: Sink[F, Byte] = socket.writes(None)
 
-        println("new connection")
-        val readStream: Stream[F, Byte] = socket.reads(1024)
-        val writeStream: Sink[F, Byte] = socket.writes(None)
-
-        val meme = for {
-          reservoirIP <- getLineChunk[F](socket)
-          reservoirPort <- getLineChunk[F](socket)
-
-          visualizerIP <- getLineChunk[F](socket)
-          visualizerPort <- getLineChunk[F](socket)
-        } yield {
-          println(reservoirIP)
-          println(reservoirPort)
-          println(visualizerIP)
-          println(visualizerPort)
-
-          val cheat1 = new InetSocketAddress("129.241.111.251", 9898)
-          val cheat2 = new InetSocketAddress("129.241.111.251", 9898)
-
-          assembleIO(cheat1, cheat2)
-
-        }
-
-        val meme2 = Stream.eval(meme).flatMap { λ => Stream.eval(λ) }
-        meme2
-      }
-    }
+    val memer = Assemblers.assembleExperiment(
+      reads,
+      writes,
+      40000,
+      4
+    )
+    memer
   }
 
-  def runServer[F[_]: Async]: F[Unit] =
-    s.flatMap {  socket: Stream[F, Socket[F]] =>
+  def gogo[F[_]: Async]: F[Unit] = {
+    val meme = c flatMap { meameSocket =>
       {
-        handleConnection(socket)
-      }
-    }.run
-
-  def assembleIO[F[_]: Async](
-    reservoir: InetSocketAddress,
-    visualizer: InetSocketAddress): F[Unit] =
-  {
-
-    val meameClient: Stream[F,Socket[F]] = client(
-      reservoir
-        , reuseAddress
-        , sendBufferSize
-        , receiveBufferSize
-        , keepAlive
-        , noDelay
-    )
-
-    val visualizerClient: Stream[F,Socket[F]] = client(
-      visualizer
-        , reuseAddress
-        , sendBufferSize
-        , receiveBufferSize
-        , keepAlive
-        , noDelay
-    )
-
-    val meme = meameClient.flatMap {
-      meameSocket: Socket[F] => {
-        visualizerClient.flatMap {
-          visualizerSocket: Socket[F] => {
-
-            val meameReadStream: Stream[F, Byte] = meameSocket.reads(1024)
-            val meameWriteSink: Sink[F, Byte] = meameSocket.writes(None)
-
-            val visualizerWriteStream: Sink[F, Byte] = visualizerSocket.writes(None)
-
-            val memer = Assemblers.assembleExperiment(
-              meameReadStream,
-              meameWriteSink,
-              visualizerWriteStream,
-              40000,
-              4
-            )
-
-            memer
-          }
-        }
+        val memer = assembleClient(meameSocket)
+        memer
       }
     }
-
     meme.run
   }
 }
