@@ -20,10 +20,6 @@ object Filters {
       s"incorrect amount of bias weights. Needed: $neededBias, Provided: ${bias.length}"
     )
 
-
-
-    import ev._
-
     import FeedForward._
 
     val activator: T => T = λ => λ

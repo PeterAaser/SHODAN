@@ -60,6 +60,7 @@ object Assemblers {
 
     val gamePipe = agentPipe.wallAvoidancePipe[F]
     val gameOutput = processedSpikes.through(gamePipe)
+
     gameOutput
   }
 
@@ -85,6 +86,9 @@ object Assemblers {
     // How many samples should we look at to detect a spike?
     val samplesPerSpike = 128
 
+    def ghettoStimFreqJsonRequest(distances: List[Double]): String =
+      utilz.simpleJsonAssembler(List(3, 4, 5, 6), distances)
+
     val process: Pipe[F, Int, List[Double]] = assembleProcess(
       channels,
       sweepSize,
@@ -94,8 +98,8 @@ object Assemblers {
       meameReadStream
         .through(utilz.bytesToInts)
         .through(process)
-        .through(utilz.chunkify)
-        .through(utilz.doubleToByte(true))
+        .through(_.map(ghettoStimFreqJsonRequest(_)))
+        .through(text.utf8Encode)
         .through(meameWriteSink)
 
     meme

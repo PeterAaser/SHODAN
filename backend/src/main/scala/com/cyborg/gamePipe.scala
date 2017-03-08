@@ -38,7 +38,8 @@ object agentPipe {
       _.pull(go(initAgent))
     }
 
-
+    // This is a fucking mess, but the gist of it is that the sensorData is sent every tick.
+    // Sensordata is a list of double with length eyes
     _.through(agentPipe).through(_.map(_._1))
 
   }

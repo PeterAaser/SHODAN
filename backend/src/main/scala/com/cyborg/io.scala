@@ -41,12 +41,14 @@ object neuroServer {
     socket.write(bytes)
   }
 
-  val ip = "129.241.67.103"
-  val port = 1255
+  // val ip = "129.241.111.251"
+  // val port = 1256
+  val ip = "129.241.201.110"
+  val port = 8899
   val socketAddress = new InetSocketAddress(ip, port)
 
   val reuseAddress = true
-  val sendBufferSize = 256*1024
+  val sendBufferSize = 1024*4
   val receiveBufferSize = 256*1024
   val keepAlive = true
   val noDelay = true

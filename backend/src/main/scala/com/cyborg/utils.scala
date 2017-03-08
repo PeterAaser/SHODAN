@@ -191,6 +191,8 @@ object utilz {
     _.pull(go)
   }
 
+
+  // Very likely not needed
   def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
 
     def go: Handle[F,Seq[I]] => Pull[F,I,Unit] = h => {
@@ -213,6 +215,17 @@ object utilz {
         .through(utilz.chunkify)
         .through(utilz.doubleToByte(false))
         .through(observer))
+  }
+
+  def simpleJsonAssembler(electrodes: List[Int], stimFrequencise: List[Double]): String = {
+    val electrodeString = electrodes.mkString("[", ", ", "]")
+    val stimString = stimFrequencise.mkString("[", ", ", "]")
+
+    // Apparently scala cannot escape quotes in string interpolation.
+    // This will eventually be assembled with a real JSON handler. TODO
+    val memeString = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
+    // println(memeString)
+    memeString
   }
 }
 
