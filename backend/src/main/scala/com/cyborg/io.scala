@@ -20,6 +20,7 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.language.higherKinds
+import com.typesafe.config._
 
 
 object neuroServer {
@@ -32,24 +33,23 @@ object neuroServer {
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
   def getLineChunk[F[_]](socket: Socket[F]): F[Option[Chunk[Byte]]] = socket.read(1024)
-  def getLine[F[_]](l: Option[Chunk[Byte]]) = {
+  def getLine[F[_]](l: Option[Chunk[Byte]]) =
     l.map{λ => new String(λ.toArray)}.getOrElse("Nil")
-  }
 
-  def writeLine[F[_]](l: String, socket: Socket[F]): F[Unit] = {
-    val bytes = Chunk.indexedSeq(l.getBytes())
-    socket.write(bytes)
-  }
+  def writeLine[F[_]](l: String, socket: Socket[F]): F[Unit] =
+    socket.write(Chunk.indexedSeq(l.getBytes()))
 
-  // val ip = "129.241.111.251"
-  // val port = 1256
-  val ip = "129.241.201.110"
-  val port = 8899
+  val conf = ConfigFactory.load()
+  val netConf = conf.getConfig("io")
+  val addressConf = netConf.getConfig(netConf.getString("target"))
+
+  val ip = addressConf.getString("ip")
+  val port = addressConf.getInt("port")
   val socketAddress = new InetSocketAddress(ip, port)
 
   val reuseAddress = true
-  val sendBufferSize = 1024*4
-  val receiveBufferSize = 256*1024
+  val sendBufferSize = netConf.getInt("sendBufSize")
+  val receiveBufferSize = netConf.getInt("recvBufSize")
   val keepAlive = true
   val noDelay = true
 

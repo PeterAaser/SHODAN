@@ -3,6 +3,7 @@ package com.cyborg
 import fs2._
 import fs2.util.Async
 import scala.language.higherKinds
+import MEAMEutilz._
 
 object Assemblers {
 
@@ -86,8 +87,10 @@ object Assemblers {
     // How many samples should we look at to detect a spike?
     val samplesPerSpike = 128
 
-    def ghettoStimFreqJsonRequest(distances: List[Double]): String =
-      utilz.simpleJsonAssembler(List(3, 4, 5, 6), distances)
+    val toStimFrequencyTransform: List[Double] => String = {
+      val logScaler = logScaleBuilder(scala.math.E)
+      toStimFrequency(List(3, 4, 5, 6), logScaler)
+    }
 
     val process: Pipe[F, Int, List[Double]] = assembleProcess(
       channels,
@@ -98,7 +101,7 @@ object Assemblers {
       meameReadStream
         .through(utilz.bytesToInts)
         .through(process)
-        .through(_.map(ghettoStimFreqJsonRequest(_)))
+        .through(_.map(toStimFrequencyTransform))
         .through(text.utf8Encode)
         .through(meameWriteSink)
 

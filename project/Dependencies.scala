@@ -45,6 +45,8 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % "2.3.2",
     "com.typesafe.akka" % "akka-http" % "3.0.0-RC1",
     "com.lihaoyi" % "upickle_2.11" % "0.4.4",
+    "com.typesafe" % "config" % "1.3.1",
     "org.scalaz" %% "scalaz-core" % "7.2.8"
+
   ))
 }
