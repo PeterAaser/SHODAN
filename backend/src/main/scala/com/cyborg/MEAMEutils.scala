@@ -2,32 +2,31 @@ package com.cyborg
 
 import com.typesafe.config._
 
-import fs2._
-import fs2.Stream._
-import fs2.util.Async
-import fs2.async.mutable.Queue
-import fs2.util.syntax._
-import fs2.io.file._
-import fs2.io.tcp._
 
 import scala.math._
 
 object MEAMEutilz {
 
-  type DistToHz = Double => Double
+  val conf = ConfigFactory.load()
+  val experimentParams = conf.getConfig("experimentConf")
+  val agentParams = experimentParams.getConfig("wallAvoiderParams")
+  val neuroParams = experimentParams.getConfig("neuroParams")
+
+  type SafeHzTransform = Double => Double
 
 
-  val sightRange: Double = 3000
+  val sightRange: Double = agentParams.getDouble("sightRange")
 
-  val maxFreq = 10.0
-  val minFreq = 1.0/3.0
-  val ticksPerSecond: Int = 40000
+  val maxFreq = neuroParams.getDouble("maxFreq")
+  val minFreq = neuroParams.getDouble("minFreq")
+  val ticksPerSecond: Int = experimentParams.getInt("sampleRate")
 
   val maxTicks: Int = floor(ticksPerSecond.toDouble/minFreq).toInt
   val minTicks: Int = floor(ticksPerSecond.toDouble/maxFreq).toInt
 
-  val minDistance: Double = 100
+  val minDistance: Double = agentParams.getDouble("deadZone")
   val maxDistance: Double = sightRange
+
 
 
   val lnOf2 = scala.math.log(2) // natural log of 2
@@ -50,7 +49,6 @@ object MEAMEutilz {
         val natLogb = log(b)
         val logb: Double => Double = λ => log(λ)/natLogb
         val expb: Double => Double = λ => pow(b, λ)
-        println(s"not base euler, divide with $natLogb")
         (expb, logb)
       }
     }
@@ -69,11 +67,11 @@ object MEAMEutilz {
   }
 
 
-  def setDomain(f: Double => Double): DistToHz = d =>
+  def setDomain(f: Double => Double): SafeHzTransform = d =>
     if (d < minDistance) maxFreq else ( if (d > maxDistance) 0 else f(d))
 
 
-  def toStimFrequency(electrodes: List[Int], transform: DistToHz): List[Double] => String = {
+  def toStimFrequency(electrodes: List[Int], transform: SafeHzTransform): List[Double] => String = {
     val t = setDomain(transform)
     distances => utilz.simpleJsonAssembler(electrodes, distances.map(t))
   }

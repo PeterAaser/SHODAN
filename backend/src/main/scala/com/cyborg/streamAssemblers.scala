@@ -77,16 +77,6 @@ object Assemblers {
 
   ): Stream[F, Unit] = {
 
-    import utilz._
-    import namedACG._
-
-    import fs2.io.tcp._
-    import java.net.InetSocketAddress
-    import java.nio.channels.AsynchronousChannelGroup
-
-    // how many bytes of each channel?
-    val sweepSize = 64
-
     // How many samples should we look at to detect a spike?
     val samplesPerSpike = 128
 

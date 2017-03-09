@@ -129,8 +129,6 @@ object utilz {
   // TODO use scodec maybe?
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
-    import java.nio.ByteBuffer
-
     def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
       h.receive {
         case (chunk, h) => {
