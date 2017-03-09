@@ -9,18 +9,11 @@ object Launcher {
   def main(args: Array[String]): Unit = {
     val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
     server.start()
-    println("Good meme!")
-    val conf = ConfigFactory.load()
-    val meme = conf.getInt("test1.meme1")
-    val meme2 = conf.getConfig("test3.nesting")
-    println(meme2.getString("testerino"))
-    println(meme)
 
-    val localConf = conf.getConfig("netConf.local")
-    println(localConf.getString("ip"))
 
-    val experiment = conf.getConfig("experimentSetup")
-    println(experiment.getIntList("electrodes"))
-    println(experiment.getIntList("electrodes"))
+    println(">tfw too intelligent for real tests")
+    val toStimFreq = MEAMEutilz.toStimFrequency(List(1, 2, 3, 4, 5), MEAMEutilz.logScaleBuilder(scala.math.E))
+    val freqs = toStimFreq(List(10000.0, 4000.0, 1000.0, 100.0, 3000.0, 0.1))
+    println(freqs)
   }
 }

@@ -4,20 +4,23 @@ import fs2._
 import fs2.util.Async
 import scala.language.higherKinds
 import MEAMEutilz._
+import com.typesafe.config._
 
 object Assemblers {
 
-  def assembleProcess[F[_]:Async]
-    ( channels: Int
-    , sweepSize: Int
-    , samplesPerSpike: Int):
-      Pipe[F,Int,List[Double]] = neuronInputs => {
+  def assembleProcess[F[_]:Async](samplesPerSpike: Int): Pipe[F,Int,List[Double]] = neuronInputs => {
 
     import utilz._
 
+    val conf = ConfigFactory.load()
+    val experimentConf = conf.getConfig("experimentConf")
+
+    val channels = experimentConf.getIntList("DAQchannels").toArray.toList.length
+    val pointsPerSweep = experimentConf.getInt("sweepSize")
+
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] = alternate(
       neuronInputs,
-      sweepSize,
+      pointsPerSweep,
       256*256,
       channels
     )
@@ -92,10 +95,7 @@ object Assemblers {
       toStimFrequency(List(3, 4, 5, 6), logScaler)
     }
 
-    val process: Pipe[F, Int, List[Double]] = assembleProcess(
-      channels,
-      sweepSize,
-      samplesPerSpike)
+    val process: Pipe[F, Int, List[Double]] = assembleProcess(samplesPerSpike)
 
     val meme =
       meameReadStream
