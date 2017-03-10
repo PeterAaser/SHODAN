@@ -6,6 +6,7 @@ object Filters {
   case class FeedForward[T](layout: List[Int], bias: List[T], weights: List[T])
                         (implicit ev: Numeric[T]) {
 
+
     require((layout.size > 1), "No point making a single layer ANN")
 
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
@@ -19,6 +20,7 @@ object Filters {
       neededBias == bias.length,
       s"incorrect amount of bias weights. Needed: $neededBias, Provided: ${bias.length}"
     )
+
 
     import FeedForward._
 
@@ -53,7 +55,7 @@ object Filters {
       (input /: layerCalculations)((λ, f) => f(λ))
 
   }
-  case object FeedForward {
+  object FeedForward {
 
     def sliceVector[T: Numeric](points: List[Int], victim: List[T]): List[List[T]] =
       (points, victim) match {
@@ -92,7 +94,6 @@ object Filters {
     {
 
       def go: Handle[F,Vector[Boolean]] => Pull[F,List[Double],Unit] = h => {
-        println(s"ANN awaiting $temporality pieces")
         h.awaitN(temporality, false).flatMap {
           case (chunks, h) => {
             val inputs: Vector[Double] =

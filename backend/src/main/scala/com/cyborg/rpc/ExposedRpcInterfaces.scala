@@ -1,7 +1,7 @@
 package com.cyborg.rpc
 
 import com.cyborg.neuroServer
-import com.cyborg.wallAvoid.{ Agent, Coord }
+import com.cyborg.wallAvoid.Agent
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
 
@@ -69,14 +69,18 @@ object NotificationsService {
 
 class AgentServer(implicit clientId: ClientId) extends VisualizerRPC {
 
-  override def registerAgent(): Future[Unit] = Future { println("agent ctrl registered"); AgentService.registerAgent }
-  override def unregisterAgent(): Future[Unit] = Future {  println("agent ctrl unregistered"); AgentService.unregisterAgent }
+  override def registerAgent(): Future[Unit] = Future {
+    println("agent ctrl registered")
+    AgentService.registerAgent
+  }
 
+  override def unregisterAgent(): Future[Unit] = Future {
+    println("agent ctrl unregistered")
+    AgentService.unregisterAgent
+  }
 }
 
 object AgentService {
-
-  import com.cyborg.Implicits.backendExecutionContext
 
   private val clients = scala.collection.mutable.ArrayBuffer[ClientId]()
   def registerAgent(implicit clientId: ClientId) = clients.synchronized {
@@ -112,19 +116,12 @@ class MEAMEControlServer(implicit clientId: ClientId) extends MEAMEControlRPC {
 object MEAMEControlService {
 
   import fs2._
-  import fs2.Stream._
-  import fs2.util.Async
   import fs2.Task
-
-  import fs2.io.tcp._
-  import java.net.InetSocketAddress
-  import java.nio.channels.AsynchronousChannelGroup
 
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
   def gogo(implicit clientId: ClientId): Unit = {
-    val MEAMESocket = new InetSocketAddress("129.241.111.251", 9898)
     val meme = neuroServer.gogo[Task]
     meme.unsafeRun
 

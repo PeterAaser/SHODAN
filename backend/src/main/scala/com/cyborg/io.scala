@@ -3,21 +3,12 @@ package com.cyborg
 import fs2._
 import fs2.Stream._
 import fs2.util.Async
-import fs2.async.mutable.Queue
-import fs2.util.syntax._
-import fs2.io.file._
 import fs2.io.tcp._
 
-import java.nio.file._
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousChannelGroup
 
-import scala.concurrent.duration._
-import java.lang.Thread.UncaughtExceptionHandler
 import java.net.InetSocketAddress
-import java.nio.channels.spi.AsynchronousChannelProvider
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.language.higherKinds
 import com.typesafe.config._
@@ -25,7 +16,6 @@ import com.typesafe.config._
 
 object neuroServer {
 
-  import utilz._
   import namedACG._
 
   implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
@@ -68,12 +58,8 @@ object neuroServer {
     val reads: Stream[F, Byte] = socket.reads(1024)
     val writes: Sink[F, Byte] = socket.writes(None)
 
-    val memer = Assemblers.assembleExperiment(
-      reads,
-      writes,
-      40000,
-      4
-    )
+    val memer = Assemblers.assembleExperiment( reads, writes )
+
     memer
   }
 

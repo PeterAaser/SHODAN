@@ -15,7 +15,6 @@ class ApplicationServer(val port: Int, resourceBase: String) {
   server.setHandler(contextHandler)
 
   def start() = server.start()
-
   def stop() = server.stop()
 
   private val appHolder = {
@@ -31,7 +30,13 @@ class ApplicationServer(val port: Int, resourceBase: String) {
     import com.cyborg.rpc._
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val config = new DefaultAtmosphereServiceConfig[MainServerRPC]((clientId) => new DefaultExposesServerRPC[MainServerRPC](new ExposedRpcInterfaces()(clientId)))
+    val config = new DefaultAtmosphereServiceConfig[MainServerRPC](
+      {(clientId) =>
+        {
+          new DefaultExposesServerRPC[MainServerRPC](new ExposedRpcInterfaces()(clientId))
+        }
+      })
+
     val framework = new DefaultAtmosphereFramework(config)
 
     framework.allowAllClassesScan(false)

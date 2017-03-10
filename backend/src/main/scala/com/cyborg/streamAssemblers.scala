@@ -5,24 +5,23 @@ import fs2.util.Async
 import scala.language.higherKinds
 import MEAMEutilz._
 import com.typesafe.config._
+import utilz._
 
 object Assemblers {
 
   def assembleProcess[F[_]:Async](samplesPerSpike: Int): Pipe[F,Int,List[Double]] = neuronInputs => {
 
-    import utilz._
-
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
 
-    val channels = experimentConf.getIntList("DAQchannels").toArray.toList.length
+    val channels = experimentConf.getIntList("DAQchannels").toArray.toList
     val pointsPerSweep = experimentConf.getInt("sweepSize")
 
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] = alternate(
       neuronInputs,
       pointsPerSweep,
       256*256,
-      channels
+      channels.length
     )
 
     val channelWindowerPipe: Pipe[F,Int,Vector[Int]] =
@@ -70,10 +69,7 @@ object Assemblers {
 
   def assembleExperiment[F[_]: Async](
     meameReadStream: Stream[F, Byte],
-    meameWriteSink: Sink[F, Byte],
-
-    sampleRate: Int,
-    channels: Int
+    meameWriteSink: Sink[F, Byte]
 
   ): Stream[F, Unit] = {
 
