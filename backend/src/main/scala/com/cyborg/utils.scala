@@ -4,24 +4,14 @@ import fs2._
 import fs2.Stream._
 import fs2.util.Async
 import fs2.async.mutable.Queue
-import fs2.util.syntax._
-import fs2.io.file._
-import fs2.io.tcp._
 
-import java.nio.file._
-import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousChannelGroup
 
-import scala.concurrent.duration._
 import java.lang.Thread.UncaughtExceptionHandler
-import java.net.InetSocketAddress
 import java.nio.channels.spi.AsynchronousChannelProvider
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
-import scodec.codecs
-import scodec.stream.{encode,decode,StreamDecoder,StreamEncoder}
-import scodec.bits.ByteVector
 
 import scala.language.higherKinds
 

@@ -9,6 +9,21 @@ import utilz._
 
 object Assemblers {
 
+  type ffANNinput = Vector[Double]
+
+  // Needs a sweep size and a spike detector
+  def assembleInputFilter[F[_]:Async]: Pipe[F, Int, ffANNinput] = {
+
+    val conf = ConfigFactory.load()
+    val experimentConf = conf.getConfig("experimentConf")
+
+    val channels = experimentConf.getIntList("DAQchannels").toArray.toList
+    val pointsPerSweep = experimentConf.getInt("sweepSize")
+
+
+    ???
+  }
+
   def assembleProcess[F[_]:Async](samplesPerSpike: Int): Pipe[F,Int,List[Double]] = neuronInputs => {
 
     val conf = ConfigFactory.load()
