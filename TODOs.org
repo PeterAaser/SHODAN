@@ -1,0 +1,28 @@
+* TODO Create RPC pipes
+** Notes
+   When a new MEAMEControl is instantiated the constructor should return a stream.
+   This stream will be connected to all available input actions, pat match it from there.
+
+* TODO Create main control module
+** TODO Should be responsible for opening the server connections to MEAME
+** TODO Inner loop should be responsible for trying out N different ANNs for s seconds resetting the server
+*** DONE Refactor inner loop
+    Inner loop must be refactored to offer a pipeline where stages are more suited for working
+    in parallel without duplicating work
+*** TODO Add pipe rebuilding to some criteria
+**** TODO Create proof of concept
+
+** TODO Outer loop should be responsible for evaluating ANNs and issue a new set of ANNs
+** Spec
+*** Should open connection to server
+*** Should modify the pipe by replacing it with a new version
+*** Modification should be done by listening to various feedback from the current pipe
+
+
+
+* TODO Make website prettier
+** Notes
+   Needs to b webscale
+
+* TODO General
+** Fix alternator
