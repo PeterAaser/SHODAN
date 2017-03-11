@@ -62,5 +62,4 @@ object Assemblers {
 
     ffInput.through(FF).through(gamePipe)
   }
-
 }

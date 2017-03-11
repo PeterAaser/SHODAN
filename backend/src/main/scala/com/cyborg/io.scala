@@ -22,13 +22,6 @@ object neuroServer {
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
-  def getLineChunk[F[_]](socket: Socket[F]): F[Option[Chunk[Byte]]] = socket.read(1024)
-  def getLine[F[_]](l: Option[Chunk[Byte]]) =
-    l.map{λ => new String(λ.toArray)}.getOrElse("Nil")
-
-  def writeLine[F[_]](l: String, socket: Socket[F]): F[Unit] =
-    socket.write(Chunk.indexedSeq(l.getBytes()))
-
   val conf = ConfigFactory.load()
   val netConf = conf.getConfig("io")
   val addressConf = netConf.getConfig(netConf.getString("target"))
@@ -54,20 +47,10 @@ object neuroServer {
       keepAlive,
       noDelay)
 
-  def assembleClient[F[_]: Async](socket: Socket[F]): Stream[F, Unit] = {
-    val reads: Stream[F, Byte] = socket.reads(1024)
-    val writes: Sink[F, Byte] = socket.writes(None)
-
-    val memer = Assemblers.assembleExperiment( reads, writes )
-
-    memer
-  }
-
-  def gogo[F[_]: Async]: F[Unit] = {
+  def testThing[F[_]: Async]: F[Unit] = {
     val meme = c flatMap { meameSocket =>
       {
-        val memer = assembleClient(meameSocket)
-        memer
+        FW.meameWriter(meameSocket)
       }
     }
     meme.run

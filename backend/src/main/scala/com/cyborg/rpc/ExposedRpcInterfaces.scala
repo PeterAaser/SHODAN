@@ -1,6 +1,6 @@
 package com.cyborg.rpc
 
-import com.cyborg.neuroServer
+import com.cyborg.{ mainLoop, neuroServer }
 import com.cyborg.wallAvoid.Agent
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
@@ -122,7 +122,9 @@ object MEAMEControlService {
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
   def gogo(implicit clientId: ClientId): Unit = {
-    val meme = neuroServer.gogo[Task]
+    println("making task")
+    val meme = mainLoop.outer[Task]
+    println("running task")
     meme.unsafeRun
 
   }

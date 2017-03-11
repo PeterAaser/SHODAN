@@ -1,6 +1,7 @@
 package com.cyborg
 
 import com.typesafe.config._
+import fs2._
 
 
 import scala.math._

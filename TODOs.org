@@ -4,25 +4,41 @@
    This stream will be connected to all available input actions, pat match it from there.
 
 * TODO Create main control module
-** TODO Should be responsible for opening the server connections to MEAME
-** TODO Inner loop should be responsible for trying out N different ANNs for s seconds resetting the server
+** Inner loop
+*** TODO Inner loop should be responsible for trying out N different ANNs for s seconds resetting the server
 *** DONE Refactor inner loop
+    CLOSED: [2017-03-11 lø. 17:01]
     Inner loop must be refactored to offer a pipeline where stages are more suited for working
     in parallel without duplicating work
 *** TODO Add pipe rebuilding to some criteria
 **** TODO Create proof of concept
-
-** TODO Outer loop should be responsible for evaluating ANNs and issue a new set of ANNs
+**** TODO Add self modifying ANN pipe
+** Outer loop
+*** TODO Should dispatch the inner loop
+**** TODO MEAME needs an API for selecting datastream
+**** TODO should create the bulk logging task and inner loop task with MEAME sockets
+*** DONE Should be responsible for opening the server connections to MEAME
+    CLOSED: [2017-03-11 lø. 17:01]
+*** TODO Outer loop should log all incoming data from MEAME
+**** DONE Create flat fileWriter
+     CLOSED: [2017-03-11 lø. 17:01]
+**** TODO Write to database
+*** TODO Search for suitable channels
+    Figure out which channels respond to stimuli and select them as
+    primary acquisition/stimulation electrodes.
 ** Spec
+   Control module should:
 *** Should open connection to server
 *** Should modify the pipe by replacing it with a new version
 *** Modification should be done by listening to various feedback from the current pipe
 
-
-
 * TODO Make website prettier
 ** Notes
-   Needs to b webscale
+   Needs to be webscale
 
-* TODO General
-** Fix alternator
+* General
+** TODO Fix alternator
+   Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
+
+* Sist gang
+  Må fikse API for MEAME
