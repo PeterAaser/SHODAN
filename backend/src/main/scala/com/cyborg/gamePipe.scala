@@ -1,47 +1,36 @@
 package com.cyborg
 
+import com.cyborg.Assemblers.ffANNinput
 import com.cyborg.rpc.AgentService
 import scala.language.higherKinds
 
 object agentPipe {
+
+  type ffANNinput = Vector[Double]
+  type ffANNoutput = List[Double]
 
   import fs2._
 
   import com.cyborg.wallAvoid._
   import Agent._
 
-  def wallAvoidancePipe[F[_]]: Pipe[F, List[Double], List[Double]] = {
+  def wallAvoidancePipe[F[_]]: Pipe[F, ffANNoutput, Agent] = {
 
-    def agentPipe: Pipe[F, List[Double], (List[Double],List[Double])] = {
+    val initAgent =
+      Agent(Coord(( wallAvoid.width/2.0), (wallAvoid.height/2.0)), 0.0, 90)
 
-      def go(agent: Agent):
-          Handle[F,List[Double]] => Pull[F,(List[Double], List[Double]),Unit] = h => {
-
-        h.receive1 {
-          case(input, h) => {
-            val (nextAgent, sensorData) = updateAgent(agent, input)
-
-            // TODO: this is what functional effect tries to avoid... Could be encapsulated into
-            // a task maybe?
-            AgentService.agentUpdate(nextAgent)
-
-            Pull.output1(
-              (sensorData, List[Double](nextAgent.loc.x, nextAgent.loc.y, nextAgent.heading))
-            ) >>
-              go(nextAgent)(h)
-          }
+    def go(agent: Agent): Handle[F, ffANNoutput] => Pull[F, Agent, Unit] = h => {
+      h.receive1 {
+        case (input, h) => {
+          val nextAgent = updateAgent(agent, input)
+          Pull.output1(agent) >> go(nextAgent)(h)
         }
       }
-      val initAgent =
-        Agent(Coord(( wallAvoid.width/2.0), (wallAvoid.height/2.0)), 0.0, 90)
-
-      _.pull(go(initAgent))
     }
 
-    // This is a fucking mess, but the gist of it is that the sensorData is sent every tick.
-    // Sensordata is a list of double with length eyes
-    _.through(agentPipe).through(_.map(_._1))
+    _.pull(go(initAgent))
 
   }
 
+  //         AgentService.agentUpdate(nextAgent)
 }

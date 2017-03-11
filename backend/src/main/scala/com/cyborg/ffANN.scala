@@ -88,20 +88,12 @@ object Filters {
 
     import fs2._
 
-    def ffPipe[F[_]]
-      ( temporality: Int
-      , net: FeedForward[Double]): Pipe[F,Vector[Boolean], List[Double]] =
-    {
+    def ffPipe[F[_]](net: FeedForward[Double]): Pipe[F,Vector[Double], List[Double]] = {
 
-      def go: Handle[F,Vector[Boolean]] => Pull[F,List[Double],Unit] = h => {
-        h.awaitN(temporality, false).flatMap {
-          case (chunks, h) => {
-            val inputs: Vector[Double] =
-              (chunks.foldLeft(Vector[Vector[Boolean]]())(_ ++ _.toVector))
-                .flatten
-                .map(λ => if(λ) 1.0 else 0.0)
-
-            val outputs = net.feed(inputs.toList)
+      def go: Handle[F,Vector[Double]] => Pull[F,List[Double],Unit] = h => {
+        h.await1 flatMap {
+          case (chunk, h) => {
+            val outputs = net.feed(chunk.toList)
             // println(s"outputs from ANN was $outputs")
             Pull.output1(outputs) >> go(h)
           }
@@ -109,6 +101,5 @@ object Filters {
       }
       _.pull(go)
     }
-
   }
 }

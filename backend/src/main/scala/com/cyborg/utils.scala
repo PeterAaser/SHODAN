@@ -166,12 +166,12 @@ object utilz {
     _.evalMap { a => Task.delay{ println(s"$prefix> $a"); a }}
   }
 
+
+  // TODO this thing has no reason to live other than being a bandaid.
   def unpacker[F[_],I]: Pipe[F,Vector[I],I] = {
     def go: Handle[F,Vector[I]] => Pull[F,I,Unit] = h => {
       h.receive1 {
         (v, h) => {
-          // println("unpacker received sumfin")
-          // println(v)
           Pull.output(Chunk.seq(v)) >> go(h)
         }
       }

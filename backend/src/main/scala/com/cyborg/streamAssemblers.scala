@@ -1,5 +1,6 @@
 package com.cyborg
 
+import com.cyborg.wallAvoid.Agent
 import fs2._
 import fs2.util.Async
 import scala.language.higherKinds
@@ -10,9 +11,10 @@ import utilz._
 object Assemblers {
 
   type ffANNinput = Vector[Double]
+  type ffANNoutput = List[Double]
 
   // Needs a sweep size and a spike detector
-  def assembleInputFilter[F[_]:Async]: Pipe[F, Int, ffANNinput] = {
+  def assembleInputFilter[F[_]:Async]: Pipe[F, Int, ffANNinput] = neuroStream => {
 
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
@@ -20,93 +22,45 @@ object Assemblers {
     val channels = experimentConf.getIntList("DAQchannels").toArray.toList
     val pointsPerSweep = experimentConf.getInt("sweepSize")
 
+    val MAGIC1 = 1000
+    val MAGIC2 = 1000
+    val MAGIC3 = 1000
 
-    ???
-  }
+    val spikeDetectorPipe: Pipe[F, Int, Int] =
+      spikeDetector.spikeDetectorPipe(MAGIC1, MAGIC2, MAGIC3)
 
-  def assembleProcess[F[_]:Async](samplesPerSpike: Int): Pipe[F,Int,List[Double]] = neuronInputs => {
 
-    val conf = ConfigFactory.load()
-    val experimentConf = conf.getConfig("experimentConf")
+    val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] =
+      alternate(neuroStream, pointsPerSweep, 256*256, channels.length)
 
-    val channels = experimentConf.getIntList("DAQchannels").toArray.toList
-    val pointsPerSweep = experimentConf.getInt("sweepSize")
 
-    val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] = alternate(
-      neuronInputs,
-      pointsPerSweep,
-      256*256,
-      channels.length
-    )
+    val spikeStream = neuronChannels flatMap {
+      channels: List[Stream [F,Vector[Int]]] => {
 
-    val channelWindowerPipe: Pipe[F,Int,Vector[Int]] =
-      stridedSlide[F,Int](samplesPerSpike, samplesPerSpike/4)
-
-    val spikeDetectorPipe: Pipe[F,Vector[Int],Boolean] =
-      spikeDetector.singleSpikeDetectorPipe(spikeDetector.simpleDetector)
-
-    val spikePatterns: Stream[F, Vector[Boolean]] = neuronChannels.flatMap {
-      channels: List[Stream[F,Vector[Int]]] => {
-
-        val windowedChannels: List[Stream[F,Boolean]] = channels
+        val spikeChannels: List[Stream[F, Int]] = channels
           .map((λ: Stream[F,Vector[Int]]) => λ.through(unpacker[F,Int]))
-          .map((λ: Stream[F,Int]) => λ.through(channelWindowerPipe))
-          .map((λ: Stream[F,Vector[Int]]) => λ.through(spikeDetectorPipe))
+          .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
 
-        val spikeTrainsT: Stream[F, Vector[Boolean]] = {
-          (Stream[F,Vector[Boolean]](Vector[Boolean]()).repeat /: windowedChannels){
-            (b: Stream[F, Vector[Boolean]], a: Stream[F, Boolean]) => b.zipWith(a){
+        val spikeTrains =
+          (Stream[F, Vector[Int]](Vector[Int]()).repeat /: spikeChannels){
+            (b: Stream[F, Vector[Int]], a: Stream[F, Int]) => b.zipWith(a){
               (λ, µ) => µ +: λ
             }
           }
-        }
-        spikeTrainsT
+        spikeTrains
       }
     }
 
-
-    val FF = Filters.FeedForward(
-      List(2, 3, 2)
-        , List(0.1, 0.2, 0.4, 0.0, 0.3)
-        , List(0.1, -0.2, 0.2, -0.1, 2.0, -0.4, 0.1, -0.2, 0.1, 1.0, 0.3, 0.3))
+    // ups...
+    spikeStream.through(_.map(_.map(_.toDouble)))
+  }
 
 
-    val processedSpikes: Stream[F,List[Double]] = {
-      val pipe = Filters.ANNPipes.ffPipe[F](10, FF)
-      spikePatterns.through(pipe)
-    }
-
+  def assembleAgentPipe[F[_]: Async](ff: Filters.FeedForward[Double]): Pipe[F, ffANNinput, Agent] = ffInput => {
+    val FF = Filters.ANNPipes.ffPipe[F](ff)
     val gamePipe = agentPipe.wallAvoidancePipe[F]
-    val gameOutput = processedSpikes.through(gamePipe)
 
-    gameOutput
+    ffInput.through(FF).through(gamePipe)
   }
 
-  def assembleExperiment[F[_]: Async](
-    meameReadStream: Stream[F, Byte],
-    meameWriteSink: Sink[F, Byte]
-
-  ): Stream[F, Unit] = {
-
-    // How many samples should we look at to detect a spike?
-    val samplesPerSpike = 128
-
-    val toStimFrequencyTransform: List[Double] => String = {
-      val logScaler = logScaleBuilder(scala.math.E)
-      toStimFrequency(List(3, 4, 5, 6), logScaler)
-    }
-
-    val process: Pipe[F, Int, List[Double]] = assembleProcess(samplesPerSpike)
-
-    val meme =
-      meameReadStream
-        .through(utilz.bytesToInts)
-        .through(process)
-        .through(_.map(toStimFrequencyTransform))
-        .through(text.utf8Encode)
-        .through(meameWriteSink)
-
-    meme
-
-  }
 }

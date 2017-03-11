@@ -46,10 +46,10 @@ object wallAvoid {
   }
   object Agent {
 
-    def updateAgent(a: Agent, input: List[Double]): (Agent, List[Double]) = {
+    def updateAgent(a: Agent, input: List[Double]): Agent = {
 
       val nextAgent = a.update((input.head, input.tail.head))
-      (nextAgent, nextAgent.distances)
+      nextAgent
     }
   }
 
