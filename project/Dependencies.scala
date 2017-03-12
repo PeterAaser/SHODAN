@@ -9,7 +9,10 @@ object Dependencies {
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "io.udash" %%% "udash-core-shared" % udashVersion,
-    "io.udash" %%% "udash-rpc-shared" % udashVersion
+    "io.udash" %%% "udash-rpc-shared" % udashVersion,
+    "io.spray" %%  "spray-json" % "1.3.3",
+    "com.typesafe" % "config" % "1.3.1",
+    "com.github.fommil" %% "spray-json-shapeless" % "1.3.0"
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](
@@ -45,7 +48,6 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % "2.3.2",
     "com.typesafe.akka" % "akka-http" % "3.0.0-RC1",
     "com.lihaoyi" % "upickle_2.11" % "0.4.4",
-    "com.typesafe" % "config" % "1.3.1",
     "org.scalaz" %% "scalaz-core" % "7.2.8",
     "com.github.nscala-time" %% "nscala-time" % "2.16.0"
 

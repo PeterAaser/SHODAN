@@ -1,10 +1,10 @@
 package com.cyborg
 
+import com.cyborg.params.NeuroDataParams
 import com.cyborg.wallAvoid.Agent
 import fs2._
 import fs2.util.Async
 import scala.language.higherKinds
-import MEAMEutilz._
 import com.typesafe.config._
 import utilz._
 

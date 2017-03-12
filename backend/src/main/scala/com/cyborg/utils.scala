@@ -215,5 +215,16 @@ object utilz {
     // println(memeString)
     memeString
   }
+
+
+
+  // Task[A]
+  // f: A => B
+  // g: (B, Stream[A]) => Task[AmazingScientificResults]
+  def take1[F[_],O](handle: Handle[F,O]): Pull[F,O,Handle[F,O]] = {
+
+    ???
+  }
 }
+
 

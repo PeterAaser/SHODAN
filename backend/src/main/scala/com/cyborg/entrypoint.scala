@@ -1,13 +1,12 @@
 package com.cyborg
 
+import com.cyborg.params.NeuroDataParams
 import com.cyborg.rpc.AgentService
 import com.cyborg.wallAvoid.Agent
-import fs2.Task
+import com.typesafe.config.ConfigFactory
 import fs2._
-import fs2.async.mutable.Signal
 import fs2.util.Async
 import MEAMEutilz._
-import java.nio.channels.AsynchronousChannelGroup
 
 
 object mainLoop {
@@ -18,6 +17,7 @@ object mainLoop {
 
   // Effect for inner should be to write to a log, it should not need anything other than IO sockets.
   def inner[F[_]: Async](
+    params: NeuroDataParams,
     meameReadStream: Stream[F, Byte],
     meameWriteSink: Sink[F, Byte] ): F[Unit] =
   {
@@ -47,26 +47,15 @@ object mainLoop {
     meme.run
   }
 
+
   def outer[F[_]: Async]: F[Unit] = {
-    val meme = neuroServer.testThing
+
+    val conf = ConfigFactory.load()
+    val experimentConf = conf.getConfig("experimentConf")
+    val params = NeuroDataParams(experimentConf)
+
+    val meme = neuroServer.testThing(params)
     meme
   }
 
-  // def _outer(a: Int): Task[Unit] = {
-
-  //   val timer: Task[Signal[Task, Int]] = async.signalOf[Task, Int](1)
-  //   val meme: Task[Int] = timer.flatMap {
-  //     x1 => x1.get
-  //   }
-
-  //   val otherMeme: Stream[Task, Signal[Task, Int]] = Stream.eval(timer)
-
-  //   val fugg: Stream[Task, Int] = Stream.eval(timer) flatMap { x => x.discrete }
-
-  //   val ohno: Task[Unit] = timer flatMap { x1 => x1.set(2) }
-
-  //   val evaluatedSignal: Signal[Task, Int] = timer.unsafeRun
-
-  //   ???
-  // }
 }

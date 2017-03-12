@@ -1,5 +1,6 @@
 package com.cyborg
 
+import com.cyborg.params._
 import fs2._
 import fs2.Stream._
 import fs2.util.Async
@@ -47,10 +48,10 @@ object neuroServer {
       keepAlive,
       noDelay)
 
-  def testThing[F[_]: Async]: F[Unit] = {
+  def testThing[F[_]: Async](params: NeuroDataParams): F[Unit] = {
     val meme = c flatMap { meameSocket =>
       {
-        FW.meameWriter(meameSocket)
+        FW.meameWriter(params, meameSocket)
       }
     }
     meme.run

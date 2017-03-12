@@ -1,7 +1,13 @@
-* TODO Create RPC pipes
-** Notes
-   When a new MEAMEControl is instantiated the constructor should return a stream.
-   This stream will be connected to all available input actions, pat match it from there.
+* TODO Persistent storage
+** TODO Write MEAME input to file
+*** DONE Write raw input to file
+    CLOSED: [2017-03-12 sø. 12:40]
+*** TODO Write parameters from file
+** TODO Read MEAME input from file
+*** TODO Read raw input from file
+*** TODO Read params from file
+
+    
 
 * TODO Create main control module
 ** Inner loop
@@ -32,13 +38,28 @@
 *** Should modify the pipe by replacing it with a new version
 *** Modification should be done by listening to various feedback from the current pipe
 
+
+* TODO Create RPC pipes
+** Notes
+   When a new MEAMEControl is instantiated the constructor should return a stream.
+   This stream will be connected to all available input actions, pat match it from there.
+
+
+* TODO Better DI
+** TODO Figure out best practice for DI
+*** TODO Try out Free monad
+** TODO SHODAN should be able to select experiment params from either file of conf.
+*** Create parses for params
+
+
 * TODO Make website prettier
 ** Notes
    Needs to be webscale
+
 
 * General
 ** TODO Fix alternator
    Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
 
+
 * Sist gang
-  Må fikse API for MEAME
