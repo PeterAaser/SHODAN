@@ -18,17 +18,19 @@ object FW {
     // TODO should be in params, but won't compile because of arcane reasons
     implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
 
-    val fileName = s"recording ${DateTime.now().toString}"
+    val fmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
+    val time = DateTime.now().toString(fmt)
+
+    val fileName = s"$time"
     val JSONparams = params.toJson
 
     val paramString: Stream[Pure, Byte] = Stream.emit(JSONparams.compactPrint + "\n").through(text.utf8Encode)
-
     val reads: Stream[F, Byte] = meameSocket.reads(1024*1024)
 
-    val thing = (paramString ++ reads)
+    val meme = (paramString ++ reads)
       .through(io.file.writeAll(Paths.get(s"/home/peter/MEAMEdata/$fileName")))
 
-    thing
+    meme
   }
 
 
@@ -43,9 +45,9 @@ object FW {
       // TODO should be in params, but won't compile because of arcane reasons
       implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
 
-      val fug = s.parseJson
-      val meme = fug.convertTo[NeuroDataParams]
-      meme
+      val params = s.parseJson
+      val paramJson = params.convertTo[NeuroDataParams]
+      paramJson
     }
 
     val params = memeLord.through(pipe.take(1)).through(_.map(toparams))

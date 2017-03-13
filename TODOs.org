@@ -1,3 +1,7 @@
+* TODO Add error handling
+** TODO On TCP connection close do some cool shit
+ 
+
 * TODO Persistent storage
 ** TODO Write MEAME input to file
 *** DONE Write raw input to file
@@ -5,7 +9,13 @@
 *** TODO Write parameters from file
 ** TODO Read MEAME input from file
 *** TODO Read raw input from file
+**** DONE write implementation
+     CLOSED: [2017-03-12 sø. 16:02]
+**** TODO test implementation
 *** TODO Read params from file
+**** DONE write implementation
+     CLOSED: [2017-03-12 sø. 16:03]
+**** TODO test implementation
 
     
 
@@ -63,3 +73,4 @@
 
 
 * Sist gang
+  Skrevet read og write til fil, ikke testet #YOLO
