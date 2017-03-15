@@ -126,6 +126,7 @@ object MEAMEControlService {
     val meme = mainLoop.outer[Task]
     println("running task")
     meme.unsafeRun
+    println("OK OK")
 
   }
 }

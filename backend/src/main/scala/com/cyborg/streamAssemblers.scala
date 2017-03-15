@@ -22,12 +22,12 @@ object Assemblers {
     val channels = experimentConf.getIntList("DAQchannels").toArray.toList
     val pointsPerSweep = experimentConf.getInt("sweepSize")
 
-    val MAGIC1 = 1000
-    val MAGIC2 = 1000
-    val MAGIC3 = 1000
+    val MAGIC_PERIOD = 1000
+    val MAGIC_SAMPLERATE = 1000
+    val MAGIC_THRESHOLD = 1000
 
     val spikeDetectorPipe: Pipe[F, Int, Int] =
-      spikeDetector.spikeDetectorPipe(MAGIC1, MAGIC2, MAGIC3)
+      spikeDetector.spikeDetectorPipe(MAGIC_PERIOD, MAGIC_SAMPLERATE, MAGIC_THRESHOLD)
 
 
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] =

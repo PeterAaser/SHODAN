@@ -115,6 +115,23 @@ object utilz {
   }
 
 
+  def intsToBytes[F[_]]: Pipe[F, Int, Byte] = {
+
+    def intToByteList(i: Int): List[Byte] =
+      java.nio.ByteBuffer.allocate(4).putInt(i).array().toList
+
+    def go: Handle[F, Int] => Pull[F, Byte, Unit] = h => {
+      h.receive {
+        case (chunk, h) => {
+          val fug = chunk.toList.flatMap(intToByteList(_))
+          val fugs = Chunk.seq(fug)
+          Pull.output(Chunk.seq(fug)) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
   // Decodes a byte stream into a stream of 32 bit signed ints
   // TODO use scodec maybe?
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
@@ -211,20 +228,8 @@ object utilz {
 
     // Apparently scala cannot escape quotes in string interpolation.
     // This will eventually be assembled with a real JSON handler. TODO
-    val memeString = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
+    val meme = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
     // println(memeString)
-    memeString
-  }
-
-
-
-  // Task[A]
-  // f: A => B
-  // g: (B, Stream[A]) => Task[AmazingScientificResults]
-  def take1[F[_],O](handle: Handle[F,O]): Pull[F,O,Handle[F,O]] = {
-
-    ???
+    meme
   }
 }
-
-

@@ -19,7 +19,7 @@ object mainLoop {
   def inner[F[_]: Async](
     params: NeuroDataParams,
     meameReadStream: Stream[F, Byte],
-    meameWriteSink: Sink[F, Byte] ): F[Unit] =
+    meameWriteSink: Stream[F, Byte] => F[Unit] ): F[Unit] =
   {
 
     val FF = Filters.FeedForward(
@@ -42,14 +42,24 @@ object mainLoop {
       .through(_.map((λ: Agent) => {AgentService.agentUpdate(λ); λ.distances}))
       .through(_.map(toStimFrequencyTransform))
       .through(text.utf8Encode)
-      .through(meameWriteSink)
 
-    meme.run
+    val memeTask = meameWriteSink(meme)
+
+    println("INNER IS READY TO RUN")
+
+    // meme.run
+    memeTask
   }
 
 
   def outer[F[_]: Async]: F[Unit] = {
 
+    // outerStore
+    // outerRunStored
+    outerRunSplitter
+  }
+
+  def outerStore[F[_]: Async]: F[Unit] = {
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
     val params = NeuroDataParams(experimentConf)
@@ -58,4 +68,28 @@ object mainLoop {
     meme
   }
 
+  def outerRunStored[F[_]: Async]: F[Unit] = {
+
+    val filename = FW.getNewestFilename
+
+    val meme = FW.meameDataReader(filename) flatMap {
+      case (paramStream, dataStream) => {
+        paramStream flatMap { params =>
+          val meme = inner[F](params, dataStream, FW.meameLogWriter)
+          println(params)
+
+          Stream.eval(meme)
+        }
+      }
+    }
+
+    meme.run
+  }
+
+  def outerRunSplitter[F[_]: Async]: F[Unit] = {
+
+    val filename = FW.getNewestFilename
+    FW.channelSplitter(filename)
+
+  }
 }

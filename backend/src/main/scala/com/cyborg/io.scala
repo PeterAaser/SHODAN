@@ -51,7 +51,7 @@ object neuroServer {
   def testThing[F[_]: Async](params: NeuroDataParams): F[Unit] = {
     val meme = c flatMap { meameSocket =>
       {
-        FW.meameWriter(params, meameSocket)
+        FW.meameDataWriter(params, meameSocket)
       }
     }
     meme.run

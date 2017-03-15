@@ -3,21 +3,27 @@
  
 
 * TODO Persistent storage
-** TODO Write MEAME input to file
+** DONE Write MEAME input to file
+   CLOSED: [2017-03-13 ma. 17:47]
 *** DONE Write raw input to file
     CLOSED: [2017-03-12 sø. 12:40]
-*** TODO Write parameters from file
-** TODO Read MEAME input from file
-*** TODO Read raw input from file
+*** DONE Write parameters to file
+    CLOSED: [2017-03-13 ma. 17:47]
+** DONE Read MEAME input from file
+   CLOSED: [2017-03-14 ti. 17:07]
+*** DONE Read raw input from file
+    CLOSED: [2017-03-14 ti. 17:07]
 **** DONE write implementation
      CLOSED: [2017-03-12 sø. 16:02]
 **** TODO test implementation
-*** TODO Read params from file
+*** DONE Read params from file
+    CLOSED: [2017-03-13 ma. 17:47]
 **** DONE write implementation
      CLOSED: [2017-03-12 sø. 16:03]
 **** TODO test implementation
 
     
+** TODO Test and fix write and read
 
 * TODO Create main control module
 ** Inner loop
@@ -72,5 +78,14 @@
    Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
 
 
+* Notes
+** Logging
+   In order to log what SHODAN does and thinks it could be useful to implement a logging scheme.
+   This is possibly something best done with Task (or F[_].. ), check it out.
+
 * Sist gang
-  Skrevet read og write til fil, ikke testet #YOLO
+  fra gitter: 
+
+  #+BEGIN_SRC scala
+  def noop[F[_],A](in: Stream[F, A])(implicit F: Async[F]):Stream[F, Unit] = _.evalMap(_ => F.pure(()))
+  #+END_SRC
