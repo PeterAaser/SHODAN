@@ -6,6 +6,7 @@ object Dependencies {
   val udashJQueryVersion = "1.0.0"
   val logbackVersion = "1.1.3"
   val jettyVersion = "9.3.11.v20160721"
+  val doobieVersion = "0.4.0"
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "io.udash" %%% "udash-core-shared" % udashVersion,
@@ -49,7 +50,12 @@ object Dependencies {
     "com.typesafe.akka" % "akka-http" % "3.0.0-RC1",
     "com.lihaoyi" % "upickle_2.11" % "0.4.4",
     "org.scalaz" %% "scalaz-core" % "7.2.8",
-    "com.github.nscala-time" %% "nscala-time" % "2.16.0"
+    "com.github.nscala-time" %% "nscala-time" % "2.16.0",
+    "org.tpolecat" %% "doobie-core-cats"       % doobieVersion,
+    "org.tpolecat" %% "doobie-postgres-cats"   % doobieVersion,
+    "org.tpolecat" %% "doobie-specs2-cats"     % doobieVersion,
+    "org.typelevel" %% "cats" % "0.9.0",
+    "com.chuusai" %% "shapeless" % "2.3.2"
 
   ))
 }

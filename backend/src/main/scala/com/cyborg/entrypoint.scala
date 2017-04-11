@@ -22,13 +22,13 @@ object mainLoop {
     meameWriteSink: Stream[F, Byte] => F[Unit] ): F[Unit] =
   {
 
-    val FF = Filters.FeedForward(
+    val initFF = Filters.FeedForward(
       List(2, 3, 2)
         , List(0.1, 0.2, 0.4, 0.0, 0.3)
         , List(0.1, -0.2, 0.2, -0.1, 2.0, -0.4, 0.1, -0.2, 0.1, 1.0, 0.3, 0.3))
 
     val inputFilter = Assemblers.assembleInputFilter
-    val agentPipe = Assemblers.assembleAgentPipe(FF)
+    val agentPipe = Assemblers.assembleAgentPipe(initFF)
 
     val toStimFrequencyTransform: List[Double] => String = {
       val logScaler = logScaleBuilder(scala.math.E)

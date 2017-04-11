@@ -1,7 +1,6 @@
 * TODO Add error handling
 ** TODO On TCP connection close do some cool shit
  
-
 * TODO Persistent storage
 ** DONE Write MEAME input to file
    CLOSED: [2017-03-13 ma. 17:47]
@@ -23,11 +22,14 @@
 **** TODO test implementation
 
     
-** TODO Test and fix write and read
+** DONE Test and fix write and read
+   CLOSED: [2017-03-18 lø. 13:03]
+
+** TODO Add a real webscale database
 
 * TODO Create main control module
 ** Inner loop
-*** TODO Inner loop should be responsible for trying out N different ANNs for s seconds resetting the server
+*** TODO Inner loop should be responsible for trying out different ANNs
 *** DONE Refactor inner loop
     CLOSED: [2017-03-11 lø. 17:01]
     Inner loop must be refactored to offer a pipeline where stages are more suited for working
@@ -54,12 +56,10 @@
 *** Should modify the pipe by replacing it with a new version
 *** Modification should be done by listening to various feedback from the current pipe
 
-
 * TODO Create RPC pipes
 ** Notes
    When a new MEAMEControl is instantiated the constructor should return a stream.
    This stream will be connected to all available input actions, pat match it from there.
-
 
 * TODO Better DI
 ** TODO Figure out best practice for DI
@@ -67,11 +67,9 @@
 ** TODO SHODAN should be able to select experiment params from either file of conf.
 *** Create parses for params
 
-
 * TODO Make website prettier
 ** Notes
    Needs to be webscale
-
 
 * General
 ** TODO Fix alternator
@@ -84,8 +82,37 @@
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  fra gitter: 
+  Ser på å legge til evaluator i gamePipe
+
+* Doobie notes
 
   #+BEGIN_SRC scala
-  def noop[F[_],A](in: Stream[F, A])(implicit F: Async[F]):Stream[F, Unit] = _.evalMap(_ => F.pure(()))
+  def niceMeme(meme: Int): Int = meme + meme
   #+END_SRC
+
+* Database specification
+** ER
+   For each experiment
+*** Metadata
+   Experiment parameters
+   Date (start, finish)
+   Culture name
+   Textual description
+
+*** Experiment data
+   Raw data chunks?
+
+** Use cases
+*** Query for all recordings in some timespan
+*** Query for all recordings with length over 4 minutes
+*** Reading the experiment the runner decides to retry from some timestamp with a different filter
+*** A program reads both raw data and a processed stream (spike data)
+*** A program processes spike detection for all recordings in some range of time
+
+* Database notes
+** To open db in terminal:
+   peter$~/:    sudo su postgres 
+   postgres$~/: psql -d world -U postgres
+  
+   select name from country;
+   \q

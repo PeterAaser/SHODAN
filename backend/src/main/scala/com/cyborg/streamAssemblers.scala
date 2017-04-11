@@ -58,7 +58,7 @@ object Assemblers {
 
   def assembleAgentPipe[F[_]: Async](ff: Filters.FeedForward[Double]): Pipe[F, ffANNinput, Agent] = ffInput => {
     val FF = Filters.ANNPipes.ffPipe[F](ff)
-    val gamePipe = agentPipe.wallAvoidancePipe[F]
+    val gamePipe = agentPipe.wallAvoidancePipe[F]()
 
     ffInput.through(FF).through(gamePipe)
   }

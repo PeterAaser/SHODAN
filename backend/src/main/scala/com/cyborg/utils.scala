@@ -185,8 +185,8 @@ object utilz {
 
 
   // TODO this thing has no reason to live other than being a bandaid.
-  def unpacker[F[_],I]: Pipe[F,Vector[I],I] = {
-    def go: Handle[F,Vector[I]] => Pull[F,I,Unit] = h => {
+  def unpacker[F[_],I]: Pipe[F,Seq[I],I] = {
+    def go: Handle[F,Seq[I]] => Pull[F,I,Unit] = h => {
       h.receive1 {
         (v, h) => {
           Pull.output(Chunk.seq(v)) >> go(h)
@@ -196,6 +196,18 @@ object utilz {
     _.pull(go)
   }
 
+
+  def vectorize[F[_],I](length: Int): Pipe[F,I,Vector[I]] = {
+    def go: Handle[F, I] => Pull[F,Vector[I],Unit] = h => {
+      h.awaitN(length, false).flatMap {
+        case (chunks, h) => {
+          val folded = chunks.foldLeft(Vector.empty[I])(_ ++ _.toVector)
+          Pull.output1(folded) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
 
   // Very likely not needed
   def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
