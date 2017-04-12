@@ -118,3 +118,9 @@
   
    select name from country;
    \q
+** To redo a database
+   peter$~/:    sudo su postgres 
+   postgres$~/: psql -c 'drop database $db;' -U postgres
+   postgres$~/: psql -c 'create database $db;' -U postgres
+   postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
+   

@@ -18,7 +18,7 @@ object memeStorage {
 
   val xa = DriverManagerTransactor[fs2.Task](
     "org.postgresql.Driver",
-    "jdbc:postgresql:world",
+    "jdbc:postgresql:fug",
     "postgres",
     s"$superdupersecretPassword"
   )
@@ -27,7 +27,7 @@ object memeStorage {
 
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
 
-  val channelStream: ConnectionIO[List[fs2.Stream[fs2.Task, Array[Byte]]]] =
+  val channelStream: ConnectionIO[List[Stream[Task, Array[Byte]]]] =
     for {
       a <-
         sql"""
@@ -43,9 +43,12 @@ object memeStorage {
           ORDER BY index
         """.query[Array[Byte]].process.transact(xa)))
 
+  val test: Task[List[Stream[Task, Array[Byte]]]] =
+    channelStream.transact(xa)
 
-  val test: fs2.Task[List[fs2.Stream[fs2.Task, Array[Byte]]]] = channelStream.transact(xa)
-  val channelStreams: fs2.Stream[fs2.Task, List[fs2.Stream[fs2.Task, Array[Byte]]]] = fs2.Stream.eval(test)
+  val channelStreams: Stream[Task, List[Stream[Task, Array[Byte]]]] =
+    Stream.eval(test)
+
 
 
   // Creates a sink for a channel inserting DATAPIECES
@@ -54,18 +57,21 @@ object memeStorage {
       h.awaitN(12000, false) flatMap {
         case (chunks, h) => {
           val folded = (chunks.foldLeft(Vector.empty[Byte])(_ ++ _.toVector)).toArray
-          val insert: Task[Int] =
-
+          val insert: Task[Int] = {
+            println("Inserting 10000 pieces")
             sql"""
-              INSERT INTO datapiece (channelRecording, sample)
+              INSERT INTO datapiece (channelRecordingId, sample)
               VALUES ($channelRecordingId, $folded)
             """.update.run.transact(xa)
-
+          }
           Pull.output1(insert) >> go(h)
         }
       }
     }
-    _.pull(go).drain
+    λ => {
+      val meme = λ.pull(go).flatMap{ λ: Task[Int] => Stream.eval_(λ) }
+      meme.drain
+    }
   }
 
   import com.github.nscala_time.time.Imports._
@@ -77,20 +83,32 @@ object memeStorage {
 
   def insertNewExperiment(comment: Option[String]): ConnectionIO[Long] = {
     val comment_ = comment.getOrElse("no comment")
-    for {
-      _ <- sql"INSERT INTO experimentInfo (comment) VALUES $comment_".update.run
-      id <- sql"select lastval()".query[Long].unique
+    val meme = for {
+      _ <- {
+        println(" ~~ Inserting new experiment ~~ ");
+        sql"INSERT INTO experimentInfo (comment) VALUES ($comment_)".update.run
+      }
+      id <- {
+        println(" ~~ Experiment inserted, attempting to retrieve ~~ ");
+        sql"select lastval()".query[Long].unique
+      }
+      _ = println(s" ~~ Experiment inserted with id $id ~~ ")
     } yield (id)
+    meme
   }
 
   def insertChannel(experimentId: Long, channel: Int): ConnectionIO[Long] = {
     for {
-      _ <- sql"INSERT INTO channelRecording (experimentId, channelNumber) VALUES ($experimentId, $channel)".update.run
+      _ <- {
+        println(s" ~~ Inserting Channel $channel for experiment $experimentId ~~ ")
+        sql"INSERT INTO channelRecording (experimentId, channelNumber) VALUES ($experimentId, $channel)".update.run
+      }
       id <- sql"select lastval()".query[Long].unique
     } yield (id)
   }
 
   def insertChannels(experimentId: Long): ConnectionIO[List[Long]] = {
+    println(s"Inserting channels for $experimentId")
     val meme: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
     val meme2: ConnectionIO[List[Long]] = meme.sequence
     meme2
@@ -98,12 +116,12 @@ object memeStorage {
 
   // Inserts an experiment, creates a bunch of sinks
   def setupExperimentStorage: Task[List[Sink[Task,Byte]]] = {
-
+    println("I am setting up storage for an experiment")
     val sinks: ConnectionIO[List[Sink[Task,Byte]]] = for {
       experimentId <- insertNewExperiment(Some("test123"))
       channelIds <- insertChannels(experimentId)
     } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
-
+    println("Ok, storage is gucci")
     sinks.transact(xa)
   }
 }

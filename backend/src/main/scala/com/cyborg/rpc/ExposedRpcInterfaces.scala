@@ -123,7 +123,7 @@ object MEAMEControlService {
 
   def gogo(implicit clientId: ClientId): Unit = {
     println("making task")
-    val meme = mainLoop.outer[Task]
+    val meme = mainLoop.outerT
     println("running task")
     meme.unsafeRun
     println("OK OK")

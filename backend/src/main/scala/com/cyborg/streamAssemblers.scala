@@ -51,7 +51,6 @@ object Assemblers {
       }
     }
 
-    // ups...
     spikeStream.through(_.map(_.map(_.toDouble)))
   }
 

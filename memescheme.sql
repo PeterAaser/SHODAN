@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS channelRecording (
 CREATE TABLE IF NOT EXISTS datapiece (
     channelRecordingId int NOT NULL,
     index serial NOT NULL,
-    sample char[120000] NOT NULL -- A seconds worth of data at 40 khz. We do not care to save lengths below one second.
+    sample bytea NOT NULL -- A seconds worth of data at 40 khz. We do not care to save lengths below one second.
 );
 
 ALTER TABLE experimentInfo

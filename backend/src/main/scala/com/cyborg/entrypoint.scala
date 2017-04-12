@@ -59,6 +59,8 @@ object mainLoop {
     outerRunSplitter
   }
 
+  def outerT: Task[Unit] = outerRunDBSplitter
+
   def outerStore[F[_]: Async]: F[Unit] = {
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
@@ -66,6 +68,11 @@ object mainLoop {
 
     val meme = neuroServer.testThing(params)
     meme
+  }
+
+  def outerRunFromDB: Task[Unit] = {
+
+    ???
   }
 
   def outerRunStored[F[_]: Async]: F[Unit] = {
@@ -84,6 +91,13 @@ object mainLoop {
     }
 
     meme.run
+  }
+
+  def outerRunDBSplitter: Task[Unit] = {
+    val filename = FW.getNewestFilename
+    val sinks = memeStorage.setupExperimentStorage
+    FW.genericChannelSplitter(filename, sinks)
+
   }
 
   def outerRunSplitter[F[_]: Async]: F[Unit] = {
