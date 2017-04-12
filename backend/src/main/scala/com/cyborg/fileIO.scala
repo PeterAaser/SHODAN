@@ -82,7 +82,10 @@ object FW {
   }
 
   def meameLogWriter[F[_]: Async](log: Stream[F, Byte]): F[Unit] = {
-    val meme = log.through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/log")))
+
+    val time = timeString
+
+    val meme = log.through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/log/$timeString"))).drain
     meme.run
   }
 

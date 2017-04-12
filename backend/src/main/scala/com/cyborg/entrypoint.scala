@@ -59,7 +59,10 @@ object mainLoop {
     outerRunSplitter
   }
 
-  def outerT: Task[Unit] = outerRunDBSplitter
+  def outerT: Task[Unit] = {
+    // outerRunDBSplitter
+    outerRunFromDB
+  }
 
   def outerStore[F[_]: Async]: F[Unit] = {
     val conf = ConfigFactory.load()
@@ -72,7 +75,20 @@ object mainLoop {
 
   def outerRunFromDB: Task[Unit] = {
 
-    ???
+    val filename = FW.getNewestFilename
+
+    val meme = DatabaseIO.meameDatabaseReader(filename, DatabaseIO.databaseStream) flatMap {
+      case (paramStream, dataStream) => {
+        paramStream flatMap { params =>
+          val meme = inner[Task](params, dataStream, FW.meameLogWriter)
+          println(params)
+
+          Stream.eval(meme)
+        }
+      }
+    }
+
+    meme.run
   }
 
   def outerRunStored[F[_]: Async]: F[Unit] = {

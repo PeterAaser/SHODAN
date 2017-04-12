@@ -27,21 +27,26 @@ object memeStorage {
 
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
 
-  val channelStream: ConnectionIO[List[Stream[Task, Array[Byte]]]] =
+  val channelStream: ConnectionIO[List[Stream[Task, Array[Byte]]]] = {
+    println(" ??? ")
     for {
-      a <-
+      a <- {
         sql"""
-          SELECT channelRecordingId
+          SELECT experimentId, channelRecordingId, channelNumber
           FROM channelRecording
-          WHERE channelRecordingId = $experimentId
+          WHERE experimentId = $experimentId
         """.query[ChannelRecording].list
-    } yield (a.map (token =>
+      }
+      _ = println(a)
+    } yield {
+      println(" hlep ")
+      a.map (token =>
         sql"""
           SELECT sample
           FROM datapiece
           WHERE channelRecordingId = ${token.channelRecordingId}
           ORDER BY index
-        """.query[Array[Byte]].process.transact(xa)))
+        """.query[Array[Byte]].process.transact(xa))} }
 
   val test: Task[List[Stream[Task, Array[Byte]]]] =
     channelStream.transact(xa)
@@ -50,6 +55,32 @@ object memeStorage {
     Stream.eval(test)
 
 
+  def filteredChannelStream(channels: List[Int]): ConnectionIO[List[Stream[Task, Array[Byte]]]] = {
+    println(" !! making a filtered channel stream !! ")
+    for {
+      a <-
+      sql"""
+          SELECT channelRecordingId, channelNumber
+          FROM channelRecording
+          WHERE channelRecordingId = $experimentId
+        """.query[ChannelRecording].list
+    } yield {println(s" ~~~~~~~~~~~ $a ~~~~~~~~~~"); a.filter(λ => !channels.contains(λ.channelNumber.toInt))}
+      .map( (token => {
+             println(" ~~~~~ hi :DDD ~~~~~ ")
+               sql"""
+                 SELECT sample
+                 FROM datapiece
+                 WHERE channelRecordingId = ${token.channelRecordingId}
+                 ORDER BY index
+               """.query[Array[Byte]].process.transact(xa) }))
+  }
+
+  val wanted = List(31, 32, 33, 34)
+  val filteredChannelStreamTask: Task[List[Stream[Task, Array[Byte]]]] =
+    filteredChannelStream(wanted).transact(xa)
+
+  // good naming scheme, might as well go back to "fug", "meme" and the likes
+  val filteredChannelStreams: Stream[Task,List[Stream[Task,Array[Byte]]]] = Stream.eval(filteredChannelStreamTask)
 
   // Creates a sink for a channel inserting DATAPIECES
   def channelSink(channel: Int, channelRecordingId: Long): Sink[Task, Byte] = {

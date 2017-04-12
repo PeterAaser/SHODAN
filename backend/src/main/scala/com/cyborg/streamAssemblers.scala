@@ -31,7 +31,7 @@ object Assemblers {
 
 
     val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] =
-      alternate(neuroStream, pointsPerSweep, 256*256, channels.length)
+      alternate(neuroStream, pointsPerSweep, 256*256*8, channels.length)
 
 
     val spikeStream = neuronChannels flatMap {

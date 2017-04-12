@@ -82,7 +82,11 @@
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Lage ordentlig database-aksess som entry point, lage info etc
+  Nå trengs det virkelig opprydding. Database-kode ligger midt oppi fileIO. fileIO skal helst vekk
+  eller om ikke annet overhales til å bruke MCS filer, ikke mine greier. Oppryddingen må skje på 
+  en litt smartere måte enn å bare brenne alt for å bygge det opp igjen. Please
+  
+  Dette gjelder todo fila og, mange av TODOene er utdatert
 
 * Doobie notes
 
