@@ -82,7 +82,7 @@
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Ser på å legge til evaluator i gamePipe
+  Lage ordentlig database-aksess som entry point, lage info etc
 
 * Doobie notes
 
@@ -102,6 +102,8 @@
 *** Experiment data
    Raw data chunks?
 
+   On experiment start: if data recording: create an experimentInfo field and a set of channelRecordings.
+   Each channelRecording should get its own sink for storing data.
 ** Use cases
 *** Query for all recordings in some timespan
 *** Query for all recordings with length over 4 minutes

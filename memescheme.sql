@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS experimentInfo (
-    id integer NOT NULL,
-    experimentTimeStamp timestamp NOT NULL
+    id serial NOT NULL,
+    experimentTimeStamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    comment varchar
 );
 
 -- wouldn't be a database without this one I guess
@@ -29,13 +30,13 @@ CREATE TABLE IF NOT EXISTS MEA (
 
 CREATE TABLE IF NOT EXISTS channelRecording (
     experimentId integer NOT NULL,
-    channelRecordingId integer NOT NULL UNIQUE,
+    channelRecordingId serial NOT NULL UNIQUE,
     channelNumber integer NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS datapiece (
     channelRecordingId int NOT NULL,
-    index int NOT NULL,
+    index serial NOT NULL,
     sample char[120000] NOT NULL -- A seconds worth of data at 40 khz. We do not care to save lengths below one second.
 );
 

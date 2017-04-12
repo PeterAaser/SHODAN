@@ -2,7 +2,9 @@ package com.cyborg
 
 import cats._, cats.data._, cats.implicits._
 import doobie.imports._
+import doobie.postgres.imports._
 import fs2.interop.cats._
+import fs2._
 
 import shapeless._
 import shapeless.record.Record
@@ -45,14 +47,63 @@ object memeStorage {
   val test: fs2.Task[List[fs2.Stream[fs2.Task, Array[Byte]]]] = channelStream.transact(xa)
   val channelStreams: fs2.Stream[fs2.Task, List[fs2.Stream[fs2.Task, Array[Byte]]]] = fs2.Stream.eval(test)
 
-  // val test3 = test2.flatMap ( channelStreamList =>
-  //   {
-  //     val unpacked = channelStreamList.map(
-  //       (singleChannelStream: fs2.Stream[fs2.Task, Array[Byte]]) => {
-  //         singleChannelStream.through(utilz.arrayBreaker(512))
-  //       })
-  //     ???
-  //   }
-  // )
 
+  // Creates a sink for a channel inserting DATAPIECES
+  def channelSink(channel: Int, channelRecordingId: Long): Sink[Task, Byte] = {
+    def go: Handle[Task,Byte] => Pull[Task,Task[Int],Unit] = h => {
+      h.awaitN(12000, false) flatMap {
+        case (chunks, h) => {
+          val folded = (chunks.foldLeft(Vector.empty[Byte])(_ ++ _.toVector)).toArray
+          val insert: Task[Int] =
+
+            sql"""
+              INSERT INTO datapiece (channelRecording, sample)
+              VALUES ($channelRecordingId, $folded)
+            """.update.run.transact(xa)
+
+          Pull.output1(insert) >> go(h)
+        }
+      }
+    }
+    _.pull(go).drain
+  }
+
+  import com.github.nscala_time.time.Imports._
+  import com.github.nscala_time.time.Implicits._
+  val fmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
+  implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
+
+  case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
+
+  def insertNewExperiment(comment: Option[String]): ConnectionIO[Long] = {
+    val comment_ = comment.getOrElse("no comment")
+    for {
+      _ <- sql"INSERT INTO experimentInfo (comment) VALUES $comment_".update.run
+      id <- sql"select lastval()".query[Long].unique
+    } yield (id)
+  }
+
+  def insertChannel(experimentId: Long, channel: Int): ConnectionIO[Long] = {
+    for {
+      _ <- sql"INSERT INTO channelRecording (experimentId, channelNumber) VALUES ($experimentId, $channel)".update.run
+      id <- sql"select lastval()".query[Long].unique
+    } yield (id)
+  }
+
+  def insertChannels(experimentId: Long): ConnectionIO[List[Long]] = {
+    val meme: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
+    val meme2: ConnectionIO[List[Long]] = meme.sequence
+    meme2
+  }
+
+  // Inserts an experiment, creates a bunch of sinks
+  def setupExperimentStorage: Task[List[Sink[Task,Byte]]] = {
+
+    val sinks: ConnectionIO[List[Sink[Task,Byte]]] = for {
+      experimentId <- insertNewExperiment(Some("test123"))
+      channelIds <- insertChannels(experimentId)
+    } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
+
+    sinks.transact(xa)
+  }
 }
