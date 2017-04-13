@@ -81,6 +81,7 @@ object FW {
     val paramFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/params/params"), 4096)
       .through(text.utf8Decode)
       .through(text.lines)
+      .through(_.map(toparams))
 
     paramFileStream
   }

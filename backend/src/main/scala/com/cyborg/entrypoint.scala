@@ -60,63 +60,43 @@ object mainLoop {
     ???
   }
 
-  def outerT[F[_]: Async]: F[Unit] = {
+  def outerT: Task[Unit] = {
     // outerRunDBSplitter
-    outerRunFromDB
+    // outerRunFromDB
+    ???
   }
 
   def outerStore[F[_]: Async]: F[Unit] = {
+
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
     val params = NeuroDataParams(experimentConf)
 
     val meme = neuroServer.testThing(params)
+
     meme
   }
 
-  def outerRunFromDB[F[_]: Async]: F[Unit] = {
+  def outerRunFromDB: Task[Unit] = {
 
     val filename = FW.getNewestFilename
+    val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
 
-    val meme = for {
-      params <- FW.paramsFromFile("dummy")
-    } yield (inner[F](params, DatabaseIO.databaseStream, FW.meameLogWriter))
+    val meme: Task[Unit] =
+      inner[Task](params, DatabaseIO.databaseStream(memeStorage.filteredChannelStreams), FW.meameLogWriter)
 
-    // val meme = DatabaseIO.meameDatabaseReader(filename, DatabaseIO.databaseStream) flatMap {
-    //   case (paramStream, dataStream) => {
-    //     paramStream flatMap { params =>
-    //       val meme = inner[Task](params, dataStream, FW.meameLogWriter)
-    //       println(params)
-
-    //       Stream.eval(meme)
-    //     }
-    //   }
-    // }
-
-    meme.run
+    meme
   }
 
   def outerRunStored[F[_]: Async]: F[Unit] = {
 
     val filename = FW.getNewestFilename
+    val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
 
-    val meme = for {
-      params <- FW.paramsFromFile("dummy")
-    } yield (inner[F](params, FW.meameDataReader(filename), FW.meameLogWriter))
+    val meme: F[Unit] =
+      inner[F](params, FW.meameDataReader(filename), FW.meameLogWriter)
 
-
-    // val meme = FW.meameDataReader(filename) flatMap {
-    //   case (paramStream, dataStream) => {
-    //     paramStream flatMap { params =>
-    //       val meme = inner[F](params, dataStream, FW.meameLogWriter)
-    //       println(params)
-
-    //       Stream.eval(meme)
-    //     }
-    //   }
-    // }
-
-    meme.run
+    meme
   }
 
   def outerRunDBSplitter: Task[Unit] = {

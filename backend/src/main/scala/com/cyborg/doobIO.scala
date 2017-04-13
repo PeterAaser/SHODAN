@@ -27,7 +27,7 @@ object memeStorage {
 
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
 
-  val channelStream: ConnectionIO[List[Stream[Task, Array[Byte]]]] = {
+  val channelStream: ConnectionIO[List[Stream[Task, Array[Int]]]] = {
 
     println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
     println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
@@ -52,12 +52,12 @@ object memeStorage {
           FROM datapiece
           WHERE channelRecordingId = ${token.channelRecordingId}
           ORDER BY index
-        """.query[Array[Byte]].process.transact(xa))} }
+        """.query[Array[Int]].process.transact(xa))} }
 
-  val test: Task[List[Stream[Task, Array[Byte]]]] =
+  val test: Task[List[Stream[Task, Array[Int]]]] =
     channelStream.transact(xa)
 
-  val channelStreams: Stream[Task, List[Stream[Task, Array[Byte]]]] =
+  val channelStreams: Stream[Task, List[Stream[Task, Array[Int]]]] =
     Stream.eval(test)
 
 
@@ -91,11 +91,11 @@ object memeStorage {
   }
 
   val wanted = List(31, 32, 33, 34)
-  val filteredChannelStreamTask: Task[List[Stream[Task, Array[Byte]]]] =
+  val filteredChannelStreamTask: Task[List[Stream[Task, Array[Int]]]] =
     filteredChannelStream(wanted).transact(xa)
 
   // good naming scheme, might as well go back to "fug", "meme" and the likes
-  val filteredChannelStreams: Stream[Task,List[Stream[Task,Array[Byte]]]] = Stream.eval(filteredChannelStreamTask)
+  val filteredChannelStreams: Stream[Task,List[Stream[Task,Array[Int]]]] = Stream.eval(filteredChannelStreamTask)
 
   // Creates a sink for a channel inserting DATAPIECES
   // TODO should maybe be F, but contains a transact, probably bad form.

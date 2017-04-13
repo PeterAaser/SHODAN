@@ -2,3 +2,4 @@
 .projectile
 target/
 scratchpad.scala
+*.js
