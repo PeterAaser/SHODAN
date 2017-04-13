@@ -13,7 +13,8 @@ object Dependencies {
     "io.udash" %%% "udash-rpc-shared" % udashVersion,
     "io.spray" %%  "spray-json" % "1.3.3",
     "com.typesafe" % "config" % "1.3.1",
-    "com.github.fommil" %% "spray-json-shapeless" % "1.3.0"
+    "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
+    "com.quantifind" %% "wisp" % "0.0.4"
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](

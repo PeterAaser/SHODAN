@@ -55,8 +55,116 @@ object FW {
   }
 
 
+  def meameDataReader[F[_]: Async](filename: String): Stream[F,Int] = {
+    val dataFileStream =
+      io.file.readAll[F](Paths.get(s"/home/osboxes/MEAMEdata/$filename"), 4096)
+        .through(utilz.bytesToInts)
+
+    dataFileStream
+  }
+
+  // TODO This method currently lies as always returns the same params
+  def paramsFromFile[F[_]: Async](filename: String): Stream[F,NeuroDataParams] = {
+
+    println("WARNING, THE METHOD PARAMSFROMFILE INVOKED, THIS MEANS YOU GET HARDCODED PARAMS")
+
+    // TODO should be in params, but won't compile because of arcane reasons
+    def toparams(s: String): NeuroDataParams = {
+
+      implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
+
+      val params = s.parseJson
+      val paramJson = params.convertTo[NeuroDataParams]
+      paramJson
+    }
+
+    val paramFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/params/params"), 4096)
+      .through(text.utf8Decode)
+      .through(text.lines)
+
+    paramFileStream
+  }
+
   // TODO this looks very wrong to me
-  def meameDataReader[F[_]: Async](filename: String): Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] = {
+  // TODO yep, just a remnant of files having param headers, slated for deletion
+
+  // TODO no reason to exist in its current form. Flat files are bad.
+  def meameLogWriter[F[_]: Async](log: Stream[F, Byte]): F[Unit] = {
+
+    val time = timeString
+
+    val meme = log.through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/log/$timeString"))).drain
+    meme.run
+  }
+
+  // From a bunch of sinks run the data through dem sinks
+  // TODO does this have to be Int? Is it more generic?
+  def genericChannelSplitter[F[_]: Async](infile: String, sinks: F[List[Sink[F,Int]]]): F[Unit] = {
+    val pointsPerSweep = 1024
+
+    val inStream: Stream[F,Int] = meameDataReader(infile)
+
+    val channelStreams = utilz.alternate(inStream, pointsPerSweep, 256*256*8, 60)
+
+    def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]) =
+      dataStream
+        .through(utilz.chunkify)
+        .through(sink)
+
+    val writeTaskStream = channelStreams flatMap {
+      channels: List[Stream[F,Vector[Int]]] => {
+        Stream.eval(sinks) flatMap {
+          sinks: List[Sink[F,Int]] => {
+            val a =
+              ((channels zip sinks)
+                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
+
+            Stream.emits(a)
+          }
+        }
+      }
+    }
+
+    concurrent.join(200)(writeTaskStream).drain.run
+  }
+
+  // Takes a file, splits it into a set of files
+  // def channelSplitter[F[_]: Async](filename: String): F[Unit] = {
+
+  //   val pointsPerSweep = 1024
+
+  //   val inStream = for {
+  //     instream <- meameDataReader(filename)
+  //     dataStream <- instream._2.through(utilz.bytesToInts)
+  //   } yield dataStream
+
+  //   val channelStreams = utilz.alternate(inStream, pointsPerSweep, 256*256, 60)
+
+  //   def writeChannelData(filename: String, dataStream: Stream[F, Vector[Int]]) =
+  //     dataStream
+  //       .through(utilz.chunkify)
+  //       .through(utilz.intsToBytes)
+  //       .through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/channels/$filename")))
+
+  //   def channelName(n: Int): String =
+  //     s"channel_$n"
+
+  //   val writeTaskStream = channelStreams flatMap {
+  //     channels: List[Stream [F,Vector[Int]]] => {
+  //       val a = channels.zipWithIndex
+  //         .map( { case (λ, µ) => (λ, channelName(µ)) } )
+  //         .map( { case (λ, µ) => (writeChannelData(µ, λ)) } )
+
+  //       Stream.emits(a)
+  //     }
+  //   }
+
+  //   val meme = concurrent.join(200)(writeTaskStream)
+
+  //   meme.run
+  // }
+
+  def meameDataReader_[F[_]: Async](filename: String): Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] = {
 
     def toparams(s: String): NeuroDataParams = {
       // TODO should be in params, but won't compile because of arcane reasons
@@ -79,83 +187,5 @@ object FW {
 
 
     meme
-  }
-
-  def meameLogWriter[F[_]: Async](log: Stream[F, Byte]): F[Unit] = {
-
-    val time = timeString
-
-    val meme = log.through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/log/$timeString"))).drain
-    meme.run
-  }
-
-  // From a bunch of sinks run the data through dem sinks
-  def genericChannelSplitter[F[_]: Async](infile: String, sinks: F[List[Sink[F,Byte]]]): F[Unit] = {
-    val pointsPerSweep = 1024
-
-    val inStream = for {
-      instream <- meameDataReader(infile)
-      dataStream <- instream._2.through(utilz.bytesToInts)
-    } yield dataStream
-
-    val channelStreams = utilz.alternate(inStream, pointsPerSweep, 256*256*8, 60)
-
-    def writeChannelData(sink: Sink[F, Byte], dataStream: Stream[F,Vector[Int]]) =
-      dataStream
-        .through(utilz.chunkify)
-        .through(utilz.intsToBytes)
-        .through(sink)
-
-    val writeTaskStream = channelStreams flatMap {
-      channels: List[Stream[F,Vector[Int]]] => {
-        Stream.eval(sinks) flatMap {
-          sinks: List[Sink[F,Byte]] => {
-            val a =
-              ((channels zip sinks)
-                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
-
-            Stream.emits(a)
-          }
-        }
-      }
-    }
-
-    concurrent.join(200)(writeTaskStream).drain.run
-  }
-
-  // Takes a file, splits it into a set of files
-  def channelSplitter[F[_]: Async](filename: String): F[Unit] = {
-
-    val pointsPerSweep = 1024
-
-    val inStream = for {
-      instream <- meameDataReader(filename)
-      dataStream <- instream._2.through(utilz.bytesToInts)
-    } yield dataStream
-
-    val channelStreams = utilz.alternate(inStream, pointsPerSweep, 256*256, 60)
-
-    def writeChannelData(filename: String, dataStream: Stream[F, Vector[Int]]) =
-      dataStream
-        .through(utilz.chunkify)
-        .through(utilz.intsToBytes)
-        .through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/channels/$filename")))
-
-    def channelName(n: Int): String =
-      s"channel_$n"
-
-    val writeTaskStream = channelStreams flatMap {
-      channels: List[Stream [F,Vector[Int]]] => {
-        val a = channels.zipWithIndex
-          .map( { case (λ, µ) => (λ, channelName(µ)) } )
-          .map( { case (λ, µ) => (writeChannelData(µ, λ)) } )
-
-        Stream.emits(a)
-      }
-    }
-
-    val meme = concurrent.join(200)(writeTaskStream)
-
-    meme.run
   }
 }

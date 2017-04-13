@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS experimentSubject (
 
 CREATE TABLE IF NOT EXISTS MEA (
     id integer NOT NULL,
-    MEAName varchar NOT NULL, -- I AM NOT A NUMBER, I AM A FREE MAN!
-    info varchar NOT NULL -- All sorts of exciting info about MEAs
+    MEAname varchar NOT NULL, -- I AM NOT A NUMBER, I AM A FREE MAN!
+    info varchar NOT NULL -- Placeholder for all sorts of exciting information about Neural cultures
 );
 
 CREATE TABLE IF NOT EXISTS channelRecording (
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS channelRecording (
 CREATE TABLE IF NOT EXISTS datapiece (
     channelRecordingId int NOT NULL,
     index serial NOT NULL,
-    sample bytea NOT NULL -- A seconds worth of data at 40 khz. We do not care to save lengths below one second.
+    sample integer[] NOT NULL -- should be 1024 pieces, not statically (or dynamically) checked
 );
 
 ALTER TABLE experimentInfo

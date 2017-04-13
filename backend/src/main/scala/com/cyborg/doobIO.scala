@@ -28,7 +28,13 @@ object memeStorage {
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
 
   val channelStream: ConnectionIO[List[Stream[Task, Array[Byte]]]] = {
-    println(" ??? ")
+
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+
     for {
       a <- {
         sql"""
@@ -55,7 +61,16 @@ object memeStorage {
     Stream.eval(test)
 
 
-  def filteredChannelStream(channels: List[Int]): ConnectionIO[List[Stream[Task, Array[Byte]]]] = {
+  // Oh dog what done
+  // TODO FIX ME!!!!!!!!!!!!!!!!!!!!
+  def filteredChannelStream(channels: List[Int]): ConnectionIO[List[Stream[Task, Array[Int]]]] = {
+
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+    println(" !! WOW REMINDER THAT THIS ULTRACLUSTERFUCK OF A FUNCTION IS STILL IN →→→→ ACTIVE ←←←← USE !! ")
+
     println(" !! making a filtered channel stream !! ")
     for {
       a <-
@@ -72,7 +87,7 @@ object memeStorage {
                  FROM datapiece
                  WHERE channelRecordingId = ${token.channelRecordingId}
                  ORDER BY index
-               """.query[Array[Byte]].process.transact(xa) }))
+               """.query[Array[Int]].process.transact(xa) }))
   }
 
   val wanted = List(31, 32, 33, 34)
@@ -83,13 +98,15 @@ object memeStorage {
   val filteredChannelStreams: Stream[Task,List[Stream[Task,Array[Byte]]]] = Stream.eval(filteredChannelStreamTask)
 
   // Creates a sink for a channel inserting DATAPIECES
-  def channelSink(channel: Int, channelRecordingId: Long): Sink[Task, Byte] = {
-    def go: Handle[Task,Byte] => Pull[Task,Task[Int],Unit] = h => {
-      h.awaitN(12000, false) flatMap {
+  // TODO should maybe be F, but contains a transact, probably bad form.
+  // TODO maybe it should be on form Transactor[F] => Sink[F,Int] ???
+  def channelSink(channel: Int, channelRecordingId: Long): Sink[Task, Int] = {
+    def go: Handle[Task,Int] => Pull[Task,Task[Int],Unit] = h => {
+      h.awaitN(1024, false) flatMap {
         case (chunks, h) => {
-          val folded = (chunks.foldLeft(Vector.empty[Byte])(_ ++ _.toVector)).toArray
+          val folded = (chunks.foldLeft(Vector.empty[Int])(_ ++ _.toVector)).toArray
           val insert: Task[Int] = {
-            println("Inserting 10000 pieces")
+            println("Inserting 1024 pieces")
             sql"""
               INSERT INTO datapiece (channelRecordingId, sample)
               VALUES ($channelRecordingId, $folded)
@@ -99,22 +116,15 @@ object memeStorage {
         }
       }
     }
-    λ => {
-      val meme = λ.pull(go).flatMap{ λ: Task[Int] => Stream.eval_(λ) }
-      meme.drain
-    }
+    _.pull(go).flatMap{ λ: Task[Int] => Stream.eval_(λ) }
   }
-
-  import com.github.nscala_time.time.Imports._
-  import com.github.nscala_time.time.Implicits._
-  val fmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
-  implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
 
   case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
 
+  // TODO get rid of obnoxious print clutter
   def insertNewExperiment(comment: Option[String]): ConnectionIO[Long] = {
     val comment_ = comment.getOrElse("no comment")
-    val meme = for {
+    for {
       _ <- {
         println(" ~~ Inserting new experiment ~~ ");
         sql"INSERT INTO experimentInfo (comment) VALUES ($comment_)".update.run
@@ -125,7 +135,6 @@ object memeStorage {
       }
       _ = println(s" ~~ Experiment inserted with id $id ~~ ")
     } yield (id)
-    meme
   }
 
   def insertChannel(experimentId: Long, channel: Int): ConnectionIO[Long] = {
@@ -146,10 +155,10 @@ object memeStorage {
   }
 
   // Inserts an experiment, creates a bunch of sinks
-  def setupExperimentStorage: Task[List[Sink[Task,Byte]]] = {
+  def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
     println("I am setting up storage for an experiment")
-    val sinks: ConnectionIO[List[Sink[Task,Byte]]] = for {
-      experimentId <- insertNewExperiment(Some("forsok3"))
+    val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
+      experimentId <- insertNewExperiment(Some("Test1"))
       channelIds <- insertChannels(experimentId)
     } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
     println("Ok, storage is gucci")

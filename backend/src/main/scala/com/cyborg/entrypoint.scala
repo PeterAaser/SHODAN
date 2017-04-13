@@ -15,10 +15,11 @@ object mainLoop {
 
   type agentFitnessFunction = Agent => Double
 
-  // Effect for inner should be to write to a log, it should not need anything other than IO sockets.
+  // As of now inner does too much, including IO
+  // Type information is missing here. What should the output type be? Should just rewrite the whole thing in idris YOLO
   def inner[F[_]: Async](
     params: NeuroDataParams,
-    meameReadStream: Stream[F, Byte],
+    meameReadStream: Stream[F, Int],
     meameWriteSink: Stream[F, Byte] => F[Unit] ): F[Unit] =
   {
 
@@ -36,7 +37,6 @@ object mainLoop {
     }
 
     val meme = meameReadStream
-      .through(utilz.bytesToInts)
       .through(inputFilter)
       .through(agentPipe)
       .through(_.map((λ: Agent) => {AgentService.agentUpdate(λ); λ.distances}))
@@ -56,10 +56,11 @@ object mainLoop {
 
     // outerStore
     // outerRunStored
-    outerRunSplitter
+    // outerRunSplitter
+    ???
   }
 
-  def outerT: Task[Unit] = {
+  def outerT[F[_]: Async]: F[Unit] = {
     // outerRunDBSplitter
     outerRunFromDB
   }
@@ -73,20 +74,24 @@ object mainLoop {
     meme
   }
 
-  def outerRunFromDB: Task[Unit] = {
+  def outerRunFromDB[F[_]: Async]: F[Unit] = {
 
     val filename = FW.getNewestFilename
 
-    val meme = DatabaseIO.meameDatabaseReader(filename, DatabaseIO.databaseStream) flatMap {
-      case (paramStream, dataStream) => {
-        paramStream flatMap { params =>
-          val meme = inner[Task](params, dataStream, FW.meameLogWriter)
-          println(params)
+    val meme = for {
+      params <- FW.paramsFromFile("dummy")
+    } yield (inner[F](params, DatabaseIO.databaseStream, FW.meameLogWriter))
 
-          Stream.eval(meme)
-        }
-      }
-    }
+    // val meme = DatabaseIO.meameDatabaseReader(filename, DatabaseIO.databaseStream) flatMap {
+    //   case (paramStream, dataStream) => {
+    //     paramStream flatMap { params =>
+    //       val meme = inner[Task](params, dataStream, FW.meameLogWriter)
+    //       println(params)
+
+    //       Stream.eval(meme)
+    //     }
+    //   }
+    // }
 
     meme.run
   }
@@ -95,16 +100,21 @@ object mainLoop {
 
     val filename = FW.getNewestFilename
 
-    val meme = FW.meameDataReader(filename) flatMap {
-      case (paramStream, dataStream) => {
-        paramStream flatMap { params =>
-          val meme = inner[F](params, dataStream, FW.meameLogWriter)
-          println(params)
+    val meme = for {
+      params <- FW.paramsFromFile("dummy")
+    } yield (inner[F](params, FW.meameDataReader(filename), FW.meameLogWriter))
 
-          Stream.eval(meme)
-        }
-      }
-    }
+
+    // val meme = FW.meameDataReader(filename) flatMap {
+    //   case (paramStream, dataStream) => {
+    //     paramStream flatMap { params =>
+    //       val meme = inner[F](params, dataStream, FW.meameLogWriter)
+    //       println(params)
+
+    //       Stream.eval(meme)
+    //     }
+    //   }
+    // }
 
     meme.run
   }
@@ -113,13 +123,6 @@ object mainLoop {
     val filename = FW.getNewestFilename
     val sinks = memeStorage.setupExperimentStorage
     FW.genericChannelSplitter(filename, sinks)
-
-  }
-
-  def outerRunSplitter[F[_]: Async]: F[Unit] = {
-
-    val filename = FW.getNewestFilename
-    FW.channelSplitter(filename)
 
   }
 }
