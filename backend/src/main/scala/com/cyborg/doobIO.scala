@@ -23,7 +23,7 @@ object memeStorage {
     s"$superdupersecretPassword"
   )
 
-  val experimentId = 1
+  val experimentId = 4
 
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
 
@@ -60,11 +60,11 @@ object memeStorage {
     for {
       a <-
       sql"""
-          SELECT channelRecordingId, channelNumber
+          SELECT experimentId, channelRecordingId, channelNumber
           FROM channelRecording
           WHERE channelRecordingId = $experimentId
         """.query[ChannelRecording].list
-    } yield {println(s" ~~~~~~~~~~~ $a ~~~~~~~~~~"); a.filter(λ => !channels.contains(λ.channelNumber.toInt))}
+    } yield (a.filter(λ => !channels.contains(λ.channelNumber.toInt)))
       .map( (token => {
              println(" ~~~~~ hi :DDD ~~~~~ ")
                sql"""
@@ -149,7 +149,7 @@ object memeStorage {
   def setupExperimentStorage: Task[List[Sink[Task,Byte]]] = {
     println("I am setting up storage for an experiment")
     val sinks: ConnectionIO[List[Sink[Task,Byte]]] = for {
-      experimentId <- insertNewExperiment(Some("test123"))
+      experimentId <- insertNewExperiment(Some("forsok3"))
       channelIds <- insertChannels(experimentId)
     } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
     println("Ok, storage is gucci")

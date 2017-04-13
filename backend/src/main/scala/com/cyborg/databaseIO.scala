@@ -27,7 +27,7 @@ object DatabaseIO {
     _.pull(get)
   }
 
-  val databaseStream: Stream[Task,Byte] = memeStorage.channelStreams flatMap (channelStreamList =>
+  val databaseStream: Stream[Task,Byte] = memeStorage.filteredChannelStreams flatMap (channelStreamList =>
     {
       val unpacked: List[Stream[Task, Vector[Byte]]] =
         channelStreamList.map(_.through(arrayBreaker(512)).through(utilz.vectorize(1024*4)))

@@ -87,6 +87,8 @@
   en litt smartere måte enn å bare brenne alt for å bygge det opp igjen. Please
   
   Dette gjelder todo fila og, mange av TODOene er utdatert
+  
+  DatabaseAvlesning fungerer nå også, men noe er feil i dataen.
 
 * Doobie notes
 
