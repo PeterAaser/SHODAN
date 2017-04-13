@@ -46,35 +46,4 @@ object DatabaseIO {
       rechunked
     }
   )
-
-  // import params._
-  // // TODO this looks very wrong to me
-  // def meameDatabaseReader[F[_]: Async](filename: String, dbStream: Stream[F,Byte]): Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] = {
-
-  //   import spray.json._
-  //   import fommil.sjs.FamilyFormats._
-
-  //   import java.nio.file.Paths
-
-  //   def toparams(s: String): NeuroDataParams = {
-  //     // TODO should be in params, but won't compile because of arcane reasons
-  //     implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
-
-  //     val params = s.parseJson
-  //     val paramJson = params.convertTo[NeuroDataParams]
-  //     paramJson
-  //   }
-
-  //   val paramFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/params/params"), 4096)
-  //     .through(text.utf8Decode)
-  //     .through(text.lines)
-
-  //   val dataFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/$filename"), 4096)
-  //   val params = paramFileStream.through(_.map(toparams))
-
-  //   val meme: Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] =
-  //     Stream.emit((params, dbStream))
-
-  //   meme
-  // }
 }

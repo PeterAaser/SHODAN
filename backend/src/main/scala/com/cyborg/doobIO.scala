@@ -12,11 +12,11 @@ import shapeless.record.Record
 import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
 
-object memeStorage {
+object databaseTasks {
 
   val superdupersecretPassword = ""
 
-  val xa = DriverManagerTransactor[fs2.Task](
+  val xa = DriverManagerTransactor[Task](
     "org.postgresql.Driver",
     "jdbc:postgresql:fug",
     "postgres",
@@ -24,8 +24,66 @@ object memeStorage {
   )
 
   val experimentId = 4
-
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
+
+  def getChannel(experimenId: Long, channelNumber: Long): Stream[ConnectionIO,ChannelRecording] =
+    sql"""
+      SELECT experimentId, channelRecordingId, channelNumber
+      FROM channelRecording
+      WHERE experimentId = $experimentId AND channel = $channelNumber
+    """.query[ChannelRecording].process
+
+  def getChannels(experimentId: Long, channels: List[Long]): List[Stream[ConnectionIO,ChannelRecording]] =
+    channels.map(getChannel(experimentId, _))
+
+  def getDataStream(channelRecording: ChannelRecording): Stream[ConnectionIO,Array[Int]] =
+    sql"""
+      SELECT sample
+      FROM datapiece
+      WHERE channelRecordingId = ${channelRecording.channelRecordingId}
+      ORDER BY index
+    """.query[Array[Int]].process
+
+
+  val hai2u: List[Stream[ConnectionIO,ChannelRecording]] = getChannels(experimentId, List(4, 5, 6, 7))
+
+  def stupidThing(xs: List[Stream[ConnectionIO,ChannelRecording]]): Stream[ConnectionIO,ChannelRecording] =
+    xs match {
+      case scala.collection.immutable.::(h,t) => h.flatMap { λ => stupidThing(t) ++ Stream.emit(λ) }
+      case _ => Stream.empty
+    }
+  val hai3u: Stream[ConnectionIO,ChannelRecording] = stupidThing(hai2u)
+
+  def _channelStream: ConnectionIO[List[Stream[ConnectionIO, Array[Int]]]] = {
+
+    val channels: ConnectionIO[List[ChannelRecording]] =
+      sql"""
+        SELECT experimentId, channelRecordingId, channelNumber
+        FROM channelRecording
+        WHERE experimentId = $experimentId
+      """.query[ChannelRecording].list
+
+    val queries: ConnectionIO[List[Stream[ConnectionIO,Array[Int]]]] = channels map {
+      channelList: List[ChannelRecording] => {
+
+        val dataqueries: List[Stream[ConnectionIO,Array[Int]]] =
+          channelList.map( channelToken =>
+            sql"""
+              SELECT sample
+              FROM datapiece
+              WHERE channelRecordingId = ${channelToken.channelRecordingId}
+              ORDER BY index
+            """.query[Array[Int]].process)
+
+        dataqueries
+      }
+    }
+    queries
+  }
+
+  val testing: Task[List[Stream[ConnectionIO,Array[Int]]]] = _channelStream.transact(xa)
+  val test2: Stream[Task,List[Stream[ConnectionIO,Array[Int]]]] = Stream.eval(testing)
+  val test3: Stream[Task,List[Stream[Task,Array[Int]]]] = test2.through(_.map(_.map(_.transact(xa))))
 
   val channelStream: ConnectionIO[List[Stream[Task, Array[Int]]]] = {
 

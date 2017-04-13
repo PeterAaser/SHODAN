@@ -39,7 +39,7 @@ object neuroServer {
 
   val maxQueued = 3
 
-  def c[F[_]: Async]: Stream[F, Socket[F]] =
+  def socketStream[F[_]: Async]: Stream[F, Socket[F]] =
     client(
       socketAddress,
       reuseAddress,
@@ -48,8 +48,9 @@ object neuroServer {
       keepAlive,
       noDelay)
 
+
   def testThing[F[_]: Async](params: NeuroDataParams): F[Unit] = {
-    val meme = c flatMap { meameSocket =>
+    val meme = socketStream flatMap { meameSocket =>
       {
         FW.meameDataWriter(params, meameSocket)
       }

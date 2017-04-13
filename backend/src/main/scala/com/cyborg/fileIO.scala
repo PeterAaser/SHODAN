@@ -35,6 +35,7 @@ object FW {
       .head.toString(fmt)
 
 
+  // TODO slated for deletion, kept around to reproduce some data mangling issues. Yes I've heard of git, fuck you
   def meameDataWriter[F[_]: Async](params: NeuroDataParams, meameSocket: Socket[F]): Stream[F, Unit] = {
 
     // TODO should be in params, but won't compile because of arcane reasons
@@ -63,31 +64,6 @@ object FW {
     dataFileStream
   }
 
-  // TODO This method currently lies as always returns the same params
-  def paramsFromFile[F[_]: Async](filename: String): Stream[F,NeuroDataParams] = {
-
-    println("WARNING, THE METHOD PARAMSFROMFILE INVOKED, THIS MEANS YOU GET HARDCODED PARAMS")
-
-    // TODO should be in params, but won't compile because of arcane reasons
-    def toparams(s: String): NeuroDataParams = {
-
-      implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
-
-      val params = s.parseJson
-      val paramJson = params.convertTo[NeuroDataParams]
-      paramJson
-    }
-
-    val paramFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/params/params"), 4096)
-      .through(text.utf8Decode)
-      .through(text.lines)
-      .through(_.map(toparams))
-
-    paramFileStream
-  }
-
-  // TODO this looks very wrong to me
-  // TODO yep, just a remnant of files having param headers, slated for deletion
 
   // TODO no reason to exist in its current form. Flat files are bad.
   def meameLogWriter[F[_]: Async](log: Stream[F, Byte]): F[Unit] = {
@@ -127,66 +103,5 @@ object FW {
     }
 
     concurrent.join(200)(writeTaskStream).drain.run
-  }
-
-  // Takes a file, splits it into a set of files
-  // def channelSplitter[F[_]: Async](filename: String): F[Unit] = {
-
-  //   val pointsPerSweep = 1024
-
-  //   val inStream = for {
-  //     instream <- meameDataReader(filename)
-  //     dataStream <- instream._2.through(utilz.bytesToInts)
-  //   } yield dataStream
-
-  //   val channelStreams = utilz.alternate(inStream, pointsPerSweep, 256*256, 60)
-
-  //   def writeChannelData(filename: String, dataStream: Stream[F, Vector[Int]]) =
-  //     dataStream
-  //       .through(utilz.chunkify)
-  //       .through(utilz.intsToBytes)
-  //       .through(io.file.writeAllAsync(Paths.get(s"/home/peter/MEAMEdata/channels/$filename")))
-
-  //   def channelName(n: Int): String =
-  //     s"channel_$n"
-
-  //   val writeTaskStream = channelStreams flatMap {
-  //     channels: List[Stream [F,Vector[Int]]] => {
-  //       val a = channels.zipWithIndex
-  //         .map( { case (λ, µ) => (λ, channelName(µ)) } )
-  //         .map( { case (λ, µ) => (writeChannelData(µ, λ)) } )
-
-  //       Stream.emits(a)
-  //     }
-  //   }
-
-  //   val meme = concurrent.join(200)(writeTaskStream)
-
-  //   meme.run
-  // }
-
-  def meameDataReader_[F[_]: Async](filename: String): Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] = {
-
-    def toparams(s: String): NeuroDataParams = {
-      // TODO should be in params, but won't compile because of arcane reasons
-      implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
-
-      val params = s.parseJson
-      val paramJson = params.convertTo[NeuroDataParams]
-      paramJson
-    }
-
-    val paramFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/params/params"), 4096)
-      .through(text.utf8Decode)
-      .through(text.lines)
-
-    val dataFileStream = io.file.readAll[F](Paths.get(s"/home/peter/MEAMEdata/$filename"), 4096)
-    val params = paramFileStream.through(_.map(toparams))
-
-    val meme: Stream[F, (Stream[F, NeuroDataParams], Stream[F, Byte])] =
-      Stream.emit((params, dataFileStream))
-
-
-    meme
   }
 }

@@ -53,7 +53,6 @@ object mainLoop {
 
 
   def outer[F[_]: Async]: F[Unit] = {
-
     // outerStore
     // outerRunStored
     // outerRunSplitter
@@ -63,7 +62,7 @@ object mainLoop {
   def outerT: Task[Unit] = {
     // outerRunDBSplitter
     // outerRunFromDB
-    ???
+    networkStoreToDB(databaseTasks.setupExperimentStorage)
   }
 
   def outerStore[F[_]: Async]: F[Unit] = {
@@ -77,13 +76,57 @@ object mainLoop {
     meme
   }
 
+
+  // Sets up the machinery to store a proper recording from a live culture
+  // into the database
+  def networkStoreToDB[F[_]: Async](sinks: F[List[Sink[F,Int]]]): F[Unit] = {
+
+    val socketBufferSize = 1024*1024
+    val maxQueueDepth = 256*256
+    val datapointsPerSweep = 1024
+    val channels = 60
+
+    val dataStream: Stream[F, Byte] = neuroServer.socketStream flatMap (
+      meameSocket => (meameSocket.reads(socketBufferSize)))
+
+    val numericalDataStream =
+      dataStream.through(utilz.bytesToInts)
+
+    val channelStreams = utilz.alternate(
+      numericalDataStream,
+      datapointsPerSweep,
+      maxQueueDepth,
+      channels
+    )
+
+    def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
+      dataStream
+        .through(utilz.chunkify)
+        .through(sink)
+
+    def writeTaskStream = channelStreams flatMap {
+      channels: List[Stream[F,Vector[Int]]] => {
+        Stream.eval(sinks) flatMap {
+          sinks: List[Sink[F,Int]] => {
+            val a =
+              ((channels zip sinks)
+                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
+
+            Stream.emits(a)
+          }
+        }
+      }
+    }
+    concurrent.join(200)(writeTaskStream).drain.run
+  }
+
   def outerRunFromDB: Task[Unit] = {
 
     val filename = FW.getNewestFilename
     val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
 
     val meme: Task[Unit] =
-      inner[Task](params, DatabaseIO.databaseStream(memeStorage.filteredChannelStreams), FW.meameLogWriter)
+      inner[Task](params, DatabaseIO.databaseStream(databaseTasks.filteredChannelStreams), FW.meameLogWriter)
 
     meme
   }
@@ -101,7 +144,7 @@ object mainLoop {
 
   def outerRunDBSplitter: Task[Unit] = {
     val filename = FW.getNewestFilename
-    val sinks = memeStorage.setupExperimentStorage
+    val sinks = databaseTasks.setupExperimentStorage
     FW.genericChannelSplitter(filename, sinks)
 
   }

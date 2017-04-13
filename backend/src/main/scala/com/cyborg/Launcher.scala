@@ -8,7 +8,7 @@ object Launcher {
     val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
     server.start()
 
-    if(memeStorage.superdupersecretPassword != ""){
+    if(databaseTasks.superdupersecretPassword != ""){
       println("################################################")
       println("################################################")
       println("################################################")
