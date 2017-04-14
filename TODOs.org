@@ -85,6 +85,16 @@
   Endrer lagringsformen til å være basert på arrays med heltall heller enn å lagre det på serielt format.
   Så lenge serialisering fungerer så har det lite hensikt å lagre alt på dette formatet, altså vi vinner
   ingenting på det.
+  
+  Har satt opp til eksperiment:
+  Hent rådata ==[Int]==> numerisk ==[splitter]==> kanalData ==[DBWriter]==> ferie
+
+  I morgen: Sjekk at MEAME ikke sender tulledata. Lag en metode som sender dummy data (type 0x1... , 0x2..., 0x100..., 0x10000 etc etc)
+  og sjekk deserialiseringen (om ikke annet så gir det noe å måle opp mot om det er MCS som fucker opp alt)
+
+  Sjekk også entrypointen din, kan du trigge SHODAN remote?
+
+  Vurder å bare skrive flatt til fil som en elendig plebeier på MEAME maskinen.
 
 * Doobie notes
 
