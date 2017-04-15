@@ -143,7 +143,7 @@ object utilz {
             assert(false)
           val longBuf = Array.ofDim[Long](chunk.size/4)
           for(i <- 0 until chunk.size){
-            intBuf(i / 4) = intBuf(i / 4) + (chunk(i) << (8*(i % 4)))
+            longBuf(i / 4) = longBuf(i / 4) + (chunk(i) << (8*(i % 4)))
           }
           val intBuf = longBuf.map(_ - 2147483647).map(_.toInt)
 
