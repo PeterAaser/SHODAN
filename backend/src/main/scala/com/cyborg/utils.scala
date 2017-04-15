@@ -149,7 +149,7 @@ object utilz {
           println("\n~~~~~~~~~~~~~~~~~~")
           intBuf.toList.take(30).foreach(println)
           println("~~~~~~~~~~~~~~~~~~\n")
-          Pull.output(Chunk.seq(intBuf.map(_-65536)) >> go(h)
+          Pull.output(Chunk.seq(intBuf.map(_-65536))) >> go(h)
         }
       }
     }
