@@ -147,7 +147,7 @@ object utilz {
           }
 
           println("\n~~~~~~~~~~~~~~~~~~")
-          intBuf.toList.takeLeft(30).foreach(println)
+          intBuf.toList.take(30).foreach(println)
           println("~~~~~~~~~~~~~~~~~~\n")
           Pull.output(Chunk.seq(intBuf)) >> go(h)
         }
