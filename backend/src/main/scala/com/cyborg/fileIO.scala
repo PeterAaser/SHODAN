@@ -64,6 +64,16 @@ object FW {
     dataFileStream
   }
 
+  def meameDumpReader[F[_]: Async]: Stream[F,Int] = {
+    val dataFileStream =
+      io.file.readAll[F](Paths.get(s"/home/peter/dump.txt"), 4096)
+        .through(text.utf8Decode)
+        .through(text.lines)
+        .filter(s => !s.trim.isEmpty && !s.startsWith("//"))
+        .map(_.toInt)
+
+    dataFileStream
+  }
 
   // TODO no reason to exist in its current form. Flat files are bad.
   def meameLogWriter[F[_]: Async](log: Stream[F, Byte]): F[Unit] = {

@@ -62,7 +62,8 @@ object mainLoop {
   def outerT: Task[Unit] = {
     // outerRunDBSplitter
     // outerRunFromDB
-    networkStoreToDB(databaseTasks.setupExperimentStorage)
+    // networkStoreToDB(databaseTasks.setupExperimentStorage)
+    dumpToStoreToDB(databaseTasks.setupExperimentStorage)
   }
 
   def outerStore[F[_]: Async]: F[Unit] = {
@@ -76,6 +77,44 @@ object mainLoop {
     meme
   }
 
+
+  def dumpToStoreToDB[F[_]: Async](sinks: F[List[Sink[F,Int]]]): F[Unit] = {
+
+    val maxQueueDepth = 256*256*8
+    val datapointsPerSweep = 1024
+    val channels = 60
+
+
+    val numericalDataStream: Stream[F,Int] =
+      FW.meameDumpReader
+
+    val channelStreams = utilz.alternate(
+      numericalDataStream,
+      datapointsPerSweep,
+      maxQueueDepth,
+      channels
+    )
+
+    def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
+      dataStream
+        .through(utilz.chunkify)
+        .through(sink)
+
+    def writeTaskStream = channelStreams flatMap {
+      channels: List[Stream[F,Vector[Int]]] => {
+        Stream.eval(sinks) flatMap {
+          sinks: List[Sink[F,Int]] => {
+            val a =
+              ((channels zip sinks)
+                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
+
+            Stream.emits(a)
+          }
+        }
+      }
+    }
+    concurrent.join(200)(writeTaskStream).drain.run
+  }
 
   // Sets up the machinery to store a proper recording from a live culture
   // into the database
