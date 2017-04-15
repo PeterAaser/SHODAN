@@ -216,7 +216,7 @@ object databaseTasks {
   def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
     println("I am setting up storage for an experiment")
     val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
-      experimentId <- insertNewExperiment(Some("Live recording 14 april"))
+      experimentId <- insertNewExperiment(Some("Test recording 15 april"))
       channelIds <- insertChannels(experimentId)
     } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
     println("Ok, storage is gucci")
