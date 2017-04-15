@@ -141,7 +141,7 @@ object utilz {
         case (chunk, h) => {
           if(chunk.size % 4 != 0)
             assert(false)
-          val uintBuf = Array.ofDim[UInt](chunk.size/4)
+          val uintBuf = Array.ofDim[Uint](chunk.size/4)
           for(i <- 0 until chunk.size){
             intBuf(i / 4) = intBuf(i / 4) + (chunk(i) << (8*(i % 4)))
           }
