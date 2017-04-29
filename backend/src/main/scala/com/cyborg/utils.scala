@@ -45,43 +45,77 @@ object utilz {
     *   robin fashion. Each output gets size elements before the next
     *   output stream gets the handle.
     */
+  def alternator[F[_]: Async, A](src: Stream[F,A], segmentLength: Int, outputs: Int)
+      : Stream[F, Vector[Stream[F, A]]] = {
 
-  def alternate[F[_]: Async, A]
-    ( src: Stream[F, A]
-    , size: Int
-    , maxQueued: Int
-    , outputs: Int
-
-    ): Stream[F, List[Stream[F, Vector[A]]]] = {
-
-    def loop
-      ( activeQ: Int, Qlist: Vector[Queue[F, Vector[A]]])
-        : Handle[F, A] => Pull[F, Vector[A], Unit] = h => {
-
-      h.awaitN(size, false).flatMap {
+    // Fills a queue and then calls itself recursively on the next queue (mod outputs)
+    def loop(activeQ: Int, qs: Vector[Queue[F,Vector[A]]]): Handle[F,A] => Pull[F,A,Unit] = h => {
+      h.awaitN(segmentLength, false) flatMap {
         case (chunks, h) => {
-          Pull.eval(Qlist(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
-            loop(((activeQ + 1) % outputs), Qlist)(h)
+          Pull.eval(qs(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
+            loop(((activeQ + 1) % outputs), qs)(h)
         }
       }
     }
 
-    val makeQueue: F[Queue[F,Vector[A]]] = async.boundedQueue[F, Vector[A]](maxQueued)
+    // Recursively evaluates a list of queues and calls go on the evaluated queues
+    def launch(
+      accumulatedQueues: List[Queue[F,Vector[A]]],
+      queueTasks: List[F[Queue[F,Vector[A]]]]): Stream[F,Vector[Stream[F,A]]] = {
 
-    def makeQueues
-      ( qs: List[Queue[F,Vector[A]]]
-      , bs: List[F[Queue[F,Vector[A]]]]): Stream[F, List[Stream[F,Vector[A]]]] =
-
-      bs match {
-        case Nil => gogo(qs)
-        case h :: t => Stream.eval(h).flatMap { qn => makeQueues((qn :: qs),t) }
+      queueTasks match {
+        case Nil => go(accumulatedQueues.toVector)
+        case h :: t => Stream.eval(h).flatMap
+          { qn: Queue[F,Vector[A]] => launch((qn :: accumulatedQueues), t) }
       }
+    }
 
-    def gogo(qs: List[Queue[F,Vector[A]]])
-      = src.pull(loop(0, qs.toVector)).drain merge Stream.emit((qs.map(_.dequeue)))
+    def go(qs: Vector[Queue[F,Vector[A]]]): Stream[F, Vector[Stream[F, A]]] =
+      src.pull(loop(0, qs)).drain merge Stream.emit((qs.map(_.dequeue.through(utilz.chunkify))))
 
-    makeQueues(List[Queue[F,Vector[A]]](), (List.fill(outputs)(makeQueue)))
+
+    val queueAccumulator = List[Queue[F,Vector[A]]]()
+    val queueTasks = List.fill(outputs)(async.boundedQueue[F,Vector[A]](1024))
+    launch(queueAccumulator, queueTasks)
   }
+
+
+  // def alternate[F[_]: Async, A]
+  //   ( src: Stream[F, A]
+  //   , size: Int
+  //   , maxQueued: Int
+  //   , outputs: Int
+
+  //   ): Stream[F, List[Stream[F, Vector[A]]]] = {
+
+  //   def loop
+  //     ( activeQ: Int, Qlist: Vector[Queue[F, Vector[A]]])
+  //       : Handle[F, A] => Pull[F, Vector[A], Unit] = h => {
+
+  //     h.awaitN(size, false).flatMap {
+  //       case (chunks, h) => {
+  //         Pull.eval(Qlist(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
+  //           loop(((activeQ + 1) % outputs), Qlist)(h)
+  //       }
+  //     }
+  //   }
+
+  //   val makeQueue: F[Queue[F,Vector[A]]] = async.boundedQueue[F, Vector[A]](maxQueued)
+
+  //   def makeQueues
+  //     ( qs: List[Queue[F,Vector[A]]]
+  //     , bs: List[F[Queue[F,Vector[A]]]]): Stream[F, List[Stream[F,Vector[A]]]] =
+
+  //     bs match {
+  //       case Nil => gogo(qs)
+  //       case h :: t => Stream.eval(h).flatMap { qn => makeQueues((qn :: qs),t) }
+  //     }
+
+  //   def gogo(qs: List[Queue[F,Vector[A]]]): Stream[F, List[Stream[F, Vector[A]]]]
+  //     = src.pull(loop(0, qs.toVector)).drain merge Stream.emit((qs.map(_.dequeue)))
+
+  //   makeQueues(List[Queue[F,Vector[A]]](), (List.fill(outputs)(makeQueue)))
+  // }
 
 
   /**
@@ -147,9 +181,6 @@ object utilz {
           }
           val intBuf = longBuf.map(_ - 2147483647).map(_.toInt)
 
-          println("\n~~~~~~~~~~~~~~~~~~")
-          intBuf.toList.take(30).foreach(println)
-          println("~~~~~~~~~~~~~~~~~~\n")
           Pull.output(Chunk.seq(intBuf)) >> go(h)
         }
       }
