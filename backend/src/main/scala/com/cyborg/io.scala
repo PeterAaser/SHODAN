@@ -15,46 +15,69 @@ import scala.language.higherKinds
 import com.typesafe.config._
 
 
-object neuroServer {
+object IO {
 
-  import namedACG._
-
-  implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
-  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
-  val conf = ConfigFactory.load()
-  val netConf = conf.getConfig("io")
-  val addressConf = netConf.getConfig(netConf.getString("target"))
+  type ChannelStream[F[_],A] = Stream[F,Vector[Stream[F,A]]]
 
-  val ip = addressConf.getString("ip")
-  val port = addressConf.getInt("port")
-  val socketAddress = new InetSocketAddress(ip, port)
-
-  val reuseAddress = true
-  val sendBufferSize = netConf.getInt("sendBufSize")
-  val receiveBufferSize = netConf.getInt("recvBufSize")
-  val keepAlive = true
-  val noDelay = true
-
-  val maxQueued = 3
-
-  def socketStream[F[_]: Async]: Stream[F, Socket[F]] =
-    client(
-      socketAddress,
-      reuseAddress,
-      sendBufferSize,
-      receiveBufferSize,
-      keepAlive,
-      noDelay)
+  /**
+    * For offline playback of data, select experiment id and a list of channels for playback
+    */
+  def streamFromDatabase(channels: List[Int], experimentId: Int): Stream[Task, Int] =
+    databaseIO.dbChannelStream(channels, experimentId)
 
 
-  def testThing[F[_]: Async](params: NeuroDataParams): F[Unit] = {
-    val meme = socketStream flatMap { meameSocket =>
-      {
-        FW.meameDataWriter(params, meameSocket)
-      }
-    }
-    meme.run
+  /**
+    * Open a TCP connection to stream data from other other computer
+    */
+  def streamFromTCP(segmentLength: Int): Socket[Task] => ChannelStream[Task,Int] =
+    ???
+
+
+  /**
+    * Creates database records and observes a stream, recording it to the database
+    */
+  def streamToDatabase: Task[Pipe[Task,Int,Int]] = ???
+
+
+  /**
+    * Reads a dump file from MEAME
+    */
+  // TODO move implementation details
+  def meameDumpReader: ChannelStream[Task,Int] = {
+    val rawStream = fileIO.meameDumpReader[Task]
+    utilz.alternator(rawStream, 1024, 60)
   }
+
+
+  /**
+    * Reads a flat file from MEAME
+    */
+  def meameDataReader(filename: String): ChannelStream[Task,Int] = {
+    val rawStream = fileIO.meameDataReader[Task](filename)
+    utilz.alternator(rawStream, 1024, 60)
+  }
+
+
+  object IOmethods {
+
+    def channelSinkZipper[F[_]: Async](channelStreams: Stream[F,Vector[Stream[F,Int]]], sinks: F[List[Sink[F,Int]]]): F[Unit] = {
+
+      val writeTaskStream = channelStreams flatMap {
+        channels: Vector[Stream[F,Int]] => {
+          Stream.eval(sinks) flatMap {
+            sinks: List[Sink[F,Int]] => {
+              val a =
+                ((channels zip sinks)
+                   .map( { case (channel, sink) => channel.through(sink).drain } ))
+
+              Stream.emits(a)
+            }}}
+      }
+
+      concurrent.join(200)(writeTaskStream).drain.run
+    }
+  }
+
 }
