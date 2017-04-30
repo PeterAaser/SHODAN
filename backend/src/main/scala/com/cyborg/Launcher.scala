@@ -8,7 +8,7 @@ object Launcher {
     val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
     server.start()
 
-    if(databaseTasks.superdupersecretPassword != ""){
+    if(doobieTasks.superdupersecretPassword != ""){
       println("################################################")
       println("################################################")
       println("################################################")

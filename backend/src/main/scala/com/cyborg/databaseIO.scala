@@ -26,10 +26,12 @@ object databaseIO {
     _.pull(get)
   }
 
-
+  // this method collects data on an array to array basis, but it dumps it all in a
+  // single stream so it must be re-alternated
+  // TODO it would be much more natural to deliver a list of streams as per above comments
   def dbChannelStream(channels: List[Int], experimentId: Int): Stream[Task, Int] = {
-    val meme = Stream.eval(doobieTasks.selectChannelStreams(3, List(1, 2, 3)))
-    meme flatMap (channelStreamList =>
+    val dbChannelStreams = Stream.eval(doobieTasks.selectChannelStreams(3, List(1, 2, 3)))
+    dbChannelStreams flatMap (channelStreamList =>
       {
         val unpacked: List[Stream[Task, Vector[Int]]] =
           channelStreamList.map(_.through(arrayBreaker(512)).through(utilz.vectorize(1024*4)))

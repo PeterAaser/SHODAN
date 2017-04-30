@@ -1,6 +1,6 @@
 package com.cyborg.rpc
 
-import com.cyborg.{ mainLoop, neuroServer }
+import com.cyborg.{ mainLoop }
 import com.cyborg.wallAvoid.Agent
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit

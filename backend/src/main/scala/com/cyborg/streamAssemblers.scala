@@ -30,15 +30,15 @@ object Assemblers {
       spikeDetector.spikeDetectorPipe(MAGIC_PERIOD, MAGIC_SAMPLERATE, MAGIC_THRESHOLD)
 
 
-    val neuronChannels: Stream[F,List[Stream[F,Vector[Int]]]] =
-      alternate(neuroStream, pointsPerSweep, 256*256*8, channels.length)
+    val neuronChannels: Stream[F,Vector[Stream[F,Int]]] =
+      alternator(neuroStream, pointsPerSweep, channels.length)
 
 
     val spikeStream = neuronChannels flatMap {
-      channels: List[Stream [F,Vector[Int]]] => {
+      channels: Vector[Stream [F,Int]] => {
 
-        val spikeChannels: List[Stream[F, Int]] = channels
-          .map((λ: Stream[F,Vector[Int]]) => λ.through(unpacker[F,Int]))
+        val spikeChannels: Vector[Stream[F, Int]] = channels
+          // .map((λ: Stream[F,Vector[Int]]) => λ.through(unpacker[F,Int]))
           .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
 
         val spikeTrains =

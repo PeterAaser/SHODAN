@@ -80,44 +80,6 @@ object utilz {
   }
 
 
-  // def alternate[F[_]: Async, A]
-  //   ( src: Stream[F, A]
-  //   , size: Int
-  //   , maxQueued: Int
-  //   , outputs: Int
-
-  //   ): Stream[F, List[Stream[F, Vector[A]]]] = {
-
-  //   def loop
-  //     ( activeQ: Int, Qlist: Vector[Queue[F, Vector[A]]])
-  //       : Handle[F, A] => Pull[F, Vector[A], Unit] = h => {
-
-  //     h.awaitN(size, false).flatMap {
-  //       case (chunks, h) => {
-  //         Pull.eval(Qlist(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
-  //           loop(((activeQ + 1) % outputs), Qlist)(h)
-  //       }
-  //     }
-  //   }
-
-  //   val makeQueue: F[Queue[F,Vector[A]]] = async.boundedQueue[F, Vector[A]](maxQueued)
-
-  //   def makeQueues
-  //     ( qs: List[Queue[F,Vector[A]]]
-  //     , bs: List[F[Queue[F,Vector[A]]]]): Stream[F, List[Stream[F,Vector[A]]]] =
-
-  //     bs match {
-  //       case Nil => gogo(qs)
-  //       case h :: t => Stream.eval(h).flatMap { qn => makeQueues((qn :: qs),t) }
-  //     }
-
-  //   def gogo(qs: List[Queue[F,Vector[A]]]): Stream[F, List[Stream[F, Vector[A]]]]
-  //     = src.pull(loop(0, qs.toVector)).drain merge Stream.emit((qs.map(_.dequeue)))
-
-  //   makeQueues(List[Queue[F,Vector[A]]](), (List.fill(outputs)(makeQueue)))
-  // }
-
-
   /**
     * Groups inputs in fixed size chunks by passing a "sliding window"
     * of size `width` and with an overlap `stride` over them.
@@ -135,7 +97,6 @@ object utilz {
     val stepsize = windowWidth - overlap
     def go(last: Vector[I]): Handle[F,I] => Pull[F,Vector[I],Unit] = h => {
       h.awaitN(stepsize, false).flatMap { case (chunks, h) =>
-        // println(s"strided slide got $chunks")
         val window = chunks.foldLeft(last)(_ ++ _.toVector)
         Pull.output1(window) >> go(window.drop(stepsize))(h)
       }

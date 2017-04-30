@@ -45,9 +45,6 @@ object mainLoop {
 
     val memeTask = meameWriteSink(meme)
 
-    println("INNER IS READY TO RUN")
-
-    // meme.run
     memeTask
   }
 
@@ -62,129 +59,134 @@ object mainLoop {
   def outerT: Task[Unit] = {
     // outerRunDBSplitter
     // outerRunFromDB
-    // networkStoreToDB(databaseTasks.setupExperimentStorage)
-    dumpToStoreToDB(databaseTasks.setupExperimentStorage)
+    // networkStoreToDB(doobieTasks.setupExperimentStorage)
+    dumpToStoreToDB(doobieTasks.setupExperimentStorage)
   }
 
   def outerStore[F[_]: Async]: F[Unit] = {
 
-    val conf = ConfigFactory.load()
-    val experimentConf = conf.getConfig("experimentConf")
-    val params = NeuroDataParams(experimentConf)
+    // val conf = ConfigFactory.load()
+    // val experimentConf = conf.getConfig("experimentConf")
+    // val params = NeuroDataParams(experimentConf)
 
-    val meme = neuroServer.testThing(params)
+    // val meme = neuroServer.testThing(params)
 
-    meme
+    // meme
+    ???
   }
 
 
   def dumpToStoreToDB[F[_]: Async](sinks: F[List[Sink[F,Int]]]): F[Unit] = {
 
-    val maxQueueDepth = 256*256*8
-    val datapointsPerSweep = 1024
-    val channels = 60
+    // val maxQueueDepth = 256*256*8
+    // val datapointsPerSweep = 1024
+    // val channels = 60
 
 
-    val numericalDataStream: Stream[F,Int] =
-      FW.meameDumpReader
+    // val numericalDataStream: Stream[F,Int] =
+    //   FW.meameDumpReader
 
-    val channelStreams = utilz.alternate(
-      numericalDataStream,
-      datapointsPerSweep,
-      maxQueueDepth,
-      channels
-    )
+    // val channelStreams = utilz.alternate(
+    //   numericalDataStream,
+    //   datapointsPerSweep,
+    //   maxQueueDepth,
+    //   channels
+    // )
 
-    def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
-      dataStream
-        .through(utilz.chunkify)
-        .through(sink)
+    // def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
+    //   dataStream
+    //     .through(utilz.chunkify)
+    //     .through(sink)
 
-    def writeTaskStream = channelStreams flatMap {
-      channels: List[Stream[F,Vector[Int]]] => {
-        Stream.eval(sinks) flatMap {
-          sinks: List[Sink[F,Int]] => {
-            val a =
-              ((channels zip sinks)
-                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
+    // def writeTaskStream = channelStreams flatMap {
+    //   channels: List[Stream[F,Vector[Int]]] => {
+    //     Stream.eval(sinks) flatMap {
+    //       sinks: List[Sink[F,Int]] => {
+    //         val a =
+    //           ((channels zip sinks)
+    //              .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
 
-            Stream.emits(a)
-          }
-        }
-      }
-    }
-    concurrent.join(200)(writeTaskStream).drain.run
+    //         Stream.emits(a)
+    //       }
+    //     }
+    //   }
+    // }
+    // concurrent.join(200)(writeTaskStream).drain.run
+    ???
   }
 
   // Sets up the machinery to store a proper recording from a live culture
   // into the database
   def networkStoreToDB[F[_]: Async](sinks: F[List[Sink[F,Int]]]): F[Unit] = {
 
-    val socketBufferSize = 1024*1024
-    val maxQueueDepth = 256*256
-    val datapointsPerSweep = 1024
-    val channels = 60
+    // val socketBufferSize = 1024*1024
+    // val maxQueueDepth = 256*256
+    // val datapointsPerSweep = 1024
+    // val channels = 60
 
-    val dataStream: Stream[F, Byte] = neuroServer.socketStream flatMap (
-      meameSocket => (meameSocket.reads(socketBufferSize)))
+    // val dataStream: Stream[F, Byte] = neuroServer.socketStream flatMap (
+    //   meameSocket => (meameSocket.reads(socketBufferSize)))
 
-    val numericalDataStream =
-      dataStream.through(utilz.bytesToInts)
+    // val numericalDataStream =
+    //   dataStream.through(utilz.bytesToInts)
 
-    val channelStreams = utilz.alternate(
-      numericalDataStream,
-      datapointsPerSweep,
-      maxQueueDepth,
-      channels
-    )
+    // val channelStreams = utilz.alternate(
+    //   numericalDataStream,
+    //   datapointsPerSweep,
+    //   maxQueueDepth,
+    //   channels
+    // )
 
-    def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
-      dataStream
-        .through(utilz.chunkify)
-        .through(sink)
+    // def writeChannelData(sink: Sink[F,Int], dataStream: Stream[F,Vector[Int]]): Stream[F,Unit] =
+    //   dataStream
+    //     .through(utilz.chunkify)
+    //     .through(sink)
 
-    def writeTaskStream = channelStreams flatMap {
-      channels: List[Stream[F,Vector[Int]]] => {
-        Stream.eval(sinks) flatMap {
-          sinks: List[Sink[F,Int]] => {
-            val a =
-              ((channels zip sinks)
-                 .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
+    // def writeTaskStream = channelStreams flatMap {
+    //   channels: List[Stream[F,Vector[Int]]] => {
+    //     Stream.eval(sinks) flatMap {
+    //       sinks: List[Sink[F,Int]] => {
+    //         val a =
+    //           ((channels zip sinks)
+    //              .map( { case (channel, sink) => (writeChannelData(sink, channel)) } ))
 
-            Stream.emits(a)
-          }
-        }
-      }
-    }
-    concurrent.join(200)(writeTaskStream).drain.run
+    //         Stream.emits(a)
+    //       }
+    //     }
+    //   }
+    // }
+    // concurrent.join(200)(writeTaskStream).drain.run
+    ???
   }
 
   def outerRunFromDB: Task[Unit] = {
 
-    val filename = FW.getNewestFilename
-    val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
+    // val filename = FW.getNewestFilename
+    // val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
 
-    val meme: Task[Unit] =
-      inner[Task](params, DatabaseIO.databaseStream(databaseTasks.filteredChannelStreams), FW.meameLogWriter)
+    // val meme: Task[Unit] =
+    //   inner[Task](params, DatabaseIO.databaseStream(doobieTasks.filteredChannelStreams), FW.meameLogWriter)
 
-    meme
+    // meme
+    ???
   }
 
   def outerRunStored[F[_]: Async]: F[Unit] = {
 
-    val filename = FW.getNewestFilename
-    val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
+    // val filename = FW.getNewestFilename
+    // val params = NeuroDataParams(40000, List(2,5,8,16), List(4,6,17,24), 512)
 
-    val meme: F[Unit] =
-      inner[F](params, FW.meameDataReader(filename), FW.meameLogWriter)
+    // val meme: F[Unit] =
+    //   inner[F](params, FW.meameDataReader(filename), FW.meameLogWriter)
 
-    meme
+    // meme
+    ???
   }
 
   def outerRunDBSplitter: Task[Unit] = {
-    val filename = FW.getNewestFilename
-    val sinks = databaseTasks.setupExperimentStorage
-    FW.genericChannelSplitter(filename, sinks)
-
+    // val filename = FW.getNewestFilename
+    // val sinks = doobieTasks.setupExperimentStorage
+    // FW.genericChannelSplitter(filename, sinks)
+    ???
   }
 }
