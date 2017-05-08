@@ -49,9 +49,54 @@ object networkIO {
 
 
   def rawDataStream(socket: Socket[Task]): Stream[Task,Int] =
-    socket.reads(1024*1024).through(utilz.bytesToInts)
+    socket.reads(1024*1024)
+      .through(utilz.bytesToInts)
+
 
   def decodeChannelStreams(dataStream: Stream[Task,Int], segmentLength: Int, nChannels: Int = 60): Stream[Task,Vector[Stream[Task,Int]]] =
     utilz.alternator(dataStream, segmentLength, nChannels)
+
+
+  object msgTest {
+
+    import scodec._
+    import scodec.bits._
+    import codecs._
+
+    import Attempt._
+
+    import scodec.stream._
+
+
+    def roundtrip[A](a: A)(implicit C: Codec[A]) = {
+      C.encode(a) match {
+        case Failure(error) =>
+          println("FUGG!")
+        case Successful(encoded) =>
+          C.decode(encoded) match {
+            case Failure(error) =>
+              println("FUGG!")
+            case Successful(DecodeResult(decoded, remainder)) =>
+              println(decoded)
+          }
+      }
+    }
+
+    def doSomeMagic[F[_],A](a: A)(implicit C: Codec[A]): Stream[F,Byte] = {
+      C.encode(a) match {
+        case Failure(error) => {
+          println("FYY FAEN!")
+          Stream.empty
+        }
+        case Successful(encoded) => {
+          val meme = encoded.bytes ++ encoded.bytes
+          Stream.emits(meme.toSeq)
+        }
+      }
+    }
+
+    val runme = "hi how are you :)"
+
+  }
 
 }

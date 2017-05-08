@@ -17,7 +17,9 @@ import com.typesafe.config._
 
 object IO {
 
+  // implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
+  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
   type ChannelStream[F[_],A] = Stream[F,Vector[Stream[F,A]]]
 
@@ -34,6 +36,13 @@ object IO {
   def streamFromTCP(segmentLength: Int): Socket[Task] => ChannelStream[Task,Int] =
     ???
 
+
+  // TODO move implementation details
+  def streamFromTCPreadOnly(segmentLength: Int): Stream[Task,Int] =
+    networkIO.socketStream[Task] flatMap ( socket =>
+      {
+        networkIO.rawDataStream(socket)
+      })
 
   /**
     * Creates database records and observes a stream, recording it to the database

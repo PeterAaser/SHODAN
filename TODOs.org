@@ -1,7 +1,8 @@
 * TODO Add error handling
 ** TODO On TCP connection close do some cool shit
  
-* TODO Persistent storage
+* DONE Persistent storage
+  CLOSED: [2017-04-27 to. 12:08]
 ** DONE Write MEAME input to file
    CLOSED: [2017-03-13 ma. 17:47]
 *** DONE Write raw input to file
@@ -14,20 +15,59 @@
     CLOSED: [2017-03-14 ti. 17:07]
 **** DONE write implementation
      CLOSED: [2017-03-12 sø. 16:02]
-**** TODO test implementation
+**** DONE test implementation
+     CLOSED: [2017-04-29 lø. 17:22]
 *** DONE Read params from file
     CLOSED: [2017-03-13 ma. 17:47]
 **** DONE write implementation
      CLOSED: [2017-03-12 sø. 16:03]
-**** TODO test implementation
+**** DONE test implementation
+     CLOSED: [2017-04-29 lø. 17:22]
 
     
 ** DONE Test and fix write and read
    CLOSED: [2017-03-18 lø. 13:03]
 
-** TODO Add a real webscale database
+** DONE Add a real webscale database
+   CLOSED: [2017-04-27 to. 12:08]
 
 * TODO Create main control module
+** Rethink Inner/Outer 
+*** TODO Agnostic IO toplevel
+*** DONE Refactor the plethora of IO methods into logical units
+    CLOSED: [2017-04-30 sø. 19:51]
+**** DONE Database IO
+     CLOSED: [2017-04-29 lø. 17:21]
+***** Why two logical units? 
+      In order to get a clean interface between doobie and the rest of the codebase
+      the database part is defined in separate files.
+      One immediate reason for doing so is to help ensime not choke on preprocessor
+      stuff (cats/scalaz) in doobie.
+***** DONE Doobie tasks
+      CLOSED: [2017-04-29 lø. 17:21]
+****** DONE Remove every reference to doobieTasks outside of database tasks
+       CLOSED: [2017-04-29 lø. 17:21]
+***** DONE Database tasks
+      CLOSED: [2017-04-29 lø. 17:21]
+**** DONE File IO 
+     CLOSED: [2017-04-29 lø. 17:21]
+**** DONE TCP IO
+     CLOSED: [2017-04-29 lø. 17:22]
+    
+** Outer loop
+*** TODO Should dispatch the inner loop
+**** TODO MEAME needs an API for selecting datastream
+**** TODO should create the bulk logging task and inner loop task with MEAME sockets
+*** DONE Should be responsible for opening the server connections to MEAME
+    CLOSED: [2017-03-11 lø. 17:01]
+*** DONE Outer loop should log all incoming data from MEAME
+    CLOSED: [2017-04-27 to. 12:10]
+**** DONE Create flat fileWriter
+     CLOSED: [2017-03-11 lø. 17:01]
+**** TODO Write to database
+*** TODO Search for suitable channels
+    Figure out which channels respond to stimuli and select them as
+    primary acquisition/stimulation electrodes.
 ** Inner loop
 *** TODO Inner loop should be responsible for trying out different ANNs
 *** DONE Refactor inner loop
@@ -37,19 +77,6 @@
 *** TODO Add pipe rebuilding to some criteria
 **** TODO Create proof of concept
 **** TODO Add self modifying ANN pipe
-** Outer loop
-*** TODO Should dispatch the inner loop
-**** TODO MEAME needs an API for selecting datastream
-**** TODO should create the bulk logging task and inner loop task with MEAME sockets
-*** DONE Should be responsible for opening the server connections to MEAME
-    CLOSED: [2017-03-11 lø. 17:01]
-*** TODO Outer loop should log all incoming data from MEAME
-**** DONE Create flat fileWriter
-     CLOSED: [2017-03-11 lø. 17:01]
-**** TODO Write to database
-*** TODO Search for suitable channels
-    Figure out which channels respond to stimuli and select them as
-    primary acquisition/stimulation electrodes.
 ** Spec
    Control module should:
 *** Should open connection to server
@@ -72,29 +99,19 @@
    Needs to be webscale
 
 * General
-** TODO Fix alternator
+** DONE Fix alternator
+   CLOSED: [2017-04-29 lø. 17:23]
    Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
 
 
 * Notes
 ** Logging
-   In order to log what SHODAN does and thinks it could be useful to implement a logging scheme.
+   In order to log what SHODAN does and thinks it could be us                      │  Try it on your phone and be amazed that even without any modifier you can still     │
+                                      eful to implement a logging scheme.
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Endrer lagringsformen til å være basert på arrays med heltall heller enn å lagre det på serielt format.
-  Så lenge serialisering fungerer så har det lite hensikt å lagre alt på dette formatet, altså vi vinner
-  ingenting på det.
-  
-  Har satt opp til eksperiment:
-  Hent rådata ==[Int]==> numerisk ==[splitter]==> kanalData ==[DBWriter]==> ferie
-
-  I morgen: Sjekk at MEAME ikke sender tulledata. Lag en metode som sender dummy data (type 0x1... , 0x2..., 0x100..., 0x10000 etc etc)
-  og sjekk deserialiseringen (om ikke annet så gir det noe å måle opp mot om det er MCS som fucker opp alt)
-
-  Sjekk også entrypointen din, kan du trigge SHODAN remote?
-
-  Vurder å bare skrive flatt til fil som en elendig plebeier på MEAME maskinen.
+  Fiksa ghetto versjon av bytes -> int
 
 * Doobie notes
 
@@ -136,3 +153,29 @@
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
    
+
+* fs2 Notes
+  for eksempel på pull der R representerer Handle, se takeWhile i Handle
+* Scodec gitter exerpts
+** nov 27
+   Scott Calvert @mr-calvert Nov 27 2016 23:56 I’ve been working on the fs2.io
+   <-> scodec interop stuff I talked about on the 12th. I ran with the idea of a
+   BitVector which unfolds an fs2.async.mutable.Queue which is fed by an
+   fs2.Stream[F, Byte], which was not resource safe, and build a resource safe
+   fs2.Stream[F, A] of decoded objects from it. It turns out that ensuring the
+   fs2.Stream[F, Byte] gets shutdown if the downstream fs2.Stream[F, A]
+   terminates early was a bit of a mess. It’s passing tests which indicate it’s
+   safe for my $job usage, but I’ve not tested it enough to be confident to PR
+   it. That’s when I realized I’d completely missed scodec.stream.decode.pipe,
+   which solves the glue problem I have for $job nicely. pipe has the “self
+   delimited” requirement of the underlying decoder. It also relies on roughly
+   one failed decode attempt per input BitVector, which could be a performance
+   issue for really expensive decoders or small chunk sizes.
+
+   Scott Calvert @mr-calvert Nov 28 2016 00:03 My Stream fed BitVector could be
+   a good solution to those use cases, but before I press on and fully test and
+   PR it I wonder if anybody really cares. For my own application I can have
+   arbitrarily huge read chunk sizes and will mostly be decoding tiny/cheap
+   objects by the billions, so pipe should be just fine. Opinions?
+* Scodec notes
+  med scodec.stream.pipe(decoder) blir det fest

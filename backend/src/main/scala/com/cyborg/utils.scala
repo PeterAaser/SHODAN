@@ -6,13 +6,17 @@ import fs2.util.Async
 import fs2.async.mutable.Queue
 
 import java.nio.channels.AsynchronousChannelGroup
-
 import java.lang.Thread.UncaughtExceptionHandler
 import java.nio.channels.spi.AsynchronousChannelProvider
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
+import scodec._
+import scodec.bits._
+import codecs._
+import scodec.stream._
 
+import Attempt._
 import scala.language.higherKinds
 
 object namedACG {
@@ -127,8 +131,7 @@ object utilz {
     _.pull(go)
   }
 
-  // Decodes a byte stream into a stream of 32 bit signed ints
-  // TODO use scodec maybe?
+  // Decodes a byte stream from MEAME into a stream of 32 bit signed ints
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
     def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
@@ -136,13 +139,55 @@ object utilz {
         case (chunk, h) => {
           if(chunk.size % 4 != 0)
             assert(false)
-          val longBuf = Array.ofDim[Long](chunk.size/4)
-          for(i <- 0 until chunk.size){
-            longBuf(i / 4) = longBuf(i / 4) + (chunk(i) << (8*(i % 4)))
+          val intBuf = Array.ofDim[Int](chunk.size/4)
+
+          for(i <- 0 until chunk.size/4){
+            val idx = i*4
+            val x = chunk(idx + 0)
+            val y = chunk(idx + 1)
+            val z = chunk(idx + 2)
+            val w = chunk(idx + 3)
+
+            val asInt: Int = (
+              ((0xFF & w) << 24) |
+                ((0xFF & z) << 16) |
+                ((0xFF & y) << 8) |
+                ((0xFF & x))
+            )
+
+            intBuf(i) = asInt
           }
-          val intBuf = longBuf.map(_ - 2147483647).map(_.toInt)
+
+          for(i <- 0 until chunk.size/4){
+            println(intBuf(i))
+          }
 
           Pull.output(Chunk.seq(intBuf)) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
+
+  // TODO check if this is ok for performance (probably is)
+  def byteToByteVec[F[_]]: Pipe[F,Byte,ByteVector] = {
+    def go: Handle[F,Byte] => Pull[F,ByteVector,Unit] = h => {
+      h.receive {
+        case (chunk, h) => {
+          Pull.output1(ByteVector(chunk.toArray)) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
+  // TODO check if this is ok for performance (probably is)
+  def byteToBitVec[F[_]]: Pipe[F,Byte,BitVector] = {
+    def go: Handle[F,Byte] => Pull[F,BitVector,Unit] = h => {
+      h.receive {
+        case (chunk, h) => {
+          Pull.output1(BitVector(chunk.toArray)) >> go(h)
         }
       }
     }
@@ -220,6 +265,7 @@ object utilz {
 
     _.pull(go)
   }
+
 
   def observerPipe[F[_]: Async](observer: Sink[F,Byte]):
       Pipe[F,(List[Double], List[Double]),(List[Double], List[Double])] = { s =>

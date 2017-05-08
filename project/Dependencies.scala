@@ -56,8 +56,7 @@ object Dependencies {
     "org.tpolecat" %% "doobie-postgres-cats"   % doobieVersion,
     "org.tpolecat" %% "doobie-specs2-cats"     % doobieVersion,
     "org.typelevel" %% "cats" % "0.9.0",
-    "com.chuusai" %% "shapeless" % "2.3.2",
-    "com.github.pocketberserker" % "scodec-msgpack_2.11" % "0.6.0"
+    "com.chuusai" %% "shapeless" % "2.3.2"
 
   ))
 }

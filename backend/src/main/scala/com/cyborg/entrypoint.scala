@@ -60,7 +60,8 @@ object mainLoop {
     // outerRunDBSplitter
     // outerRunFromDB
     // networkStoreToDB(doobieTasks.setupExperimentStorage)
-    dumpToStoreToDB(doobieTasks.setupExperimentStorage)
+    // dumpToStoreToDB(doobieTasks.setupExperimentStorage)
+    IO.streamFromTCPreadOnly(10).drain.run
   }
 
   def outerStore[F[_]: Async]: F[Unit] = {
