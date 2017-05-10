@@ -1,11 +1,11 @@
-import com.lihaoyi.workbench.Plugin._
+import com.lihaoyi.workbench._
 import UdashBuild._
 import Dependencies._
 
 name := "SHODAN"
 
 version in ThisBuild := "0.1.0-SNAPSHOT"
-scalaVersion in ThisBuild := "2.11.8"
+scalaVersion in ThisBuild := "2.11.11"
 organization in ThisBuild := "com.cyborg"
 crossPaths in ThisBuild := false
 scalacOptions in ThisBuild ++= Seq(
@@ -53,8 +53,7 @@ lazy val backend = project.in(file("backend"))
 
     mappings in (Compile, packageBin) ++= {
       copyStatics.value
-      ((target in Compile).value / StaticFilesDir).***.get map { file =>
-        file -> file.getAbsolutePath.stripPrefix((target in Compile).value.getAbsolutePath)
+      ((target in Compile).value / StaticFilesDir).***.get map { file => file -> file.getAbsolutePath.stripPrefix((target in Compile).value.getAbsolutePath)
       }
     },
 

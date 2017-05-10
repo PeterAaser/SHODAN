@@ -1,7 +1,6 @@
 package com.cyborg
 
 import com.typesafe.config._
-import fommil.sjs.FamilyFormats._
 import collection.JavaConverters._
 
 object params {
@@ -22,8 +21,4 @@ object params {
       NeuroDataParams(c.getInt("sampleRate"), d, e, c.getInt("sweepSize"))
     }
   }
- // object MyJsonProtocol extends DefaultJsonProtocol {
- //   implicit val modelFormat = jsonFormat4(NeuroDataParams.apply)
- // }
-
 }
