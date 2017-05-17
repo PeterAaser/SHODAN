@@ -2,6 +2,7 @@ package com.cyborg
 
 object wallAvoid {
 
+  // hardcoded
   val width = 10000.0
   val height = 10000.0
   val speed = 10.0
@@ -29,6 +30,14 @@ object wallAvoid {
 
     val distances = viewAngles.map{traceObstacleDistance(loc, _)}
 
+    val distanceToClosest: Double = {
+      val xDistLeft = loc.x
+      val xDistRight = width - loc.x
+      val yDistTop = loc.y
+      val yDistBot = height - loc.y
+      List(xDistLeft, xDistRight, yDistBot, yDistTop).min
+    }
+
     def processInput(input: (Double, Double)): Double =
       normalizeAngle(heading + (input._1 - input._2)*turnRate)
 
@@ -54,6 +63,24 @@ object wallAvoid {
   }
 
   val PI = 3.14
+
+  def createChallenges: List[Agent] = {
+    //hardcoded
+    val loc = Coord(200.0, 200.0)
+    val firstAngle  = PI/6.0
+    val secondAngle = PI/12.0
+    val thirdAngle  = .0
+    val fourthAngle = -PI/6.0
+    val fifthAngle  = -PI/12.0
+
+    val agentPA = Agent(loc, _: Double, 120)
+
+    List(agentPA(firstAngle),
+         agentPA(secondAngle),
+         agentPA(thirdAngle),
+         agentPA(fourthAngle),
+         agentPA(fifthAngle))
+  }
 
   def traceObstacleDistance(loc: Coord, angleRad: Double): Double = {
     val xUnitDir = if(angleRad < PI/2 || angleRad > 3*PI/2) -1 else 1

@@ -3,6 +3,7 @@ package com.cyborg
 import com.cyborg.Assemblers.ffANNinput
 import com.cyborg.Filters.FeedForward
 import com.cyborg.rpc.AgentService
+import fs2.util.Async
 import scala.language.higherKinds
 
 object agentPipe {
@@ -35,32 +36,39 @@ object agentPipe {
   }
 
 
-  def evaluatorPipe[F[_]](
-    ticks: Int,
-    evaluatorFunction: Agent => Double,
-    netGenerator: FeedForward[Double] => FeedForward[Double]
+  /**
+    Observers one of those meme-loving fucks and scores it after having had enough
+    of its bullshit.
+    */
+  def evaluatorPipe[F[_]:Async](ticksPerEval: Int, evalFunc: Double => Double): Pipe[F,Agent,Double] = {
 
-  ): Pipe[F, ffANNinput, Double] = {
+    // Runs an agent through 1000 ticks, recording the closest it was a wall
+    def challengeEvaluator(agent: Agent): Pipe[F,Agent,Double] = {
+      // hardcoded
+      val ticks = 1000
+      def go: Handle[F,Agent] => Pull[F,Double,Unit] = h => {
+        h.awaitN(ticks, false) flatMap {
+          case(chunks, h) => {
+            val agentLocs = chunks.foldLeft(List[Agent]())(_++_.toList)
+            val minDist = agentLocs.map(_.distanceToClosest).min
+            Pull.output1(minDist)
+          }
+        }
+      }
+      _.pull(go)
+    }
 
+    // Creates five (hardcoded) initial agents, each mapped to a pipe
+    val challenges: List[Agent] = createChallenges
+    val challengePipes = challenges.map(challengeEvaluator(_))
 
-    // def evalPipe(
-    //   ticksLeft: Int,
-    //   score: Double,
-    //   filter: Pipe[F, ffANNinput, Agent]
-    // ): Handle[F, ffANNinput] => Pull[F, Agent, Unit] =
-    //   h => {
-    //     h.through(filter).receive1 {
-    //       case (agent, h) => {
-    //         if(ticksLeft == 0)
-    //           ???
-    //         else
-    //           Pull.output1(agent) >> evalPipe(ticksLeft - 1, score + evaluatorFunction(agent))(h)
-    //       }
-    //     }
+    // Joins the five challenges, sums the result and returns a single element stream
+    val challengePipe: Pipe[F,Agent,Double] = pipe.join(Stream.emits(challengePipes))
+    val result = challengePipe andThen (pipe.fold(0.0)(_+_))
 
-    //   ???
-    // }
+    λ => λ.through(challengePipe).through(pipe.fold(.0)(_+_)).through(_.map(evalFunc))
 
-    ???
   }
+
+
 }
