@@ -37,38 +37,68 @@ object agentPipe {
 
 
   /**
-    Observers one of those meme-loving fucks and scores it after having had enough
-    of its bullshit.
+    Sets up 5 challenges, evaluates ANN performance and returns
+    the evaluation via the eval sink
     */
-  def evaluatorPipe[F[_]:Async](ticksPerEval: Int, evalFunc: Double => Double): Pipe[F,Agent,Double] = {
+  def evaluatorPipe[F[_]:Async](
+    ticksPerEval: Int,
+    evalFunc: Double => Double,
+    evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = {
 
     // Runs an agent through 1000 ticks, recording the closest it was a wall
-    def challengeEvaluator(agent: Agent): Pipe[F,Agent,Double] = {
-      // hardcoded
-      val ticks = 1000
+    def challengeEvaluator(agent: Agent): Pipe[F,ffANNoutput,Agent] = {
+
+      def go(ticks: Int, agent: Agent): Handle[F,ffANNoutput] => Pull[F,Agent,Unit] = h => {
+        h.receive1 {
+          (agentInput, h) => {
+            val nextAgent = updateAgent(agent, agentInput)
+            if (ticks > 0)
+              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent)(h)
+            else
+              Pull.output1(nextAgent)
+          }
+        }
+      }
+      _.pull(go(ticksPerEval, agent))
+    }
+
+    def evaluateRun: Pipe[F,Agent,Double] = {
       def go: Handle[F,Agent] => Pull[F,Double,Unit] = h => {
-        h.awaitN(ticks, false) flatMap {
-          case(chunks, h) => {
-            val agentLocs = chunks.foldLeft(List[Agent]())(_++_.toList)
-            val minDist = agentLocs.map(_.distanceToClosest).min
-            Pull.output1(minDist)
+        h.awaitN(ticksPerEval, false) flatMap {
+          case (chunks, _) => {
+            val closest = chunks.map(_.toList).flatten
+              .map(_.distanceToClosest)
+              .min
+            Pull.output1(closest)
           }
         }
       }
       _.pull(go)
     }
 
+
+    // attaches an evaluator to a joined pipe of n experiments
+    def attachSink(
+      experimentPipe: Pipe[F,ffANNoutput,Agent],
+      evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = s => {
+
+      val t = s.through(experimentPipe)
+      pipe.observe(t)(λ =>
+        λ.through(evaluateRun)
+          // TODO should evaluating perhaps be done elsewhere?
+          .through(pipe.fold(.0)(_+_)).through(_.map(evalFunc(_)))
+          .through(evalSink)
+      )
+    }
+
     // Creates five (hardcoded) initial agents, each mapped to a pipe
     val challenges: List[Agent] = createChallenges
     val challengePipes = challenges.map(challengeEvaluator(_))
 
-    // Joins the five challenges, sums the result and returns a single element stream
-    val challengePipe: Pipe[F,Agent,Double] = pipe.join(Stream.emits(challengePipes))
-    val result = challengePipe andThen (pipe.fold(0.0)(_+_))
+    // Joins the five challenges, attaches an evaluator to the joined pipe
+    val challengePipe: Pipe[F,ffANNoutput,Agent]
+      = attachSink(pipe.join(Stream.emits(challengePipes)), evalSink)
 
-    λ => λ.through(challengePipe).through(pipe.fold(.0)(_+_)).through(_.map(evalFunc))
-
+    challengePipe
   }
-
-
 }
