@@ -73,17 +73,15 @@ object ffGA {
   /**
     Sets it all up yo
     */
-  // TODO figure out the initial part
   def experimentPipe[F[_]:Async](inStream: Stream[F,ffANNinput], layout: List[Int]):
       Stream[F,Stream[F,Agent]] = {
 
     val inputQueueTask = fs2.async.unboundedQueue[F,ffANNinput]
     val evaluationQueueTask = fs2.async.unboundedQueue[F,Double]
-
-    val initPipes: Stream[F,Pipe[F,ffANNinput,ffANNoutput]] = ???
+    val networkQueueTask = fs2.async.unboundedQueue[F,Pipe[F,ffANNinput,ffANNoutput]]
 
     def loop(
-      pipes: Stream[F,Pipe[F,ffANNinput,ffANNoutput]],
+      pipeQueue: fs2.async.mutable.Queue[F,Pipe[F,ffANNinput,ffANNoutput]],
       inputQueue: fs2.async.mutable.Queue[F,ffANNinput],
       evalQueue: fs2.async.mutable.Queue[F,Double]): Stream[F,Agent] =
     {
@@ -94,7 +92,7 @@ object ffGA {
 
       // Create scenario pipe, attach evaluator sink
       val evaluatingAgentPipes: Stream[F,Pipe[F,ffANNinput,Agent]] =
-        pipes.through(_.map(_ andThen (agentPipe.evaluatorPipe(ticksPerEval, evalFunc, evalQueue.enqueue))))
+        pipeQueue.dequeue.through(_.map(_ andThen (agentPipe.evaluatorPipe(ticksPerEval, evalFunc, evalQueue.enqueue))))
 
       // Consolidate into single pipe
       val evaluatingAgentPipe = pipe.join(evaluatingAgentPipes)
@@ -102,22 +100,30 @@ object ffGA {
       // We run the input through the consolidated pipe
       val flow = inputQueue.dequeue.through(evaluatingAgentPipe)
 
-      // TODO
-      // Not sure if exp batch pipe keeps state here (it don't...)
-      val nextPipeStream = evalQueue.dequeue.through(experimentBatchPipe(layout))
 
-      flow ++ loop(nextPipeStream, inputQueue, evalQueue)
+      flow ++ loop(pipeQueue, inputQueue, evalQueue)
     }
 
     for {
       evalQueue <- Stream.eval(evaluationQueueTask)
       inputQueue <- Stream.eval(inputQueueTask)
+      pipeQueue <- Stream.eval(networkQueueTask)
     } yield {
 
-      val enqueueStream = inStream.through(inputQueue.enqueue).drain
-      val runner = loop(initPipes, inputQueue, evalQueue)
+      // EnQueues the neuro input
+      val enqueueInStream = inStream.through(inputQueue.enqueue).drain
 
-      enqueueStream merge runner
+      // DeQueues evaluations
+      val dequeueEvalStream = evalQueue.dequeue
+
+      // EnQueues evaluations to the pipe generator, and enqueus the result
+      val enqueueEvaluationStream = evalQueue.dequeue
+        .through(experimentBatchPipe(layout))
+        .through(pipeQueue.enqueue).drain
+
+      val flow = loop(pipeQueue, inputQueue, evalQueue)
+
+      enqueueInStream merge enqueueEvaluationStream merge flow
     }
   }
 }
