@@ -9,35 +9,28 @@ object Launcher {
 
     // val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
     // server.start()
-    mainLoop.outerT.unsafeRun
+    // mainLoop.outerT.unsafeRun
 
-    // if(doobieTasks.superdupersecretPassword != ""){
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
+    println("wello")
 
-    //   println("WEEE WOOO WEEE WOOO\n")
-    //   println("THE FUCKIN PASSWORD IS HARDCODED YOU DUNCE")
-    //   println("\nWEEE WOOO WEEE WOOO")
+    val testList = seqUtils.ScoredSeq(Vector((0.3, "hi"), (0.4, "how"), (0.01, "are"), (0.98, "you"), (1.12, "?")))
+    println(testList)
+    println(testList.scoreSum)
+    println(testList.sort)
+    println(testList.normalize)
+    println(testList.rouletteScale)
 
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   println("################################################")
-    //   for(i <- 0 until 2){ 2/(1-i) }
-    // }
+    val rouletteScaled = testList.rouletteScale
 
-    // println(">tfw too intelligent for real tests")
+    println("--------------------")
+    println(rouletteScaled.biasedSample(3))
+    println("--------------------")
+    println(rouletteScaled.biasedSample(3))
+    println("--------------------")
+    println(rouletteScaled.biasedSample(3))
+    println("--------------------")
+    println(rouletteScaled.biasedSample(3))
+    println("--------------------")
+
   }
 }

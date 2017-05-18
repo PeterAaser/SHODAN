@@ -32,8 +32,10 @@
    CLOSED: [2017-04-27 to. 12:08]
 
 * TODO Create main control module
-** Rethink Inner/Outer 
-*** TODO Agnostic IO toplevel
+** DONE Rethink Inner/Outer 
+   CLOSED: [2017-05-17 on. 17:31]
+*** DONE Agnostic IO toplevel
+    CLOSED: [2017-05-17 on. 17:31]
 *** DONE Refactor the plethora of IO methods into logical units
     CLOSED: [2017-04-30 sø. 19:51]
 **** DONE Database IO
@@ -54,8 +56,9 @@
 **** DONE TCP IO
      CLOSED: [2017-04-29 lø. 17:22]
     
-** Outer loop
-*** TODO Should dispatch the inner loop
+** TODO Outer loop
+*** DONE Should dispatch the inner loop
+    CLOSED: [2017-05-10 on. 13:49]
 **** TODO MEAME needs an API for selecting datastream
 **** TODO should create the bulk logging task and inner loop task with MEAME sockets
 *** DONE Should be responsible for opening the server connections to MEAME
@@ -65,18 +68,21 @@
 **** DONE Create flat fileWriter
      CLOSED: [2017-03-11 lø. 17:01]
 **** TODO Write to database
-*** TODO Search for suitable channels
-    Figure out which channels respond to stimuli and select them as
-    primary acquisition/stimulation electrodes.
-** Inner loop
+** TODO Inner loop
 *** TODO Inner loop should be responsible for trying out different ANNs
+**** TODO Implement rudimentary evaluator
+**** TODO Implement sophisticated evaluator
+     Thinking of using scalapagos here
+
 *** DONE Refactor inner loop
     CLOSED: [2017-03-11 lø. 17:01]
     Inner loop must be refactored to offer a pipeline where stages are more suited for working
     in parallel without duplicating work
 *** TODO Add pipe rebuilding to some criteria
-**** TODO Create proof of concept
-**** TODO Add self modifying ANN pipe
+**** DONE Create proof of concept
+     CLOSED: [2017-05-15 ma. 17:11]
+     See scala-playground
+**** TODO Generalize proof of concept and add to SHODAN
 ** Spec
    Control module should:
 *** Should open connection to server
@@ -98,20 +104,22 @@
 ** Notes
    Needs to be webscale
 
-* General
+* General maintenance
 ** DONE Fix alternator
    CLOSED: [2017-04-29 lø. 17:23]
    Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
 
 
 * Notes
-** Logging
-   In order to log what SHODAN does and thinks it could be us                      │  Try it on your phone and be amazed that even without any modifier you can still     │
-                                      eful to implement a logging scheme.
+** TODO Logging
+   In order to log what SHODAN does and thinks it could be useful to implement a logging scheme.
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Fiksa ghetto versjon av bytes -> int
+  Har nå: 
+** experimentPipe: Pipe[Double, ANNpipe] med intern state (gitt at vi er i sync...)
+** evalPipe: Pipe[Agent,Double] som står for å lage challenges (fem stykk) og kjøre agents gjennom
+  
 
 * Doobie notes
 
@@ -156,26 +164,7 @@
 
 * fs2 Notes
   for eksempel på pull der R representerer Handle, se takeWhile i Handle
-* Scodec gitter exerpts
-** nov 27
-   Scott Calvert @mr-calvert Nov 27 2016 23:56 I’ve been working on the fs2.io
-   <-> scodec interop stuff I talked about on the 12th. I ran with the idea of a
-   BitVector which unfolds an fs2.async.mutable.Queue which is fed by an
-   fs2.Stream[F, Byte], which was not resource safe, and build a resource safe
-   fs2.Stream[F, A] of decoded objects from it. It turns out that ensuring the
-   fs2.Stream[F, Byte] gets shutdown if the downstream fs2.Stream[F, A]
-   terminates early was a bit of a mess. It’s passing tests which indicate it’s
-   safe for my $job usage, but I’ve not tested it enough to be confident to PR
-   it. That’s when I realized I’d completely missed scodec.stream.decode.pipe,
-   which solves the glue problem I have for $job nicely. pipe has the “self
-   delimited” requirement of the underlying decoder. It also relies on roughly
-   one failed decode attempt per input BitVector, which could be a performance
-   issue for really expensive decoders or small chunk sizes.
-
-   Scott Calvert @mr-calvert Nov 28 2016 00:03 My Stream fed BitVector could be
-   a good solution to those use cases, but before I press on and fully test and
-   PR it I wonder if anybody really cares. For my own application I can have
-   arbitrarily huge read chunk sizes and will mostly be decoding tiny/cheap
-   objects by the billions, so pipe should be just fine. Opinions?
-* Scodec notes
-  med scodec.stream.pipe(decoder) blir det fest
+** DONE Pipe of pipes
+   CLOSED: [2017-05-15 ma. 17:02]
+   Bruker queue som basically lar oss gjøre mer i flatmap som en slags side-effect
+   Se scala-playground, it's all done :D

@@ -11,16 +11,14 @@ import java.nio.channels.spi.AsynchronousChannelProvider
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
-import scodec._
-import scodec.bits._
-import codecs._
-import scodec.stream._
-
-import Attempt._
 import scala.language.higherKinds
 
 object namedACG {
 
+  /**
+    Lifted verbatim from fs2 tests.
+    I have no idea what it does, but it makes stuff work...
+    */
   def namedACG(name:String):AsynchronousChannelGroup = {
     val idx = new AtomicInteger(0)
     AsynchronousChannelProvider.provider().openAsynchronousChannelGroup(
@@ -131,7 +129,11 @@ object utilz {
     _.pull(go)
   }
 
-  // Decodes a byte stream from MEAME into a stream of 32 bit signed ints
+
+  /**
+    Decodes a byte stream from MEAME into a stream of 32 bit signed ints
+    This pipe should only be used to deserialize data from MEAME
+    */
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
     def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
@@ -158,10 +160,6 @@ object utilz {
             intBuf(i) = asInt
           }
 
-          for(i <- 0 until chunk.size/4){
-            println(intBuf(i))
-          }
-
           Pull.output(Chunk.seq(intBuf)) >> go(h)
         }
       }
@@ -170,41 +168,16 @@ object utilz {
   }
 
 
-  // TODO check if this is ok for performance (probably is)
-  def byteToByteVec[F[_]]: Pipe[F,Byte,ByteVector] = {
-    def go: Handle[F,Byte] => Pull[F,ByteVector,Unit] = h => {
-      h.receive {
-        case (chunk, h) => {
-          Pull.output1(ByteVector(chunk.toArray)) >> go(h)
-        }
-      }
-    }
-    _.pull(go)
-  }
-
-  // TODO check if this is ok for performance (probably is)
-  def byteToBitVec[F[_]]: Pipe[F,Byte,BitVector] = {
-    def go: Handle[F,Byte] => Pull[F,BitVector,Unit] = h => {
-      h.receive {
-        case (chunk, h) => {
-          Pull.output1(BitVector(chunk.toArray)) >> go(h)
-        }
-      }
-    }
-    _.pull(go)
-  }
-
-  // Decodes a double stream to a byte stream, not really perf critical
+  /**
+    Does what it says on the tin...
+    not really perf critical
+    */
   def doubleToByte[F[_]](silent: Boolean): Pipe[F, Double, Byte] = {
 
     import java.nio.ByteBuffer
     def doubleToByteArray(x: Double): Array[Byte] = {
       val l = java.lang.Double.doubleToLongBits(x)
       val bb = ByteBuffer.allocate(8).putLong(l).array().reverse
-      // if(!silent){
-      // println(s"$x converted to byte array: ")
-      // println(s"${bb(0)} ${bb(1)} ${bb(2)} ${bb(3)} ${bb(4)} ${bb(5)} ${bb(6)} ${bb(7)}")
-      // }
       bb
     }
 
@@ -221,10 +194,6 @@ object utilz {
     _.pull(go)
   }
 
-  def streamLogger[A](prefix: String): Pipe[Task,A,A] = {
-    _.evalMap { a => Task.delay{ println(s"$prefix> $a"); a }}
-  }
-
 
   // TODO this thing has no reason to live other than being a bandaid.
   def unpacker[F[_],I]: Pipe[F,Seq[I],I] = {
@@ -239,6 +208,9 @@ object utilz {
   }
 
 
+  /**
+    Partitions a stream vectors of length n
+    */
   def vectorize[F[_],I](length: Int): Pipe[F,I,Vector[I]] = {
     def go: Handle[F, I] => Pull[F,Vector[I],Unit] = h => {
       h.awaitN(length, false).flatMap {
@@ -251,6 +223,8 @@ object utilz {
     _.pull(go)
   }
 
+
+  // TODO figure out if this is actually needed or not
   // Very likely not needed
   def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
 
@@ -267,6 +241,17 @@ object utilz {
   }
 
 
+  /**
+    Attaches an observing queue to a stream of pipes
+    TODO actually implement this, currently just hardcoding it.
+   */
+  def attachObserverQueue[F[_]:Async,I,O](pipes: Stream[F,Pipe[F,I,O]], queue: Queue[F,O]): Stream[F,Pipe[F,I,O]] = {
+
+    ???
+  }
+
+
+  // TODO Not generalized
   def observerPipe[F[_]: Async](observer: Sink[F,Byte]):
       Pipe[F,(List[Double], List[Double]),(List[Double], List[Double])] = { s =>
 

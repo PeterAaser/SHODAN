@@ -1,12 +1,13 @@
 package com.cyborg
 
 import scala.language.higherKinds
+import scala.util.Random
 
 object Filters {
   case class FeedForward[T](layout: List[Int], bias: List[T], weights: List[T])
                         (implicit ev: Numeric[T]) {
 
-
+    import FeedForward._
     require((layout.size > 1), "No point making a single layer ANN")
 
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
@@ -14,7 +15,6 @@ object Filters {
       neededWeights == weights.length,
       s"incorrect amount of weights. Needed: $neededWeights, Provided: ${weights.length}"
     )
-
     val neededBias = layout.tail.sum
     require(
       neededBias == bias.length,
@@ -22,7 +22,6 @@ object Filters {
     )
 
 
-    import FeedForward._
 
     val activator: T => T = λ => λ
 
@@ -56,6 +55,25 @@ object Filters {
 
   }
   object FeedForward {
+
+    type Layout = List[Int]
+
+
+    def randomNetWithLayout(layout: Layout): FeedForward[Double] = {
+
+      // hardcoded
+      val weightMin = -2.0
+      val weightMax =  2.0
+
+      val neededBias = layout.tail.sum
+      val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
+
+      val bias = (0 to neededBias).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
+      val weights = (0 to neededWeights).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
+
+      FeedForward[Double](layout, bias, weights)
+
+    }
 
     def sliceVector[T: Numeric](points: List[Int], victim: List[T]): List[List[T]] =
       (points, victim) match {

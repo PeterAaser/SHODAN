@@ -15,8 +15,7 @@ object mainLoop {
 
   type agentFitnessFunction = Agent => Double
 
-  // As of now inner does too much, including IO
-  // Type information is missing here. What should the output type be? Should just rewrite the whole thing in idris YOLO
+  // Sort of nearing irrelevancy
   def inner[F[_]: Async](
     params: NeuroDataParams,
     meameReadStream: Stream[F, Int],
