@@ -71,7 +71,15 @@ object ffGA {
 
 
   /**
-    Sets it all up yo
+    Sets up the actual experiment. Relies on three queues:
+
+    Input Queue: Neuro-data
+    Eval Queue: Stores evaulations of ANNs
+    Pipe Queue: Helps keeping track of which evaluations should be paired with which ANNs
+
+    The experimentPipe has a sort of inner/outer structure, where the outer structure consists
+    of book-keeping between the three queues while the inner does the actual evaluation and
+    number crunching working with the supplied queues
     */
   def experimentPipe[F[_]:Async](inStream: Stream[F,ffANNinput], layout: List[Int]):
       Stream[F,Stream[F,Agent]] = {
@@ -100,7 +108,7 @@ object ffGA {
       // We run the input through the consolidated pipe
       val flow = inputQueue.dequeue.through(evaluatingAgentPipe)
 
-
+      // YOLO :--DDDd
       flow ++ loop(pipeQueue, inputQueue, evalQueue)
     }
 

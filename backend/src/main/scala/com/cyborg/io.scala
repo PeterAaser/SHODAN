@@ -33,8 +33,10 @@ object IO {
   /**
     * Open a TCP connection to stream data from other other computer
     */
-  def streamFromTCP(segmentLength: Int): Socket[Task] => ChannelStream[Task,Int] =
+  def streamFromTCP(segmentLength: Int): Socket[Task] => ChannelStream[Task,Int] = {
+    println("-------------- NYI -------------")
     ???
+  }
 
 
   // TODO move implementation details
@@ -43,6 +45,7 @@ object IO {
       {
         networkIO.rawDataStream(socket)
       })
+
 
   /**
     * Creates database records and observes a stream, recording it to the database

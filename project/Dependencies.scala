@@ -11,7 +11,14 @@ object Dependencies {
   val crossDeps = Def.setting(Seq[ModuleID](
     "io.udash" %%% "udash-core-shared" % udashVersion,
     "io.udash" %%% "udash-rpc-shared" % udashVersion,
-    "com.typesafe" % "config" % "1.3.1"
+    "com.typesafe" % "config" % "1.3.1",
+
+
+    "org.scodec" %% "scodec-bits" % "1.1.4",
+    "org.scodec" %% "scodec-core" % "1.10.3",
+    "com.spinoco" %% "protocol-http" % "0.1.8",
+    "com.spinoco" %% "protocol-websocket" % "0.1.8",
+    "com.spinoco" %% "fs2-http" % "0.1.7"
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](
@@ -19,7 +26,10 @@ object Dependencies {
     "io.udash" %%% "udash-jquery" % udashJQueryVersion,
     "io.udash" %%% "udash-rpc-frontend" % udashVersion,
     "com.github.japgolly.scalacss" %%% "core" % "0.5.0",
-    "com.github.japgolly.scalacss" %%% "ext-scalatags" % "0.5.0"
+    "com.github.japgolly.scalacss" %%% "ext-scalatags" % "0.5.0",
+    "org.singlespaced" %%% "scalajs-d3" % "0.3.4",
+    "com.lihaoyi" %%% "upickle" % "0.4.3",
+    "co.fs2" %%% "fs2-core" % "0.9.6"
   ))
 
   val frontendJSDeps = Def.setting(Seq[org.scalajs.sbtplugin.JSModuleID](
@@ -34,8 +44,9 @@ object Dependencies {
 
     "io.udash" %% "udash-rpc-backend" % udashVersion,
 
-    "co.fs2" %% "fs2-core" % "0.9.5",
-    "co.fs2" %% "fs2-io" % "0.9.5",
+    "co.fs2" %% "fs2-core" % "0.9.6",
+    "co.fs2" %% "fs2-io" % "0.9.6",
+
 
     "org.scalactic" %% "scalactic" % "3.0.0",
     "org.scalactic" %% "scalactic" % "3.0.0" % "test",
@@ -47,8 +58,5 @@ object Dependencies {
 
     "io.spray" %%  "spray-json" % "1.3.3",
     "com.github.fommil" %% "spray-json-shapeless" % "1.3.0"
-
-    // "com.chuusai" %% "shapeless" % "2.3.2"
-    // "org.typelevel" %% "cats" % "0.9.0",
   ))
 }
