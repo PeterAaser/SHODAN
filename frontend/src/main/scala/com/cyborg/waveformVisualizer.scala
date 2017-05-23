@@ -29,16 +29,13 @@ object waveformVisualizer {
     val Color = Vec
     case class Vec(x: Double, y: Double, z: Double)
 
-
-    def channelStreams[F[_]]: List[Stream[F,Int]] = ???
-
-    val fugr = impl.drawChannelData(channelStreams[Task])
-    val meme = fugr.run
-    val memeLord = meme.unsafeRunAsync( _ => () )
+    def gogo[F[_]](channelStreams: List[Stream[F,Int]]): Stream[F,Unit] = {
+      impl.drawChannelData(channelStreams)
+    }
 
     object impl {
 
-      def drawChannelData[F[_]](stream: List[Stream[F,Int]]): Stream[F,Unit] = {
+      def drawChannelData[F[_]](channelStreams: List[Stream[F,Int]]): Stream[F,Unit] = {
 
 
         /**
@@ -131,13 +128,27 @@ object waveformVisualizer {
 
         val muhColor: Color = Vec(100.0, 100.0, 100.0)
 
+        def drawPoint(x: Int, y: Int): Unit = {
+          imageData.data(getIdx(x, y))   = muhColor.x.toInt
+          imageData.data(getIdx(x, y)+1) = muhColor.y.toInt
+          imageData.data(getIdx(x, y)+2) = muhColor.z.toInt
+          imageData.data(getIdx(x, y)+3) = 255
+        }
+
+        def drawBlank(x: Int, y: Int): Unit = {
+          imageData.data(getIdx(x, y))   = 0
+          imageData.data(getIdx(x, y)+1) = 0
+          imageData.data(getIdx(x, y)+2) = 0
+          imageData.data(getIdx(x, y)+3) = 255
+        }
+
         def plot(data: List[Vector[Int]]): Unit = {
           for(xx <- 0 until 200){
             for(yy <- 0 until 200){
-              imageData.data(getIdx(xx, yy))   = muhColor.x.toInt
-              imageData.data(getIdx(xx, yy)+1) = muhColor.y.toInt
-              imageData.data(getIdx(xx, yy)+2) = muhColor.z.toInt
-              imageData.data(getIdx(xx, yy)+3) = 255
+              if(data(xx)(yy) == 1)
+                drawPoint(xx, yy)
+              else
+                drawBlank(xx, yy)
             }
           }
         }

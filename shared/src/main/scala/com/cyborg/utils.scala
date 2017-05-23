@@ -210,6 +210,21 @@ object utilz {
 
 
   /**
+    Drops `factor` elements per emitted element
+    */
+  def downSample[F[_],I](factor: Int): Pipe[F,I,I] = {
+    def go: Handle[F,I] => Pull[F,I,Unit] = h => {
+      h.awaitN(factor, false).flatMap {
+        case (chunks, h) => {
+          Pull.output1(chunks.head.head) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
+
+  /**
     Attaches an observing queue to a stream of pipes
     TODO actually implement this, currently just hardcoding it.
    */
