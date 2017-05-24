@@ -11,11 +11,17 @@ object Filters {
     require((layout.size > 1), "No point making a single layer ANN")
 
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
+    if(neededWeights != weights.length){
+      println(" ffANN error ")
+    }
     require(
       neededWeights == weights.length,
       s"incorrect amount of weights. Needed: $neededWeights, Provided: ${weights.length}"
     )
     val neededBias = layout.tail.sum
+    if(neededBias != bias.length){
+      println(" ffANN error ")
+    }
     require(
       neededBias == bias.length,
       s"incorrect amount of bias weights. Needed: $neededBias, Provided: ${bias.length}"
@@ -60,6 +66,7 @@ object Filters {
 
 
     def randomNetWithLayout(layout: Layout): FeedForward[Double] = {
+      println("Created random net with layout")
 
       // hardcoded
       val weightMin = -2.0
@@ -68,8 +75,8 @@ object Filters {
       val neededBias = layout.tail.sum
       val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
 
-      val bias = (0 to neededBias).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
-      val weights = (0 to neededWeights).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
+      val bias = (0 until neededBias).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
+      val weights = (0 until neededWeights).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
 
       FeedForward[Double](layout, bias, weights)
 

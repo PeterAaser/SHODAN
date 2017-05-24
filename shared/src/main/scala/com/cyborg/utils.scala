@@ -15,13 +15,14 @@ object utilz {
     *   robin fashion. Each output gets size elements before the next
     *   output stream gets the handle.
     */
-  def alternator[F[_]: Async, A](src: Stream[F,A], segmentLength: Int, outputs: Int)
+  def alternator[F[_]: Async, A](src: Stream[F,A], segmentLength: Int, outputs: Int, maxQueued: Int, log: (Unit => Unit) = _ => ())
       : Stream[F, Vector[Stream[F, A]]] = {
 
     // Fills a queue and then calls itself recursively on the next queue (mod outputs)
     def loop(activeQ: Int, qs: Vector[Queue[F,Vector[A]]]): Handle[F,A] => Pull[F,A,Unit] = h => {
       h.awaitN(segmentLength, false) flatMap {
         case (chunks, h) => {
+          log(())
           Pull.eval(qs(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
             loop(((activeQ + 1) % outputs), qs)(h)
         }
@@ -45,7 +46,7 @@ object utilz {
 
 
     val queueAccumulator = List[Queue[F,Vector[A]]]()
-    val queueTasks = List.fill(outputs)(async.boundedQueue[F,Vector[A]](1024))
+    val queueTasks = List.fill(outputs)(async.boundedQueue[F,Vector[A]](maxQueued))
     launch(queueAccumulator, queueTasks)
   }
 
@@ -95,6 +96,34 @@ object utilz {
       }
     }
     _.pull(go)
+  }
+
+
+  /**
+    Attaches an observer to a stream, used for separating out channels
+    from the MEA
+    */
+  def attachChannelObservers[F[_]:Async](
+    inStreams: Stream[F, Vector[Stream[F,Int]]],
+    sinks: List[Sink[F,Int]],
+    channels: List[Int]) = {
+
+    val observeTask = inStreams.map( (streams: Vector[Stream[F,Int]]) =>
+      {
+        val selectedChannels: List[Stream[F,Int]] = channels.map(index => streams(index))
+        val taskList = (selectedChannels zip sinks).map(utilz.mergeStreamSinkObserver(_).drain)
+        val task = taskList.foldLeft(Stream[F,Unit]())(_++_).run
+        task
+    })
+    observeTask
+
+  }
+
+
+  def mergeStreamSinkObserver[F[_]: Async,I]( channelSinkTuple: (Stream[F,I], Sink[F,I])): Stream[F,I] = {
+    val channel = channelSinkTuple._1
+    val sink = channelSinkTuple._2
+    pipe.observe(channel)(sink)
   }
 
 

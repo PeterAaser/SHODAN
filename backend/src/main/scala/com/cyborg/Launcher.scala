@@ -1,36 +1,35 @@
 package com.cyborg
 
 import com.cyborg.jetty.ApplicationServer
+import fs2.{ Stream, Task }
+import fs2._
+import fs2.util.Async
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 
 object Launcher {
   def main(args: Array[String]): Unit = {
 
 
-    // val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
-    // server.start()
+    val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
+    server.start()
     // mainLoop.outerT.unsafeRun
 
     println("wello")
 
-    val testList = seqUtils.ScoredSeq(Vector((0.3, "hi"), (0.4, "how"), (0.01, "are"), (0.98, "you"), (1.12, "?")))
-    println(testList)
-    println(testList.scoreSum)
-    println(testList.sort)
-    println(testList.normalize)
-    println(testList.rouletteScale)
+    // implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8)
+    // implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
-    val rouletteScaled = testList.rouletteScale
+    // val testStream = Stream.emits(List.fill(1000)(1)).repeat.covary[Task]
+    // val layout = List(2,3,2)
+    // val inputFilter = Assemblers.assembleInputFilter[Task]
+    // val testRunner = GApipes.experimentPipe[Task](testStream.through(inputFilter), layout)
 
-    println("--------------------")
-    println(rouletteScaled.biasedSample(3))
-    println("--------------------")
-    println(rouletteScaled.biasedSample(3))
-    println("--------------------")
-    println(rouletteScaled.biasedSample(3))
-    println("--------------------")
-    println(rouletteScaled.biasedSample(3))
-    println("--------------------")
+    // val uhh = testRunner
+    //   // .through(_.map(λ => {println(λ); λ}))
+    //   .run.unsafeRunFor(new FiniteDuration(20, SECONDS))
+    // println(uhh)
 
   }
 }

@@ -2,6 +2,7 @@ package com.cyborg
 
 import com.cyborg.wallAvoid.Agent
 import fs2._
+import fs2.async.mutable.Queue
 import fs2.util.Async
 import scala.language.higherKinds
 import com.typesafe.config._
@@ -18,27 +19,34 @@ object Assemblers {
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
 
-    val channels = experimentConf.getIntList("DAQchannels").toArray.toList
-    val pointsPerSweep = experimentConf.getInt("sweepSize")
+    // val channels = experimentConf.getIntList("DAQchannels").toArray.toList
+    // val pointsPerSweep = experimentConf.getInt("sweepSize")
 
+    // hardcoded
     val MAGIC_PERIOD = 1000
     val MAGIC_SAMPLERATE = 1000
     val MAGIC_THRESHOLD = 1000
+    val pointsPerSweep = 1000
+
+    // hardcoded
+    val channels = List(4, 13, 17, 24)
 
     val spikeDetectorPipe: Pipe[F, Int, Int] =
       spikeDetector.spikeDetectorPipe(MAGIC_PERIOD, MAGIC_SAMPLERATE, MAGIC_THRESHOLD)
 
+    val neuronChannelsStream: Stream[F,Vector[Stream[F,Int]]] =
+      alternator(neuroStream, pointsPerSweep, 60, 10000)
 
-    val neuronChannels: Stream[F,Vector[Stream[F,Int]]] =
-      alternator(neuroStream, pointsPerSweep, channels.length)
 
+    val spikeStream = neuronChannelsStream flatMap {
+      streams: Vector[Stream [F,Int]] => {
 
-    val spikeStream = neuronChannels flatMap {
-      channels: Vector[Stream [F,Int]] => {
-
-        val spikeChannels: Vector[Stream[F, Int]] = channels
-          // .map((λ: Stream[F,Vector[Int]]) => λ.through(unpacker[F,Int]))
+        val spikeChannels: Vector[Stream[F, Int]] = channels.map(streams(_)).toVector
           .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
+
+        val droppedChannels = (streams.toSet -- spikeChannels.toSet).toVector
+        val droppedChannels2 = Stream.emits(droppedChannels.map(_.drain))
+        val droppedChannels3 = droppedChannels2.flatMap(λ => λ)
 
         val spikeTrains =
           (Stream[F, Vector[Int]](Vector[Int]()).repeat /: spikeChannels){
@@ -46,10 +54,9 @@ object Assemblers {
               (λ, µ) => µ +: λ
             }
           }
-        spikeTrains
+        droppedChannels3.mergeDrainL(spikeTrains)
       }
     }
-
     spikeStream.through(_.map(_.map(_.toDouble)))
   }
 

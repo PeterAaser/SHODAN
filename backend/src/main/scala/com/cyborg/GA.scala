@@ -35,6 +35,7 @@ object ffGA {
 
   // Generates a new set of neural networks, no guarantees that they'll be any good...
   def generate(seed: ScoredSeq[FeedForward[Double]]): List[FeedForward[Double]] = {
+    println("generate pipes")
     val freak = mutate(seed.randomSample(1).repr.head._2)
     val rouletteScaled = seed.sort.rouletteScale
     val selectedParents = seed.randomSample(2)
@@ -54,6 +55,7 @@ object ffGA {
       {
         h.awaitN(pipesPerGeneration,false) flatMap {
           case(chunks,h) => {
+            println("experiment batch pipe firing")
             val folded = chunks.foldLeft(List[Double]())(_++_.toList).zip(previous)
             val asScored = ScoredSeq(folded.toVector)
             val nextPop = generate(asScored)
@@ -63,76 +65,19 @@ object ffGA {
         }
       }
 
-    val initNetworks =
-      (0 to pipesPerGeneration).map(_ => (randomNetWithLayout(layout))).toList
 
-    _.pull(go(initNetworks))
-  }
-
-
-  /**
-    Sets up the actual experiment. Relies on three queues:
-
-    Input Queue: Neuro-data
-    Eval Queue: Stores evaulations of ANNs
-    Pipe Queue: Helps keeping track of which evaluations should be paired with which ANNs
-
-    The experimentPipe has a sort of inner/outer structure, where the outer structure consists
-    of book-keeping between the three queues while the inner does the actual evaluation and
-    number crunching working with the supplied queues
-    */
-  def experimentPipe[F[_]:Async](inStream: Stream[F,ffANNinput], layout: List[Int]):
-      Stream[F,Stream[F,Agent]] = {
-
-    val inputQueueTask = fs2.async.unboundedQueue[F,ffANNinput]
-    val evaluationQueueTask = fs2.async.unboundedQueue[F,Double]
-    val networkQueueTask = fs2.async.unboundedQueue[F,Pipe[F,ffANNinput,ffANNoutput]]
-
-    def loop(
-      pipeQueue: fs2.async.mutable.Queue[F,Pipe[F,ffANNinput,ffANNoutput]],
-      inputQueue: fs2.async.mutable.Queue[F,ffANNinput],
-      evalQueue: fs2.async.mutable.Queue[F,Double]): Stream[F,Agent] =
+    def init(init: List[FeedForward[Double]]):
+        Handle[F,Double] => Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] = h =>
     {
-
-      //hardcoded
-      def evalFunc: Double => Double = x => x
-      val ticksPerEval = 1000
-
-      // Create scenario pipe, attach evaluator sink
-      val evaluatingAgentPipes: Stream[F,Pipe[F,ffANNinput,Agent]] =
-        pipeQueue.dequeue.through(_.map(_ andThen (agentPipe.evaluatorPipe(ticksPerEval, evalFunc, evalQueue.enqueue))))
-
-      // Consolidate into single pipe
-      val evaluatingAgentPipe = pipe.join(evaluatingAgentPipes)
-
-      // We run the input through the consolidated pipe
-      val flow = inputQueue.dequeue.through(evaluatingAgentPipe)
-
-      // YOLO :--DDDd
-      flow ++ loop(pipeQueue, inputQueue, evalQueue)
+      println("outputting some pipes :)")
+      Pull.output(Chunk.seq(init.map(ANNPipes.ffPipe[F](_)))) >> go(init)(h)
     }
 
-    for {
-      evalQueue <- Stream.eval(evaluationQueueTask)
-      inputQueue <- Stream.eval(inputQueueTask)
-      pipeQueue <- Stream.eval(networkQueueTask)
-    } yield {
+    val initNetworks =
+      (0 until pipesPerGeneration).map(_ => (randomNetWithLayout(layout))).toList
 
-      // EnQueues the neuro input
-      val enqueueInStream = inStream.through(inputQueue.enqueue).drain
-
-      // DeQueues evaluations
-      val dequeueEvalStream = evalQueue.dequeue
-
-      // EnQueues evaluations to the pipe generator, and enqueus the result
-      val enqueueEvaluationStream = evalQueue.dequeue
-        .through(experimentBatchPipe(layout))
-        .through(pipeQueue.enqueue).drain
-
-      val flow = loop(pipeQueue, inputQueue, evalQueue)
-
-      enqueueInStream merge enqueueEvaluationStream merge flow
-    }
+    val asStream = Stream.emits(initNetworks)
+    _.pull(init(initNetworks))
   }
 }
 
@@ -171,7 +116,7 @@ object seqUtils {
     }
 
     /**
-      Also known as roulette.
+      Also known as eval(roulette.
       Iterates through a list, picks the element if
       */
     def biasedSample(samples: Int): Vector[A] = {

@@ -16,8 +16,8 @@ import com.typesafe.config._
 object networkIO {
 
   implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
-  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
+  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(16, threadName = "fugger")
+  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(16)
 
   val conf = ConfigFactory.load()
   val netConf = conf.getConfig("io")
@@ -51,7 +51,7 @@ object networkIO {
 
 
   def decodeChannelStreams(dataStream: Stream[Task,Int], segmentLength: Int, nChannels: Int = 60): Stream[Task,Vector[Stream[Task,Int]]] =
-    utilz.alternator(dataStream, segmentLength, nChannels)
+    utilz.alternator(dataStream, segmentLength, nChannels, 1000)
 
 }
 
@@ -71,7 +71,7 @@ object namedACG {
   def namedACG(name:String):AsynchronousChannelGroup = {
     val idx = new AtomicInteger(0)
     AsynchronousChannelProvider.provider().openAsynchronousChannelGroup(
-      8
+      16
         , new ThreadFactory {
         def newThread(r: Runnable): Thread = {
           val t = new Thread(r, s"fs2-AG-$name-${idx.incrementAndGet() }")
@@ -88,5 +88,4 @@ object namedACG {
       }
     )
   }
-
 }

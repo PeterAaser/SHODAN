@@ -11,17 +11,80 @@ import MEAMEutilz._
 
 object mainLoop {
 
-  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
+  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(16, threadName = "fugger")
 
   type agentFitnessFunction = Agent => Double
 
   // Sort of nearing irrelevancy
   def inner[F[_]: Async](
-    params: NeuroDataParams,
     meameReadStream: Stream[F, Int],
-    meameWriteSink: Stream[F, Byte] => F[Unit] ): F[Unit] =
+    meameWriteSink: Sink[F, Byte]): F[Unit] =
   {
 
+    GArun(meameReadStream, meameWriteSink)
+    // normalRun(meameReadStream, meameWriteSink)
+  }
+
+
+  def outerT: Task[Unit] = {
+    withProgram
+  }
+
+
+  def withProgram: Task[Unit] = {
+
+    val program = (inStream: Stream[Task,Int], outSink: Sink[Task,Byte]) => {
+      inner[Task](inStream.through(wsIO.attachWebSocketServerSink), outSink)
+    }
+
+    IO.streamFromTCPraw2(program)
+  }
+
+  def tcpRaw: Task[Unit] = {
+    IO.streamFromTCPraw.through(_.map(_ => println("doing thing"))).run
+  }
+
+  def GArun[F[_]:Async](
+    meameReadStream: Stream[F, Int],
+    meameWriteSink: Sink[F, Byte]): F[Unit] =
+  {
+    // hardcoded
+    val MAGIC_PERIOD = 1000
+    val MAGIC_SAMPLERATE = 1000
+    val MAGIC_THRESHOLD = 1000
+    val pointsPerSweep = 1000
+
+    // hardcoded
+    val channels = List(4, 13, 17, 24)
+
+    // hardcoded
+    val layout = List(2,3,2)
+
+    val inputFilter = Assemblers.assembleInputFilter
+    val spikes = meameReadStream.through(inputFilter)
+
+    val experimentPipe = GApipes.experimentPipe(spikes, layout)
+
+    val toStimFrequencyTransform: List[Double] => String = {
+      val logScaler = logScaleBuilder(scala.math.E)
+      toStimFrequency(List(3, 4, 5, 6), logScaler)
+    }
+
+    val meme = experimentPipe
+      .through(_.map((λ: Agent) => {AgentService.agentUpdate(λ); λ.distances}))
+      .through(_.map(toStimFrequencyTransform))
+      .through(text.utf8Encode)
+
+    val memeTask = meameWriteSink(meme)
+
+    memeTask.run
+  }
+
+
+  def normalRun[F[_]:Async](
+    meameReadStream: Stream[F, Int],
+    meameWriteSink: Sink[F, Byte]): F[Unit] =
+  {
     val initFF = Filters.FeedForward(
       List(2, 3, 2)
         , List(0.1, 0.2, 0.4, 0.0, 0.3)
@@ -43,12 +106,6 @@ object mainLoop {
       .through(text.utf8Encode)
 
     val memeTask = meameWriteSink(meme)
-
-    memeTask
+    memeTask.run
   }
-
-  def outerT: Task[Unit] = {
-    IO.streamFromTCPreadOnly(10).drain.run
-  }
-
 }

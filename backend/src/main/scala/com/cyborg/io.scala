@@ -39,12 +39,27 @@ object IO {
   }
 
 
-  // TODO move implementation details
-  def streamFromTCPreadOnly(segmentLength: Int): Stream[Task,Int] =
+  /**
+    * Stream raw data from a TCP socket
+    */
+  def streamFromTCPraw: Stream[Task,Int] =
     networkIO.socketStream[Task] flatMap ( socket =>
       {
         networkIO.rawDataStream(socket)
       })
+
+
+  /**
+    * Stream raw data from a TCP socket, send data back as well
+    */
+  def streamFromTCPraw2(program: ((Stream[Task,Int], Sink[Task,Byte]) => Task[Unit])): Task[Unit] = {
+    val disaster = networkIO.socketStream[Task] flatMap ( (socket: Socket[Task]) =>
+      {
+        val a = networkIO.rawDataStream(socket)
+        Stream.eval(program(a, socket.writes()))
+      })
+    disaster.run
+  }
 
 
   /**
@@ -59,7 +74,7 @@ object IO {
   // TODO move implementation details
   def meameDumpReader: ChannelStream[Task,Int] = {
     val rawStream = fileIO.meameDumpReader[Task]
-    utilz.alternator(rawStream, 1024, 60)
+    utilz.alternator(rawStream, 1024, 60, 1024)
   }
 
 
@@ -68,7 +83,7 @@ object IO {
     */
   def meameDataReader(filename: String): ChannelStream[Task,Int] = {
     val rawStream = fileIO.meameDataReader[Task](filename)
-    utilz.alternator(rawStream, 1024, 60)
+    utilz.alternator(rawStream, 1024, 60, 1024)
   }
 
 
