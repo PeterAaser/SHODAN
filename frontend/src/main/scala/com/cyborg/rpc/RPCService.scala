@@ -77,3 +77,8 @@ object MEAMEControlClient {
     serverRpc.MEAMEControl().start()
   }
 }
+
+object MEAMEWaveFormClient {
+
+
+}

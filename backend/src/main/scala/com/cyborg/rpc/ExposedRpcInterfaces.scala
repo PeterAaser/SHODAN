@@ -22,13 +22,13 @@ class ExposedRpcInterfaces(implicit clientId: ClientId) extends MainServerRPC {
 
   override def notifications(): NotificationsServerRPC = new NotificationsServer
   override def visualizer(): VisualizerRPC = new AgentServer
-  override def MEAMEControl(): MEAMEControlRPC = {println("making new memectrl"); new MEAMEControlServer}
+  override def MEAMEControl(): MEAMEControlRPC = { new MEAMEControlServer }
 }
 
 class NotificationsServer(implicit clientId: ClientId) extends NotificationsServerRPC {
 
-  override def register(): Future[Unit] = Future { println("fugg?="); NotificationsService.register }
-  override def unregister(): Future[Unit] = Future {  println("fugg!??"); NotificationsService.unregister }
+  override def register(): Future[Unit] = Future { NotificationsService.register }
+  override def unregister(): Future[Unit] = Future { NotificationsService.unregister }
 
 }
 
@@ -107,8 +107,7 @@ object AgentService {
 class MEAMEControlServer(implicit clientId: ClientId) extends MEAMEControlRPC {
 
   override def start(): Future[Unit] = {
-    println("exploding")
-    Future { println("Starting MEAME"); MEAMEControlService.gogo }
+    Future { MEAMEControlService.gogo }
   }
 
 }
@@ -122,11 +121,9 @@ object MEAMEControlService {
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
   def gogo(implicit clientId: ClientId): Unit = {
-    println("making task")
-    val meme = mainLoop.outerT
-    println("running task")
-    meme.unsafeRun
-    println("OK OK")
+    val MEAMETask = mainLoop.outerT
+    println("MEAMETask created, running now")
+    MEAMETask.unsafeRun
 
   }
 }

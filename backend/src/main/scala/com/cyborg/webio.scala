@@ -88,11 +88,45 @@ object wsIO {
   def attachWebSocketServerSink: Pipe[Task,Int,Int] = s => {
 
     val sink: Sink[Task,Int] = s => {
-      val a = s.through(utilz.vectorize(10)).through(_.map(λ => {println(λ); λ}))
+      val a = s
+        .through(graphDownSampler(blockSize))
+        .through(utilz.vectorize(1000))
+
       val b = server(a)
       Stream.eval(b)
     }
 
     pipe.observeAsync(s, 1024*1024)(sink)
+  }
+
+
+  // hardcoded
+  val vizHeight = 60
+  val vizLength = 200
+  val pointsPerSec = 40000
+  val scalingFactor = 2000
+
+  val blockSize = pointsPerSec/vizLength
+  /**
+    Downsamples a dataStream such that it can fill a waveForm of vizLength pixels
+    blockSize is the amount of datapoints needed to fill a single pixel.
+    Be careful to not run this on a muxed stream unless blockSize is a multiple of segment length
+
+    can be tuned if necessary
+    */
+  // Currently lets through 200 per 40k
+  def graphDownSampler[F[_]](blockSize: Int): Pipe[F,Int,Int] = {
+    def go: Handle[F,Int] => Pull[F,Int,Unit] = h => {
+      h.awaitN(blockSize) flatMap {
+        case (chunks, h) => {
+          val waveform = chunks.map(_.toList).flatten
+          // "Fixes" annoying deserialize issue
+          val smallest = waveform.map(λ => if (λ > 100000) 0 else λ).min
+          val largest = waveform.max
+          Pull.output1(if (math.abs(smallest) < largest) largest else smallest) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
   }
 }

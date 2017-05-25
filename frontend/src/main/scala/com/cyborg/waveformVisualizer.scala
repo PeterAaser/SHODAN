@@ -37,7 +37,6 @@ object waveformVisualizer {
 
       def drawChannelData[F[_]](channelStreams: List[Stream[F,Int]]): Stream[F,Unit] = {
 
-
         /**
           We use a "fat plus shape" just like MCS suite
           This necessitates some juggling to get the correct indexes for the
@@ -52,7 +51,7 @@ object waveformVisualizer {
           # # # # # # # #
             # # # # # #
 
-          Some tuple rearranging, but conceptually simple, just follow the types 
+          Some tuple rearranging, but conceptually simple, just follow the types
           */
 
         val topRowWithCoords: List[(Stream[F, Int], (Int, Int))] =
@@ -96,27 +95,14 @@ object waveformVisualizer {
               val next = chunk.toVector ++ previous.dropRight(len)
 
               // TODO Unfuckulate this
+              println("drawSink is drawing now")
               Pull.output1({draw(next, imageData); drawMe; 1}) >> go(next)(h)
             }
           }
         }
-        _.through(downSampler(pointsPerSec/vizLength)).pull(go(Vector.fill(200)(0))).drain
+        _.pull(go(Vector.fill(200)(0))).drain
       }
 
-
-      def downSampler[F[_]](blockSize: Int): Pipe[F,Int,Int] = {
-        def go: Handle[F,Int] => Pull[F,Int,Unit] = h => {
-          h.awaitN(blockSize) flatMap {
-            case (chunks, h) => {
-              val waveform = chunks.map(_.toList).flatten
-              val smallest = waveform.min
-              val largest = waveform.max
-              Pull.output1(if (math.abs(smallest) < largest) largest else smallest) >> go(h)
-            }
-          }
-        }
-        _.pull(go)
-      }
 
       def draw(points: Vector[Int], imageData: dom.raw.ImageData): dom.raw.ImageData = {
 
@@ -143,6 +129,7 @@ object waveformVisualizer {
         }
 
         def plot(data: List[Vector[Int]]): Unit = {
+          println("Drawing now")
           for(xx <- 0 until 200){
             for(yy <- 0 until 200){
               if(data(xx)(yy) == 1)

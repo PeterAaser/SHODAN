@@ -8,6 +8,13 @@ object wallAvoid {
   val speed = 10.0
   val turnRate = 0.01
   val viewPoints = 4
+  val maxTurnRate = 0.01
+
+  def compress(d: Double): Double =
+    if (d > maxTurnRate)
+      maxTurnRate
+    else
+      if (d < -maxTurnRate) -maxTurnRate else d
 
   case class UnitVector(x: Double, y: Double)
   case class Coord(x: Double, y: Double){
@@ -39,7 +46,7 @@ object wallAvoid {
     }
 
     def processInput(input: (Double, Double)): Double =
-      normalizeAngle(heading + (input._1 - input._2)*turnRate)
+      normalizeAngle(heading + compress((input._1 - input._2)*turnRate))
 
     def update(input: (Double, Double)): Agent = {
       val nextX = loc.x - math.cos(heading)*speed
@@ -66,7 +73,7 @@ object wallAvoid {
 
   def createChallenges: List[Agent] = {
     //hardcoded
-    val loc = Coord(200.0, 200.0)
+    val loc = Coord(7000.0, 5000.0)
     val firstAngle  = PI/6.0
     val secondAngle = PI/12.0
     val thirdAngle  = .0

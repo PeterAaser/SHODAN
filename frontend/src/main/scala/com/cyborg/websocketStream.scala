@@ -43,12 +43,10 @@ object websocketStream {
 
         ws.binaryType = "arraybuffer"
         ws.onmessage = (event: MessageEvent) => {
-          println("\n\n\n------------------------")
           val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
           val jsData2 = TypedArrayBuffer.wrap(jsData)
           val bits: BitVector = BitVector(jsData2)
           val decoded = Codec.decode[Vector[Int]](bits).require
-          println(s"decode result: $decoded")
           queue.enqueue1(decoded.value).unsafeRunAsync(a => ())
         }
       }
@@ -60,21 +58,19 @@ object websocketStream {
   def drawChannelStreams(channels: Int, controller: waveformVisualizer.WFVisualizerControl): Task[Unit] = {
 
     val queueTask = fs2.async.unboundedQueue[Task,Vector[Int]]
-    val memer: Stream[Task,Unit] = Stream.eval(queueTask) flatMap ( queue =>
+    val drawTask: Stream[Task,Unit] = Stream.eval(queueTask) flatMap ( queue =>
       {
         // enqueue data
-        val uhh = Stream.eval(createWsQueue(queue))
+        val enqueueTask = createWsQueue(queue)
 
         // hardcoded
-        val erm = utilz.alternator(queue.dequeue, 10 ,60)
-        val fug = erm.flatMap( streams =>
-          {
-            val uhh = controller.gogo[Task](streams.map(_.through(utilz.chunkify)).toList)
-            uhh
-          })
-        uhh merge fug
+        val channelStreams = utilz.alternator(queue.dequeue, 4, 60, 1000)
+        val mapped = channelStreams.flatMap(
+          streams => controller.gogo[Task](streams.map(_.through(utilz.chunkify)).toList))
+
+        Stream.eval(enqueueTask) merge mapped
       })
-    memer.run
+    drawTask.run
   }
 
 }

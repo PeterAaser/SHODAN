@@ -59,8 +59,8 @@
 ** TODO Outer loop
 *** DONE Should dispatch the inner loop
     CLOSED: [2017-05-10 on. 13:49]
-**** TODO MEAME needs an API for selecting datastream
-**** TODO should create the bulk logging task and inner loop task with MEAME sockets
+*** TODO MEAME needs an API for selecting datastream
+*** TODO should create the bulk logging task and inner loop task with MEAME sockets
 *** DONE Should be responsible for opening the server connections to MEAME
     CLOSED: [2017-03-11 lø. 17:01]
 *** DONE Outer loop should log all incoming data from MEAME
@@ -69,20 +69,25 @@
      CLOSED: [2017-03-11 lø. 17:01]
 **** TODO Write to database
 ** TODO Inner loop
-*** TODO Inner loop should be responsible for trying out different ANNs
-**** TODO Implement rudimentary evaluator
-**** TODO Implement sophisticated evaluator
+*** DONE Inner loop should be responsible for trying out different ANNs
+    CLOSED: [2017-05-18 to. 16:51]
+**** DONE Implement rudimentary evaluator
+     CLOSED: [2017-05-18 to. 16:51]
+**** DONE Implement sophisticated evaluator
+     CLOSED: [2017-05-18 to. 16:51]
      Thinking of using scalapagos here
 
 *** DONE Refactor inner loop
     CLOSED: [2017-03-11 lø. 17:01]
     Inner loop must be refactored to offer a pipeline where stages are more suited for working
     in parallel without duplicating work
-*** TODO Add pipe rebuilding to some criteria
+*** DONE Add pipe rebuilding to some criteria
+    CLOSED: [2017-05-18 to. 16:51]
 **** DONE Create proof of concept
      CLOSED: [2017-05-15 ma. 17:11]
      See scala-playground
 **** TODO Generalize proof of concept and add to SHODAN
+*** TODO Test implementation
 ** Spec
    Control module should:
 *** Should open connection to server
@@ -94,11 +99,14 @@
    When a new MEAMEControl is instantiated the constructor should return a stream.
    This stream will be connected to all available input actions, pat match it from there.
 
+   This could possibly done with an async queueueueueueue
+
 * TODO Better DI
 ** TODO Figure out best practice for DI
-*** TODO Try out Free monad
-** TODO SHODAN should be able to select experiment params from either file of conf.
-*** Create parses for params
+*** TODO Try out Free monad, ReaderWriter, or tagless final encoding (ps I have no fucking idea..)
+** DONE SHODAN should be able to select experiment params from either file of conf.
+   CLOSED: [2017-05-18 to. 16:54]
+   Shitty version is in fact done
 
 * TODO Make website prettier
 ** Notes

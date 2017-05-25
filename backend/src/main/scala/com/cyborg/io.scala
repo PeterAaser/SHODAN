@@ -1,18 +1,11 @@
 package com.cyborg
 
-import com.cyborg.params._
 import fs2._
 import fs2.Stream._
 import fs2.util.Async
 import fs2.io.tcp._
 
-import java.net.InetSocketAddress
-import java.nio.channels.AsynchronousChannelGroup
-
-import java.net.InetSocketAddress
-
 import scala.language.higherKinds
-import com.typesafe.config._
 
 
 object IO {
@@ -106,5 +99,4 @@ object IO {
       concurrent.join(200)(writeTaskStream).drain.run
     }
   }
-
 }
