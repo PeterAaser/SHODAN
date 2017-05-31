@@ -94,7 +94,7 @@ object AgentService {
   }
 
   def agentUpdate(agent: Agent): Unit = {
-    println("agent ctrl updating")
+    // println("agent ctrl updating")
     clients.foreach(
       clientId => {
         ClientRPC(clientId).visualizer().update(agent)

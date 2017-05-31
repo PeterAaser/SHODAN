@@ -14,7 +14,98 @@ object IO {
   implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
   implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
 
-  type ChannelStream[F[_],A] = Stream[F,Vector[Stream[F,A]]]
+  type ChannelStream[F[_],A]       = Stream[F,Vector[Stream[F,A]]]
+
+
+  // TODO these should be Option
+  // then every function can take them as args and check if they exist
+  type FullStreamHandler[F[_]]   = Sink[F,Byte]
+  type SelectStreamHandler[F[_]] = Sink[F,Byte]
+  type FeedbackStream[F[_]]      = Stream[F,Byte]
+
+  // hardcoded
+  val samplerate = 40000
+
+
+
+
+  /**
+    * Starts the MEAME server and runs both select and full channel data through provided sinks
+    */
+  // def runFromTCP(
+  //   segmentLength: Int,
+  //   selectChannels: List[Int],
+  //   // full: FullStreamHandler[Task],
+  //   select: SelectStreamHandler[Task]
+  // ): Task[Unit] = {
+
+  //   val configAndStartMEAMETask =
+  //     httpIO.startMEAMEServer(samplerate, segmentLength ,selectChannels)
+
+  //   // val allStreamHandlerTask = networkIO.streamAllChannels(full)
+  //   val selectStreamHandlerTask = networkIO.streamSelectChannels(select)
+
+  //   val theShow = Stream.eval(configAndStartMEAMETask) flatMap { ret =>
+  //     ret match {
+  //       case None => Stream.empty
+  //       case Some(b) => {
+  //         if(!b)
+  //           Stream.empty
+  //         else{
+  //           // Stream.eval(allStreamHandlerTask) merge
+  //           Stream.eval(selectStreamHandlerTask)
+  //         }
+  //       }
+  //     }
+  //   }
+  //   theShow.run
+  // }
+
+
+  /**
+    * Starts the MEAME server and runs both select and full channel data through provided sinks
+    */
+  def ghettoRunFromTCP(
+    segmentLength: Int,
+    selectChannels: List[Int]
+  ): Task[Unit] = {
+
+    val configAndStartMEAMETask =
+      httpIO.startMEAMEServer(samplerate, segmentLength, selectChannels)
+
+    val theShow = Stream.eval(configAndStartMEAMETask) flatMap { ret =>
+      ret match {
+        case None => Stream.empty
+        case Some(b) => {
+          if(!b)
+            Stream.empty
+          else{
+            val agentRun = Stream.eval(networkIO.ghetto[Task])
+            val memeSink: Sink[Task,Byte] = (s: Stream[Task,Byte]) => s
+              .through(utilz.bytesToInts)
+              .through(wsIO.webSocketServerConsumer)
+
+            val wsRun = Stream.eval(networkIO.streamAllChannels(memeSink))
+            wsRun merge agentRun
+          }
+        }
+      }
+    }
+    theShow.run
+  }
+
+
+  def testHttp(
+    segmentLength: Int,
+    selectChannels: List[Int]
+  ): Task[Unit] = {
+
+    val configAndStartMEAMETask =
+      httpIO.startMEAMEServer(samplerate, segmentLength ,selectChannels)
+
+    println("testHTTP starting now :)")
+    (Stream.eval(configAndStartMEAMETask).through(_.map(println))).run
+  }
 
   /**
     * For offline playback of data, select experiment id and a list of channels for playback
@@ -35,24 +126,24 @@ object IO {
   /**
     * Stream raw data from a TCP socket
     */
-  def streamFromTCPraw: Stream[Task,Int] =
-    networkIO.socketStream[Task] flatMap ( socket =>
-      {
-        networkIO.rawDataStream(socket)
-      })
+  // def streamFromTCPraw: Stream[Task,Int] =
+  //   networkIO.socketStream[Task] flatMap ( socket =>
+  //     {
+  //       networkIO.rawDataStream(socket)
+  //     })
 
 
   /**
     * Stream raw data from a TCP socket, send data back as well
     */
-  def streamFromTCPraw2(program: ((Stream[Task,Int], Sink[Task,Byte]) => Task[Unit])): Task[Unit] = {
-    val disaster = networkIO.socketStream[Task] flatMap ( (socket: Socket[Task]) =>
-      {
-        val a = networkIO.rawDataStream(socket)
-        Stream.eval(program(a, socket.writes()))
-      })
-    disaster.run
-  }
+  // def streamFromTCPraw2(program: ((Stream[Task,Int], Sink[Task,Byte]) => Task[Unit])): Task[Unit] = {
+  //   val disaster = networkIO.socketStream[Task] flatMap ( (socket: Socket[Task]) =>
+  //     {
+  //       val a = networkIO.rawDataStream(socket)
+  //       Stream.eval(program(a, socket.writes()))
+  //     })
+  //   disaster.run
+  // }
 
 
   /**

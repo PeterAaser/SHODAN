@@ -27,6 +27,9 @@ object networkIO {
   val port = addressConf.getInt("port")
   val socketAddress = new InetSocketAddress(ip, port)
 
+  val allChannelsPort = 12340
+  val selectChannelsPort = 12341
+
   val reuseAddress = true
   val sendBufferSize = netConf.getInt("sendBufSize")
   val receiveBufferSize = netConf.getInt("recvBufSize")
@@ -35,14 +38,43 @@ object networkIO {
 
   val maxQueued = 3
 
-  def socketStream[F[_]: Async]: Stream[F, Socket[F]] =
+  def socketStream[F[_]: Async](port: Int): Stream[F, Socket[F]] =
     client(
-      socketAddress,
+      new InetSocketAddress(ip, port),
       reuseAddress,
       sendBufferSize,
       receiveBufferSize,
       keepAlive,
       noDelay)
+
+
+  def streamAllChannels[F[_]:Async](sink: Sink[F,Byte]): F[Unit] = {
+    val throughSink = socketStream[F](allChannelsPort) flatMap { socket =>
+      socket.reads(1024*1024).through(sink)
+    }
+    throughSink.run
+  }
+
+
+  def ghetto[F[_]:Async]: F[Unit] = {
+    val a = socketStream(selectChannelsPort) flatMap { socket =>
+      val a = mainLoop.GArun(
+        socket.reads(1024*1024).through(utilz.bytesToInts),
+        socket.writes(None),
+        List[Int](1,2,3))
+      Stream.eval(a)
+    }
+    a.run
+  }
+
+
+  def streamSelectChannels[F[_]:Async](sink: Sink[F,Byte], stream: Stream[F,Byte]): F[Unit] = {
+    val throughSink = socketStream[F](selectChannelsPort) flatMap { socket =>
+      socket.reads(1024*1024).through(sink) merge
+      stream.through(socket.writes())
+    }
+    throughSink.run
+  }
 
 
   def rawDataStream(socket: Socket[Task]): Stream[Task,Int] =

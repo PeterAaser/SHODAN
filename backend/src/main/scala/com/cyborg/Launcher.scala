@@ -14,7 +14,7 @@ object Launcher {
 
     val server = new ApplicationServer(8080, "backend/target/UdashStatic/WebContent")
     server.start()
-    // mainLoop.outerT.unsafeRun
+    // mainLoop.outerT.unsafeRun()
 
     println("wello")
 

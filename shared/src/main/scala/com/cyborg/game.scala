@@ -74,11 +74,11 @@ object wallAvoid {
   def createChallenges: List[Agent] = {
     //hardcoded
     val loc = Coord(7000.0, 5000.0)
-    val firstAngle  = PI/6.0
-    val secondAngle = PI/12.0
-    val thirdAngle  = .0
-    val fourthAngle = -PI/6.0
-    val fifthAngle  = -PI/12.0
+    val firstAngle  = PI + PI/6.0
+    val secondAngle = PI + PI/12.0
+    val thirdAngle  = PI + .0
+    val fourthAngle = PI + -PI/6.0
+    val fifthAngle  = PI + -PI/12.0
 
     val agentPA = Agent(loc, _: Double, 120)
 

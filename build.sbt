@@ -108,4 +108,4 @@ lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
     updateBrowsers <<= updateBrowsers triggeredBy (compileStatics in Compile)
   )
 
-  
+fork in run := true

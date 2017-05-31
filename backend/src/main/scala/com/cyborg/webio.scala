@@ -91,6 +91,7 @@ object wsIO {
       val a = s
         .through(graphDownSampler(blockSize))
         .through(utilz.vectorize(1000))
+        .through(_.map(λ => {println(s"ws server sink getting thing"); λ}))
 
       val b = server(a)
       Stream.eval(b)
@@ -99,6 +100,22 @@ object wsIO {
     pipe.observeAsync(s, 1024*1024)(sink)
   }
 
+  /**
+    Creates a ws server and attaches it as a sink via observe
+    */
+  def webSocketServerConsumer: Sink[Task,Int] = s => {
+
+    val sink: Sink[Task,Int] = s => {
+      val a = s
+        .through(graphDownSampler(blockSize))
+        .through(utilz.vectorize(1000))
+
+      val b = server(a)
+      Stream.eval(b)
+    }
+
+    s.through(sink)
+  }
 
   // hardcoded
   val vizHeight = 60

@@ -47,7 +47,7 @@ object GApipes {
 
       //hardcoded
       def evalFunc: Double => Double = x => x
-      val ticksPerEval = 1000
+      val ticksPerEval = 200
 
       /**
         maps pipestream, a stream[pipe[ffIn,ffOut]],

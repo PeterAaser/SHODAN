@@ -116,8 +116,8 @@ object seqUtils {
     }
 
     /**
-      Also known as eval(roulette.
-      Iterates through a list, picks the element if
+      Also known as roulette.
+      Iterates through a list, picks the element if the numbers up
       */
     def biasedSample(samples: Int): Vector[A] = {
 

@@ -14,7 +14,7 @@ object Assemblers {
   type ffANNoutput = List[Double]
 
   // Needs a sweep size and a spike detector
-  def assembleInputFilter[F[_]:Async]: Pipe[F, Int, ffANNinput] = neuroStream => {
+  def assembleInputFilter[F[_]:Async](channels: List[Int]): Pipe[F, Int, ffANNinput] = neuroStream => {
 
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
@@ -28,25 +28,26 @@ object Assemblers {
     val MAGIC_THRESHOLD = 1000
     val pointsPerSweep = 1000
 
-    // hardcoded
-    val channels = List(4, 13, 17, 24)
-
     val spikeDetectorPipe: Pipe[F, Int, Int] =
       spikeDetector.spikeDetectorPipe(MAGIC_PERIOD, MAGIC_SAMPLERATE, MAGIC_THRESHOLD)
 
     val neuronChannelsStream: Stream[F,Vector[Stream[F,Int]]] =
-      alternator(neuroStream, pointsPerSweep, 60, 10000)
+      alternator(neuroStream, pointsPerSweep, channels.length, 10000)
 
 
     val spikeStream = neuronChannelsStream flatMap {
       streams: Vector[Stream [F,Int]] => {
 
-        val spikeChannels: Vector[Stream[F, Int]] = channels.map(streams(_)).toVector
+        println(channels)
+        println(channels.length)
+        println(streams)
+        println(streams.length)
+        val spikeChannels: Vector[Stream[F, Int]] = streams.toVector
           .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
 
-        val droppedChannels = (streams.toSet -- spikeChannels.toSet).toVector
-        val droppedChannels2 = Stream.emits(droppedChannels.map(_.drain))
-        val droppedChannels3 = droppedChannels2.flatMap(λ => λ)
+        // val droppedChannels = (streams.toSet -- spikeChannels.toSet).toVector
+        // val droppedChannels2 = Stream.emits(droppedChannels.map(_.drain))
+        // val droppedChannels3 = droppedChannels2.flatMap(λ => λ)
 
         val spikeTrains =
           (Stream[F, Vector[Int]](Vector[Int]()).repeat /: spikeChannels){
@@ -54,7 +55,7 @@ object Assemblers {
               (λ, µ) => µ +: λ
             }
           }
-        droppedChannels3.mergeDrainL(spikeTrains)
+        spikeTrains
       }
     }
     spikeStream.through(_.map(_.map(_.toDouble)))

@@ -136,8 +136,10 @@ object utilz {
     def go: Handle[F,Byte] => Pull[F,Int,Unit] = h => {
       h.receive {
         case (chunk, h) => {
-          if(chunk.size % 4 != 0)
+          if(chunk.size % 4 != 0){
+            println("CHUNK MISALIGNMENT IN BYTES TO INTS CONVERTER")
             assert(false)
+          }
           val intBuf = Array.ofDim[Int](chunk.size/4)
 
           for(i <- 0 until chunk.size/4){
@@ -153,6 +155,7 @@ object utilz {
                 ((0xFF & y) << 8) |
                 ((0xFF & x))
             )
+
 
             intBuf(i) = asInt
           }

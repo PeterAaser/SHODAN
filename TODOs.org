@@ -124,10 +124,11 @@
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Har nå: 
-** experimentPipe: Pipe[Double, ANNpipe] med intern state (gitt at vi er i sync...)
-** evalPipe: Pipe[Agent,Double] som står for å lage challenges (fem stykk) og kjøre agents gjennom
+  Dataoverføring fungerer, men får rare målinger fra MEAME. What's new...
+  Neste steg er å fikse websocket IO
   
+  Begynner virkelig å bli nødvending å fikse opp kodekvaliteten litt snart,
+  begynner tross alt å nærme meg stabilitet (yeah right)
 
 * Doobie notes
 
