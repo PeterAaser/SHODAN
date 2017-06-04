@@ -259,7 +259,7 @@ object utilz {
   /**
     Attaches an observing queue to a stream of pipes
     TODO actually implement this, currently just hardcoding it.
-   */
+   */ // 
   def attachObserverQueue[F[_]:Async,I,O](pipes: Stream[F,Pipe[F,I,O]], queue: Queue[F,O]): Stream[F,Pipe[F,I,O]] = {
 
     ???

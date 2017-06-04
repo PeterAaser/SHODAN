@@ -23,9 +23,7 @@ import spinoco.protocol.http.header.value._
 
 object httpIO {
 
-  implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(16, threadName = "fugger")
-  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(16)
+  import backendImplicits._
 
   // hardcoded
   val ip = "129.241.201.110"
@@ -85,22 +83,6 @@ object httpIO {
   def startMEAMEServer(samplerate: Int, segmentLength: Int, specialChannels: List[Int]): Task[Option[Boolean]] = {
     val clientTask: Task[HttpClient[Task]] = http.client[Task]()
     val uhh = clientTask flatMap { client =>
-      // val hlep = client.request(sayHello) flatMap { _ =>
-      //   client.request(connectDAQrequest(samplerate, segmentLength, specialChannels)) flatMap {
-      //     MEAMEconfigurationResponse => {
-      //       // println(MEAMEconfigurationResponse)
-      //       // true
-      //       client.request(startDAQrequest) map {
-      //         MEAMEstartResponse => {
-      //           val resp = (List(MEAMEconfigurationResponse.header.status, MEAMEstartResponse.header.status)
-      //                        .map(_ == HttpStatusCode.Ok).foldLeft(true)(_&&_))
-      //           resp
-      //         }
-      //       }
-      //     }
-      //   }
-      // }
-      // hlep.runLast
       (for {
         _ <- client.request(sayHello)
         MEAMEconfigurationResponse <- client.request(connectDAQrequest(samplerate, segmentLength, specialChannels))
@@ -116,30 +98,4 @@ object httpIO {
     uhh
     // uhh
   }
-
-
-  def startMEAMEServer_(samplerate: Int, segmentLength: Int, specialChannels: List[Int]): Task[Option[Boolean]] = {
-    val clientTask: Task[HttpClient[Task]] = http.client[Task]()
-    http.client[Task]().flatMap { client =>
-      val request = HttpRequest.get[Task](uri)
-      val c = client.request(request).flatMap { resp =>
-        Stream.eval(resp.bodyAsString)
-      }
-      val f = c.runLast.map {
-        _ => Some(true)
-      }
-      f
-    }
-  }
-
-  // http.client[Task]().flatMap { client =>
-  //   val request = HttpRequest.get[Task](Uri.https("github.com", "/Spinoco/fs2-http"))
-  //   val c = client.request(request).flatMap { resp =>
-  //     Stream.eval(resp.bodyAsString)
-  //   }
-  //   val f = c.runLog.map {
-  //     println
-  //   }
-  //   f
-  // }.unsafeRun()
 }

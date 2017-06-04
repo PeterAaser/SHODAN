@@ -1,10 +1,8 @@
 package com.cyborg
 
-import scala.scalajs.js.annotation.JSExport
 import org.scalajs.dom
 import org.scalajs.dom.html
-import scala.util.Random
-import scalajs.js
+import fs2._
 
 import wallAvoid._
 
@@ -14,6 +12,23 @@ case class Point(x: Int, y: Int){
 }
 
 object Visualizer {
+
+
+  def visualizerControlSink[F[_]](canvas: html.Canvas): Sink[F,Agent] = {
+
+    val vis = new VisualizerControl(canvas)
+
+    def go: Handle[F,Agent] => Pull[F,Unit,Unit] = { h =>
+      h.receive1 {
+        case (agent, h) => {
+          vis.update(agent)
+          go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
   class VisualizerControl(canvas: html.Canvas) {
 
     val renderer = canvas.getContext("2d")

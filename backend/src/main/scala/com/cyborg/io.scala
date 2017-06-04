@@ -2,17 +2,18 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
+import fs2.async.mutable.Queue
 import fs2.util.Async
 import fs2.io.tcp._
+
+import wallAvoid.Agent
 
 import scala.language.higherKinds
 
 
 object IO {
 
-  // implicit val tcpACG : AsynchronousChannelGroup = namedACG("tcp")
-  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(8, threadName = "fugger")
-  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(8)
+  import backendImplicits._
 
   type ChannelStream[F[_],A]       = Stream[F,Vector[Stream[F,A]]]
 
@@ -26,24 +27,86 @@ object IO {
   // hardcoded
   val samplerate = 40000
 
+  def runFromHttp(
+    segmentLength: Int,
+    selectChannels: List[Int]
+  ): Task[Unit] = {
 
+    // hardcoded
+
+    val commandQueueTask: Task[Queue[Task,Int]] = fs2.async.unboundedQueue[Task,Int]
+
+    val doThing = Stream.eval(commandQueueTask) flatMap { commandQueue =>
+      {
+
+        val httpServerTask: Task[Unit] = httpServer.startServer(commandQueue.enqueue)
+
+        val configAndStartMEAMETask: Task[Option[Boolean]] =
+          httpIO.startMEAMEServer(samplerate, segmentLength, selectChannels)
+
+        val wsAgentServerPipe = wsIO.webSocketServerAgentObserver
+
+        val a = commandQueue.dequeue flatMap { command =>
+          val theShow = Stream.eval(configAndStartMEAMETask) flatMap { ret =>
+
+            ret match {
+              case None => Stream.empty
+              case Some(b) => {
+                if(!b){
+                  println("MEAME returned negative")
+                  Stream.empty
+                }
+
+                else{
+                  println("MEAME returned positive")
+                  val fug = networkIO.socketStream[Task](networkIO.selectChannelsPort) flatMap {
+                    socket =>
+                    {
+                      val uhh = mainLoop.GArun(
+                        socket.reads(1024*1024).through(utilz.bytesToInts),
+
+                        (s: Stream[Task,Byte]) => s.drain,
+
+                        // (s: Stream[Task,Agent]) => s.drain,
+                        wsAgentServerPipe,
+
+                        selectChannels
+                      )
+                      Stream.eval(uhh)
+                    }
+                  }
+                  fug
+                }
+              }
+            }
+          }
+          theShow
+        }
+        Stream.eval(httpServerTask).mergeDrainL(a)
+      }
+    }
+
+    doThing.run
+  }
+
+  /**
+    * Data run through this pipe is downsampled and sent through a websocket to the frontend
+    * for visualization.
+    */
+  def webSocketServerObserver: Pipe[Task,Int,Int] = s =>
+    wsIO.attachWebSocketServerSink(s)
 
 
   /**
     * Starts the MEAME server and runs both select and full channel data through provided sinks
     */
-  // def runFromTCP(
+  // def ghettoRunFromTCP(
   //   segmentLength: Int,
-  //   selectChannels: List[Int],
-  //   // full: FullStreamHandler[Task],
-  //   select: SelectStreamHandler[Task]
+  //   selectChannels: List[Int]
   // ): Task[Unit] = {
 
   //   val configAndStartMEAMETask =
-  //     httpIO.startMEAMEServer(samplerate, segmentLength ,selectChannels)
-
-  //   // val allStreamHandlerTask = networkIO.streamAllChannels(full)
-  //   val selectStreamHandlerTask = networkIO.streamSelectChannels(select)
+  //     httpIO.startMEAMEServer(samplerate, segmentLength, selectChannels)
 
   //   val theShow = Stream.eval(configAndStartMEAMETask) flatMap { ret =>
   //     ret match {
@@ -52,47 +115,19 @@ object IO {
   //         if(!b)
   //           Stream.empty
   //         else{
-  //           // Stream.eval(allStreamHandlerTask) merge
-  //           Stream.eval(selectStreamHandlerTask)
+  //           val agentRun = Stream.eval(networkIO.ghetto[Task])
+  //           val memeSink: Sink[Task,Byte] = (s: Stream[Task,Byte]) => s
+  //             .through(utilz.bytesToInts)
+  //             .through(wsIO.webSocketServerConsumer)
+
+  //           val wsRun = Stream.eval(networkIO.streamAllChannels(memeSink))
+  //           wsRun merge agentRun
   //         }
   //       }
   //     }
   //   }
   //   theShow.run
   // }
-
-
-  /**
-    * Starts the MEAME server and runs both select and full channel data through provided sinks
-    */
-  def ghettoRunFromTCP(
-    segmentLength: Int,
-    selectChannels: List[Int]
-  ): Task[Unit] = {
-
-    val configAndStartMEAMETask =
-      httpIO.startMEAMEServer(samplerate, segmentLength, selectChannels)
-
-    val theShow = Stream.eval(configAndStartMEAMETask) flatMap { ret =>
-      ret match {
-        case None => Stream.empty
-        case Some(b) => {
-          if(!b)
-            Stream.empty
-          else{
-            val agentRun = Stream.eval(networkIO.ghetto[Task])
-            val memeSink: Sink[Task,Byte] = (s: Stream[Task,Byte]) => s
-              .through(utilz.bytesToInts)
-              .through(wsIO.webSocketServerConsumer)
-
-            val wsRun = Stream.eval(networkIO.streamAllChannels(memeSink))
-            wsRun merge agentRun
-          }
-        }
-      }
-    }
-    theShow.run
-  }
 
 
   def testHttp(

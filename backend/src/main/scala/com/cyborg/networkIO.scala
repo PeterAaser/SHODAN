@@ -6,18 +6,16 @@ import fs2.util.Async
 import fs2.io.tcp._
 
 import java.net.InetSocketAddress
-import java.nio.channels.AsynchronousChannelGroup
 
 import java.net.InetSocketAddress
 
 import scala.language.higherKinds
 import com.typesafe.config._
 
+
 object networkIO {
 
-  implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  implicit val strategy: fs2.Strategy = fs2.Strategy.fromFixedDaemonPool(16, threadName = "fugger")
-  implicit val scheduler: Scheduler = fs2.Scheduler.fromFixedDaemonPool(16)
+  import backendImplicits._
 
   val conf = ConfigFactory.load()
   val netConf = conf.getConfig("io")
@@ -53,18 +51,6 @@ object networkIO {
       socket.reads(1024*1024).through(sink)
     }
     throughSink.run
-  }
-
-
-  def ghetto[F[_]:Async]: F[Unit] = {
-    val a = socketStream(selectChannelsPort) flatMap { socket =>
-      val a = mainLoop.GArun(
-        socket.reads(1024*1024).through(utilz.bytesToInts),
-        socket.writes(None),
-        List[Int](1,2,3))
-      Stream.eval(a)
-    }
-    a.run
   }
 
 

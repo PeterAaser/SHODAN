@@ -2,7 +2,6 @@ package com.cyborg
 
 import com.cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.Queue
 import fs2.util.Async
 import scala.language.higherKinds
 import com.typesafe.config._
@@ -44,10 +43,6 @@ object Assemblers {
         println(streams.length)
         val spikeChannels: Vector[Stream[F, Int]] = streams.toVector
           .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
-
-        // val droppedChannels = (streams.toSet -- spikeChannels.toSet).toVector
-        // val droppedChannels2 = Stream.emits(droppedChannels.map(_.drain))
-        // val droppedChannels3 = droppedChannels2.flatMap(λ => λ)
 
         val spikeTrains =
           (Stream[F, Vector[Int]](Vector[Int]()).repeat /: spikeChannels){

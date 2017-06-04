@@ -124,11 +124,7 @@
    This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Dataoverføring fungerer, men får rare målinger fra MEAME. What's new...
-  Neste steg er å fikse websocket IO
-  
-  Begynner virkelig å bli nødvending å fikse opp kodekvaliteten litt snart,
-  begynner tross alt å nærme meg stabilitet (yeah right)
+  Fiks tcp sink, mistenker at det clogger alt
 
 * Doobie notes
 

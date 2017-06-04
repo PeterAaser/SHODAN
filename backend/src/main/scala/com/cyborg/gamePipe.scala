@@ -2,7 +2,6 @@ package com.cyborg
 
 import com.cyborg.Assemblers.ffANNinput
 import com.cyborg.Filters.FeedForward
-import com.cyborg.rpc.AgentService
 import fs2.util.Async
 import scala.language.higherKinds
 

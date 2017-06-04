@@ -11,27 +11,21 @@ import fs2._
 import spinoco.fs2.http
 import spinoco.fs2.http.routing._
 import spinoco.fs2.http.websocket._
-import spinoco.fs2.http.routing.Matcher.Match
 import spinoco.fs2.http.HttpResponse
 
+import scodec.codecs.implicits._
+
+import com.cyborg.wallAvoid._
 
 object wsIO {
 
+  import backendImplicits._
+  import sharedImplicits._
 
-  import java.nio.channels.AsynchronousChannelGroup
-  import java.util.concurrent.Executors
-
-
-  val ES = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
-
-  implicit val S = Strategy.fromExecutor(ES)
-  implicit val Sch = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, Strategy.daemonThreadFactory("S")))
-  implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
-
-  implicit val IntCodec = scodec.codecs.int32
-  implicit val IntVectorCodec = scodec.codecs.vectorOfN(scodec.codecs.int32, scodec.codecs.int32)
-  implicit val StringCodec = scodec.codecs.utf8_32
-
+  // hardcoded
+  val serverPort = 9090
+  val textPort = 9091
+  val agentPort = 9092
 
   def textPipe[F[_]:Async](inStream: Stream[F,Vector[Int]]): Pipe[F, Frame[Int], Frame[String]] = inbound => {
     val out = inStream.through(_.map(λ => " hello! "))
@@ -47,6 +41,7 @@ object wsIO {
     }
   }
 
+
   // A pipe that ignores input and outputs stuff from inStream
   def wsPipe[F[_]:Async](inStream: Stream[F,Vector[Int]]):
       Pipe[F, Frame[Int], Frame[Vector[Int]]] = { inbound =>
@@ -57,6 +52,7 @@ object wsIO {
       .through(_.map(λ => { println(s"Got inbound message, looks like $λ"); λ}))
       .mergeDrainL(output)
   }
+
 
   def router[F[_]: Async](inStream: Stream[F,Vector[Int]]): Route[F] = {
     val ws = websocket[F,Int,Vector[Int]]()
@@ -70,6 +66,28 @@ object wsIO {
     }
   }
 
+
+  def agentWsPipe[F[_]:Async](inStream: Stream[F,Agent]):
+      Pipe[F, Frame[Int], Frame[Agent]] = { inbound =>
+
+    val output = inStream.map(Frame.Binary.apply)
+    inbound.mergeDrainL(output)
+  }
+
+
+  def agentRouter[F[_]: Async](inStream: Stream[F,Agent]): Route[F] = {
+    val ws = websocket[F,Int,Agent]()
+
+    ws map {
+      case socket: (Pipe[F,Frame[Int],Frame[Agent]] => Stream[F,HttpResponse[F]]) =>
+        {
+          println("Agent socket thing is happening")
+          socket(agentWsPipe(inStream))
+        }
+    }
+  }
+
+
   def server(inStream: Stream[Task,Vector[Int]]): Task[Unit] = {
     val server = http.server(new InetSocketAddress("127.0.0.1", 9090))(route(router(inStream)))
     server.run
@@ -77,7 +95,13 @@ object wsIO {
 
 
   def textServer(inStream: Stream[Task,Vector[Int]]): Task[Unit] = {
-    val server = http.server[Task](new InetSocketAddress("127.0.0.1", 9090))(route(textRouter(inStream)))
+    val server = http.server[Task](new InetSocketAddress("127.0.0.1", 9091))(route(textRouter(inStream)))
+    server.run
+  }
+
+
+  def agentServer(inStream: Stream[Task,Agent]): Task[Unit] = {
+    val server = http.server[Task](new InetSocketAddress("127.0.0.1", 9092))(route(agentRouter(inStream)))
     server.run
   }
 
@@ -100,8 +124,9 @@ object wsIO {
     pipe.observeAsync(s, 1024*1024)(sink)
   }
 
+
   /**
-    Creates a ws server and attaches it as a sink via observe
+    Creates a ws server and attaches it as a sink
     */
   def webSocketServerConsumer: Sink[Task,Int] = s => {
 
@@ -116,6 +141,19 @@ object wsIO {
 
     s.through(sink)
   }
+
+
+  /**
+    Creates a ws server for an agent and attaches it as an observer
+    */
+  def webSocketServerAgentObserver: Pipe[Task,Agent,Agent] = s => {
+    val sink: Sink[Task,Agent] = s => {
+      Stream.eval(agentServer(s))
+    }
+    // TODO should probably be async
+    pipe.observe(s)(sink)
+  }
+
 
   // hardcoded
   val vizHeight = 60
