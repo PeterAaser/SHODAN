@@ -1,18 +1,18 @@
 package com.cyborg
 
 import fs2._
-import fs2.util.syntax._
 
 import spinoco.fs2.http
-import spinoco.protocol.http.header._
 import spinoco.protocol.http._
-import spinoco.protocol.http.header.value._
-import spinoco.fs2.http.routing._
-import shapeless.{HNil, ::}
-import http.websocket._
 import http._
 
 object httpServer {
+
+  /**
+    At the moment this is very sparsely populated.
+    When CORS token issue is resolved this code will act as entrypoint for the
+    web client.
+    */
 
   import backendImplicits._
 

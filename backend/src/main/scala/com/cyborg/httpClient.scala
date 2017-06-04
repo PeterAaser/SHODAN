@@ -2,24 +2,15 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
-import fs2.util.Async
-import fs2.io.tcp._
-import fs2.util.syntax._
-
-import java.net.InetSocketAddress
-import java.nio.channels.AsynchronousChannelGroup
 
 import scala.language.higherKinds
 
 import spinoco.fs2.http
 import http._
-import http.websocket._
-import spinoco.protocol.http.Uri.Path
 
-import spinoco.protocol.http.header._
 import spinoco.protocol.http.Uri
 import spinoco.protocol.http._
-import spinoco.protocol.http.header.value._
+
 
 object httpIO {
 
@@ -39,7 +30,7 @@ object httpIO {
   import spinoco.fs2.http.body.BodyEncoder
 
 
-  def connectDAQrequest[F[_]](
+  def createConnectDAQrequest[F[_]](
     samplerate: Int,
     segmentLength: Int,
     selectChannels: List[Int]): HttpRequest[F] =
@@ -72,6 +63,8 @@ object httpIO {
 
 
   /**
+    Does what it says on the tin
+
     Does not handle failure at all
 
     note to self:
@@ -80,22 +73,34 @@ object httpIO {
     Not asking for help, this is a good opportunity to figure out Free,
     effects and all that, besides it's not useful to handle failure at the moment
    */
-  def startMEAMEServer(samplerate: Int, segmentLength: Int, specialChannels: List[Int]): Task[Option[Boolean]] = {
+  def startMEAMEServer(
+    samplerate: Int,
+    segmentLength: Int,
+    specialChannels: List[Int]): Task[Option[Boolean]] =
+  {
+
     val clientTask: Task[HttpClient[Task]] = http.client[Task]()
-    val uhh = clientTask flatMap { client =>
-      (for {
-        _ <- client.request(sayHello)
-        MEAMEconfigurationResponse <- client.request(connectDAQrequest(samplerate, segmentLength, specialChannels))
-        MEAMEstartResponse         <- client.request(startDAQrequest)
-       } yield
-         {
-           val ret = (List(MEAMEconfigurationResponse.header.status, MEAMEstartResponse.header.status)
-              .map(_ == HttpStatusCode.Ok).foldLeft(true)(_&&_))
-           println(s"from our http requests we got $ret")
-           ret
-         }).runLast
+    val connectDAQrequest = createConnectDAQrequest[Task](samplerate, segmentLength, specialChannels)
+
+    val requestTask = clientTask flatMap { client =>
+      {
+        val requestTask = for {
+          _ <- client.request(sayHello)
+          confResponse  <- client.request(connectDAQrequest)
+          startResponse <- client.request(startDAQrequest)
+        }
+        yield
+        {
+          val ret =
+            (List(confResponse.header.status, startResponse.header.status)
+               .map(_ == HttpStatusCode.Ok).foldLeft(true)(_&&_))
+
+          println(s"MEAME responded with $ret")
+          ret
+        }
+        requestTask.runLast
+      }
     }
-    uhh
-    // uhh
+    requestTask
   }
 }

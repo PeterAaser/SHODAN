@@ -89,13 +89,6 @@ object IO {
     doThing.run
   }
 
-  /**
-    * Data run through this pipe is downsampled and sent through a websocket to the frontend
-    * for visualization.
-    */
-  def webSocketServerObserver: Pipe[Task,Int,Int] = s =>
-    wsIO.attachWebSocketServerSink(s)
-
 
   /**
     * Starts the MEAME server and runs both select and full channel data through provided sinks
