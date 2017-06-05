@@ -7,7 +7,7 @@ import wallAvoid._
 
 object sharedImplicits {
 
-  implicit val IntVectorCodec = scodec.codecs.vectorOfN(scodec.codecs.int32, scodec.codecs.int32)
+  implicit val IntVectorCodec = scodec.codecs.vectorOfN(scodec.codecs.uint16, scodec.codecs.int32)
 
   // I'm very sorry.
   // Just look away
@@ -22,4 +22,6 @@ object sharedImplicits {
       Agent.unapply(_).map(λ => ((λ._1,λ._2),λ._3))
     )
   // Okay you can look again now
+
+
 }

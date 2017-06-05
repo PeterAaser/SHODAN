@@ -12,7 +12,7 @@ import spinoco.protocol.http.Uri
 import spinoco.protocol.http._
 
 
-object httpIO {
+object httpClient {
 
   import backendImplicits._
 
@@ -23,7 +23,7 @@ object httpIO {
   val uri = Uri.http(ip, port=8888, path="/")
 
   // hardcoded
-  val samplerate = 40000
+  val samplerate = 10000
   val segmentLength = 100
 
   implicit val StringCodec = scodec.codecs.utf8_32

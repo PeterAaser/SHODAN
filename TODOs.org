@@ -1,106 +1,3 @@
-* TODO Add error handling
-** TODO On TCP connection close do some cool shit
- 
-* DONE Persistent storage
-  CLOSED: [2017-04-27 to. 12:08]
-** DONE Write MEAME input to file
-   CLOSED: [2017-03-13 ma. 17:47]
-*** DONE Write raw input to file
-    CLOSED: [2017-03-12 sø. 12:40]
-*** DONE Write parameters to file
-    CLOSED: [2017-03-13 ma. 17:47]
-** DONE Read MEAME input from file
-   CLOSED: [2017-03-14 ti. 17:07]
-*** DONE Read raw input from file
-    CLOSED: [2017-03-14 ti. 17:07]
-**** DONE write implementation
-     CLOSED: [2017-03-12 sø. 16:02]
-**** DONE test implementation
-     CLOSED: [2017-04-29 lø. 17:22]
-*** DONE Read params from file
-    CLOSED: [2017-03-13 ma. 17:47]
-**** DONE write implementation
-     CLOSED: [2017-03-12 sø. 16:03]
-**** DONE test implementation
-     CLOSED: [2017-04-29 lø. 17:22]
-
-    
-** DONE Test and fix write and read
-   CLOSED: [2017-03-18 lø. 13:03]
-
-** DONE Add a real webscale database
-   CLOSED: [2017-04-27 to. 12:08]
-
-* TODO Create main control module
-** DONE Rethink Inner/Outer 
-   CLOSED: [2017-05-17 on. 17:31]
-*** DONE Agnostic IO toplevel
-    CLOSED: [2017-05-17 on. 17:31]
-*** DONE Refactor the plethora of IO methods into logical units
-    CLOSED: [2017-04-30 sø. 19:51]
-**** DONE Database IO
-     CLOSED: [2017-04-29 lø. 17:21]
-***** Why two logical units? 
-      In order to get a clean interface between doobie and the rest of the codebase
-      the database part is defined in separate files.
-      One immediate reason for doing so is to help ensime not choke on preprocessor
-      stuff (cats/scalaz) in doobie.
-***** DONE Doobie tasks
-      CLOSED: [2017-04-29 lø. 17:21]
-****** DONE Remove every reference to doobieTasks outside of database tasks
-       CLOSED: [2017-04-29 lø. 17:21]
-***** DONE Database tasks
-      CLOSED: [2017-04-29 lø. 17:21]
-**** DONE File IO 
-     CLOSED: [2017-04-29 lø. 17:21]
-**** DONE TCP IO
-     CLOSED: [2017-04-29 lø. 17:22]
-    
-** TODO Outer loop
-*** DONE Should dispatch the inner loop
-    CLOSED: [2017-05-10 on. 13:49]
-*** TODO MEAME needs an API for selecting datastream
-*** TODO should create the bulk logging task and inner loop task with MEAME sockets
-*** DONE Should be responsible for opening the server connections to MEAME
-    CLOSED: [2017-03-11 lø. 17:01]
-*** DONE Outer loop should log all incoming data from MEAME
-    CLOSED: [2017-04-27 to. 12:10]
-**** DONE Create flat fileWriter
-     CLOSED: [2017-03-11 lø. 17:01]
-**** TODO Write to database
-** TODO Inner loop
-*** DONE Inner loop should be responsible for trying out different ANNs
-    CLOSED: [2017-05-18 to. 16:51]
-**** DONE Implement rudimentary evaluator
-     CLOSED: [2017-05-18 to. 16:51]
-**** DONE Implement sophisticated evaluator
-     CLOSED: [2017-05-18 to. 16:51]
-     Thinking of using scalapagos here
-
-*** DONE Refactor inner loop
-    CLOSED: [2017-03-11 lø. 17:01]
-    Inner loop must be refactored to offer a pipeline where stages are more suited for working
-    in parallel without duplicating work
-*** DONE Add pipe rebuilding to some criteria
-    CLOSED: [2017-05-18 to. 16:51]
-**** DONE Create proof of concept
-     CLOSED: [2017-05-15 ma. 17:11]
-     See scala-playground
-**** TODO Generalize proof of concept and add to SHODAN
-*** TODO Test implementation
-** Spec
-   Control module should:
-*** Should open connection to server
-*** Should modify the pipe by replacing it with a new version
-*** Modification should be done by listening to various feedback from the current pipe
-
-* TODO Create RPC pipes
-** Notes
-   When a new MEAMEControl is instantiated the constructor should return a stream.
-   This stream will be connected to all available input actions, pat match it from there.
-
-   This could possibly done with an async queueueueueueue
-
 * TODO Better DI
 ** TODO Figure out best practice for DI
 *** TODO Try out Free monad, ReaderWriter, or tagless final encoding (ps I have no fucking idea..)
@@ -108,29 +5,9 @@
    CLOSED: [2017-05-18 to. 16:54]
    Shitty version is in fact done
 
-* TODO Make website prettier
-** Notes
-   Needs to be webscale
-
-* General maintenance
-** DONE Fix alternator
-   CLOSED: [2017-04-29 lø. 17:23]
-   Doesn't look right, and even if it is it's much too arcane so a rewrite can't hurt
-
-
-* Notes
-** TODO Logging
-   In order to log what SHODAN does and thinks it could be useful to implement a logging scheme.
-   This is possibly something best done with Task (or F[_].. ), check it out.
 
 * Sist gang
-  Fiks tcp sink, mistenker at det clogger alt
-
-* Doobie notes
-
-  #+BEGIN_SRC scala
-  def niceMeme(meme: Int): Int = meme + meme
-  #+END_SRC
+  Finn ut hvorfor socket prøver 9090 i stedet for 9092
 
 * Database specification
 ** ER
@@ -166,10 +43,3 @@
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
    
-
-* fs2 Notes
-  for eksempel på pull der R representerer Handle, se takeWhile i Handle
-** DONE Pipe of pipes
-   CLOSED: [2017-05-15 ma. 17:02]
-   Bruker queue som basically lar oss gjøre mer i flatmap som en slags side-effect
-   Se scala-playground, it's all done :D

@@ -87,9 +87,9 @@ object GApipes {
 
             val evalToPipeGeneratorCircuit =
               evalQ.dequeue
-                .through(_.map( λ => {println(" ~~~~~ deq eval ~~~~~ "); λ} ) )
+                // .through(_.map( λ => {println(" ~~~~~ deq eval ~~~~~ "); λ} ) )
                 .through(ffGA.experimentBatchPipe(layout))
-                .through(_.map( λ => {println(" ~~~~~ deq expBP ~~~~~ "); λ} ) )
+                // .through(_.map( λ => {println(" ~~~~~ deq expBP ~~~~~ "); λ} ) )
                 .through(networkQ.enqueue)
 
 

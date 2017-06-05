@@ -45,7 +45,7 @@ object agentPipe {
     evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = {
 
 
-    println("running evaluatorPipe")
+    // println("running evaluatorPipe")
 
     // Runs an agent through ticksPerEval ticks, recording the closest it was a wall
     // and halts
@@ -58,7 +58,7 @@ object agentPipe {
             if (ticks > 0)
               Pull.output1(nextAgent) >> go(ticks - 1, nextAgent)(h)
             else {
-              println(" →→→→→→→→→→→→→→→→→→ Evaluation complete ←←←←←←←←←←←←←←←←←←←← ")
+              // println(" →→→→→→→→→→→→→→→→→→ Evaluation complete ←←←←←←←←←←←←←←←←←←←← ")
               Pull.output1(nextAgent)
               }
           }
@@ -71,7 +71,7 @@ object agentPipe {
       def go: Handle[F,Agent] => Pull[F,Double,Unit] = h => {
         h.awaitN(ticksPerEval, false) flatMap {
           case (chunks, _) => {
-            println("evalRun evaluating")
+            // println("evalRun evaluating")
             val closest = chunks.map(_.toList).flatten
               .map(_.distanceToClosest)
               .min
@@ -88,13 +88,13 @@ object agentPipe {
       experimentPipe: Pipe[F,ffANNoutput,Agent],
       evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = s => {
 
-      println("Attaching single sink!")
+      // println("Attaching single sink!")
 
       val t = s.through(experimentPipe)
       pipe.observe(t)(λ =>
         λ.through(evaluateRun)
           .through(pipe.fold(.0)(_+_)).through(_.map(evalFunc(_)))
-          .through(_.map(λ => {println(s" enqueuing the evaluation $λ"); λ}))
+          // .through(_.map(λ => {println(s" enqueuing the evaluation $λ"); λ}))
           .through(evalSink)
       )
     }

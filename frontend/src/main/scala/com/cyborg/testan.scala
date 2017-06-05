@@ -4,6 +4,7 @@ import org.scalajs.dom
 import org.scalajs.dom.html
 import scalajs.js
 import scalatags.JsDom.all._
+import org.scalajs.dom.raw.MouseEvent
 
 import fs2._
 
@@ -16,71 +17,53 @@ import com.cyborg.wallAvoid.Agent
 
 object testan extends js.JSApp {
 
-  @js.native
-  trait EventName extends js.Object {
-    type EventType <: dom.Event
-  }
-
-  object EventName {
-    def apply[T <: dom.Event](name: String): EventName { type EventType = T } =
-      name.asInstanceOf[EventName { type EventType = T }]
-
-    val onmousedown = apply[dom.MouseEvent]("onmousedown")
-  }
-
-  @js.native
-  trait ElementExt extends js.Object {
-    def addEventListener(name: EventName)(
-      f: js.Function1[name.EventType, _]): Unit
-  }
 
   def main(): Unit = {
-    val paragraph = dom.document.createElement("p")
-    paragraph.innerHTML = "<strong>It werks!</strong>"
-    dom.document.getElementById("playground").appendChild(paragraph)
 
-    val p = paragraph.asInstanceOf[ElementExt]
+    val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+    val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
-    val cantvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+    val startSHODANButton = button("start SHODAN").render
+    startSHODANButton.onclick = (_: MouseEvent) => {
+      println("SHODAN button clicked")
+      frontIO.startSHODAN
+    }
 
-    document.getElementById("playground").appendChild(cantvas)
+    val connectAgentButton = button("connect agent").render
+    connectAgentButton.onclick = (_: MouseEvent) => {
+      println("connect agent button clicked")
+      frontIO.startAgent
+    }
 
-    val aButton = button("hi").render
-    aButton.onclick = (_: org.scalajs.dom.raw.MouseEvent) => {
-      import frontendImplicits._
+    val visualizeAgentButton = button("visualize agent").render
+    visualizeAgentButton.onclick = (_: MouseEvent) => {
+      println("visualize button clicked")
+      frontIO.startAgentStream(agentCanvas)
+    }
 
-      frontHTTPclient.pingShodanServer.unsafeRunAsync(_ => () )
+    val connectWfButton = button("connect waveforms").render
+    connectWfButton.onclick = (_: MouseEvent) => {
+      println("connect waveform button clicked")
+      frontIO.startWF
+    }
 
-      val sink: Sink[Task,Agent] = Visualizer.visualizerControlSink[Task](cantvas)
-      var v = 0
-      for (i <- 0 until 100000000){
-        v = v + i
-        if(i%1000 == 0)
-          println(v)
-      }
-      println(v)
-
-      val queue = fs2.async.unboundedQueue[Task,Agent]
-      val thing = Stream.eval(queue) flatMap { queue =>
-        val wsInstream = websocketStream.createAgentWsQueue(queue)
-        Stream.eval(wsInstream).mergeDrainL(queue.dequeue.through(sink))
-      }
-      thing.run.unsafeRunAsync( _ => () )
+    val visualizeWfButton = button("visualize waveforms").render
+    visualizeWfButton.onclick = (_: MouseEvent) => {
+      println("visualize waveform button clicked")
+      frontIO.startWaveformStream(visualizerCanvas)
     }
 
 
 
+    document.getElementById("playground").appendChild(startSHODANButton)
+    document.getElementById("playground").appendChild(connectAgentButton)
+    document.getElementById("playground").appendChild(visualizeAgentButton)
+    document.getElementById("playground").appendChild(connectWfButton)
+    document.getElementById("playground").appendChild(visualizeWfButton)
 
-    dom.document.getElementById("playground").appendChild(aButton)
+    document.getElementById("playground").appendChild(agentCanvas)
+    document.getElementById("playground").appendChild(visualizerCanvas)
 
-    val cantvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-    val renderer2 =
-      cantvas2.getContext("2d")
-        .asInstanceOf[dom.CanvasRenderingContext2D]
-
-    val canvasControl2 = new com.cyborg.waveformVisualizer.WFVisualizerControl(cantvas2)
-
-    document.getElementById("playground").appendChild(cantvas2)
 
   }
 }

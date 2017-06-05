@@ -35,7 +35,7 @@ object ffGA {
 
   // Generates a new set of neural networks, no guarantees that they'll be any good...
   def generate(seed: ScoredSeq[FeedForward[Double]]): List[FeedForward[Double]] = {
-    println("generate pipes")
+    // println("generate pipes")
     val freak = mutate(seed.randomSample(1).repr.head._2)
     val rouletteScaled = seed.sort.rouletteScale
     val selectedParents = seed.randomSample(2)
@@ -55,7 +55,7 @@ object ffGA {
       {
         h.awaitN(pipesPerGeneration,false) flatMap {
           case(chunks,h) => {
-            println("experiment batch pipe firing")
+            // println("experiment batch pipe firing")
             val folded = chunks.foldLeft(List[Double]())(_++_.toList).zip(previous)
             val asScored = ScoredSeq(folded.toVector)
             val nextPop = generate(asScored)

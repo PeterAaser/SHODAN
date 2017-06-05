@@ -27,16 +27,28 @@ object frontHTTPclient {
   val phoneHome = "129.241.201.110"
   val SHODANport = 9998 // we're not an open server, so we don't use the regular http port.
 
-
-  def pingShodanServer: Task[Unit] = {
+  def startShodanServer: Task[Unit] = {
     val req = new dom.XMLHttpRequest()
-    req.open("POST",
-             "http://127.0.0.1:9998/"
-    )
-    req.setRequestHeader("Access-Control-Allow-Origin", "*")
-    Task.delay{
-      req.send()
-    }
+    req.open("POST", "http://127.0.0.1:9998/connect")
+    Task.delay{ req.send() }
+  }
+
+  def stopShodanServer: Task[Unit] = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:9998/stop")
+    Task.delay{ req.send() }
+  }
+
+  def startAgentServer: Task[Unit] = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:9998/agent")
+    Task.delay{ req.send() }
+  }
+
+  def startWfServer: Task[Unit] = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:9998/wf")
+    Task.delay{ req.send() }
   }
 
 

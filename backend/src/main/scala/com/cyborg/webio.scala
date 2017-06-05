@@ -24,8 +24,8 @@ object wsIO {
   import sharedImplicits._
 
   // hardcoded
-  val serverPort = 9090
-  val textPort = 9091
+  val textPort = 9090
+  val dataPort = 9091
   val agentPort = 9092
 
 
@@ -53,14 +53,6 @@ object wsIO {
   }
 
 
-  def agentWsPipe[F[_]:Async](inStream: Stream[F,Agent]):
-      Pipe[F, Frame[Int], Frame[Agent]] = { inbound =>
-
-    val output = inStream.map(Frame.Binary.apply)
-    inbound.mergeDrainL(output)
-  }
-
-
   /**
     Creates a ws server for an agent and attaches it as an observer
     */
@@ -68,11 +60,26 @@ object wsIO {
     val sink: Sink[Task,Agent] = s => {
       Stream.eval(wsSendOnlyServer(s, agentPort))
     }
-    pipe.observeAsync(s, 100)(sink)
+    pipe.observeAsync(s, 100000)(sink)
   }
 
 
-  // TODO find a more fitting place for this guy
+  /**
+    Creates a ws server for waveform data and attaches it as a consumer
+    Does a lot of assumptions, beware
+    */
+  def webSocketWaveformObserver: Pipe[Task,Int,Int] = s => {
+    val sink: Sink[Task,Int] = s => {
+      val downsampled = s
+        .through(graphDownSampler(blockSize))
+        .through(utilz.vectorize(1000))
+        .through(_.map( λ => { println("nice meme"); λ } ))
+
+      Stream.eval(wsSendOnlyServer[Task,Vector[Int]](downsampled, dataPort))
+    }
+    pipe.observeAsync(s, 100000)(sink)
+  }
+
 
   // hardcoded
   val vizHeight = 60
@@ -80,7 +87,8 @@ object wsIO {
   val pointsPerSec = 40000
   val scalingFactor = 2000
 
-  val blockSize = pointsPerSec/vizLength
+  // val blockSize = pointsPerSec/vizLength
+  val blockSize = 2000
   /**
     Downsamples a dataStream such that it can fill a waveForm of vizLength pixels
     blockSize is the amount of datapoints needed to fill a single pixel.
@@ -90,11 +98,11 @@ object wsIO {
     */
   // Currently lets through 200 per 40k
   def graphDownSampler[F[_]](blockSize: Int): Pipe[F,Int,Int] = {
+    println(s"downsampler uses blocksize $blockSize")
     def go: Handle[F,Int] => Pull[F,Int,Unit] = h => {
       h.awaitN(blockSize) flatMap {
         case (chunks, h) => {
           val waveform = chunks.map(_.toList).flatten
-          // "Fixes" annoying deserialize issue
           val smallest = waveform.map(λ => if (λ > 100000) 0 else λ).min
           val largest = waveform.max
           Pull.output1(if (math.abs(smallest) < largest) largest else smallest) >> go(h)

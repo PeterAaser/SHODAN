@@ -18,8 +18,8 @@ object websocketStream {
   import frontendImplicits._
 
   // hardcoded
-  val rawDataPort = 9090
-  val textPort = 9091
+  val textPort = 9090
+  val rawDataPort = 9091
   val agentPort = 9092
 
   val wsProtocol = "ws"
@@ -28,19 +28,19 @@ object websocketStream {
   val agentWsUri = s"$wsProtocol://127.0.0.1:$agentPort"
 
 
-  def createWsQueue(queue: fs2.async.mutable.Queue[Task,Vector[Int]]): Task[Unit] = {
+  def createWaveformWsQueue(queue: fs2.async.mutable.Queue[Task,Vector[Int]]): Task[Unit] = {
 
     val webSocketTask = {
       val task = fs2.Task.delay {
 
-        println("creating new websocket")
+        println(s"creating new waveform websocket with $rawDataWsUri")
         val ws = new WebSocket(rawDataWsUri)
         println(s"created $ws")
-        println(ws.url)
+        println(s"ws url was ${ws.url}")
 
 
         ws.onopen = (event: Event) => {
-          println("opening WebSocket. YOLO")
+          println("opening waveform WebSocket. YOLO")
         }
 
         ws.binaryType = "arraybuffer"
@@ -63,13 +63,13 @@ object websocketStream {
     val webSocketTask = {
       val task = fs2.Task.delay {
 
-        println("creating new websocket")
+        println(s"creating new agent websocket with $agentWsUri")
         val ws = new WebSocket(agentWsUri)
         println(s"created $ws")
-        println(ws.url)
+        println(s"ws url was ${ws.url}")
 
         ws.onopen = (event: Event) => {
-          println("opening WebSocket. YOLO")
+          println("opening agent WebSocket. YOLO")
         }
 
         ws.binaryType = "arraybuffer"
@@ -84,24 +84,5 @@ object websocketStream {
       task
     }
     webSocketTask
-  }
-
-
-  def drawChannelStreams(channels: Int, controller: waveformVisualizer.WFVisualizerControl): Task[Unit] = {
-
-    val queueTask = fs2.async.unboundedQueue[Task,Vector[Int]]
-    val drawTask: Stream[Task,Unit] = Stream.eval(queueTask) flatMap ( queue =>
-      {
-        // enqueue data
-        val enqueueTask = createWsQueue(queue)
-
-        // hardcoded
-        val channelStreams = utilz.alternator(queue.dequeue, 4, 60, 1000)
-        val mapped = channelStreams.flatMap(
-          streams => controller.gogo[Task](streams.map(_.through(utilz.chunkify)).toList))
-
-        Stream.eval(enqueueTask) merge mapped
-      })
-    drawTask.run
   }
 }

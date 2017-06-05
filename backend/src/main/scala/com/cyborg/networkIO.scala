@@ -54,56 +54,10 @@ object networkIO {
   }
 
 
-  def streamSelectChannels[F[_]:Async](sink: Sink[F,Byte], stream: Stream[F,Byte]): F[Unit] = {
+  def streamSelectChannels[F[_]:Async](sink: Sink[F,Byte]): F[Unit] = {
     val throughSink = socketStream[F](selectChannelsPort) flatMap { socket =>
-      socket.reads(1024*1024).through(sink) merge
-      stream.through(socket.writes())
+      socket.reads(1024*1024).through(sink)
     }
     throughSink.run
-  }
-
-
-  def rawDataStream(socket: Socket[Task]): Stream[Task,Int] =
-    socket.reads(1024*1024)
-      .through(utilz.bytesToInts)
-
-
-  def decodeChannelStreams(dataStream: Stream[Task,Int], segmentLength: Int, nChannels: Int = 60): Stream[Task,Vector[Stream[Task,Int]]] =
-    utilz.alternator(dataStream, segmentLength, nChannels, 1000)
-
-}
-
-object namedACG {
-
-  /**
-    Lifted verbatim from fs2 tests.
-    I have no idea what it does, but it makes stuff work...
-    */
-
-  import java.nio.channels.AsynchronousChannelGroup
-  import java.lang.Thread.UncaughtExceptionHandler
-  import java.nio.channels.spi.AsynchronousChannelProvider
-  import java.util.concurrent.ThreadFactory
-  import java.util.concurrent.atomic.AtomicInteger
-
-  def namedACG(name:String):AsynchronousChannelGroup = {
-    val idx = new AtomicInteger(0)
-    AsynchronousChannelProvider.provider().openAsynchronousChannelGroup(
-      16
-        , new ThreadFactory {
-        def newThread(r: Runnable): Thread = {
-          val t = new Thread(r, s"fs2-AG-$name-${idx.incrementAndGet() }")
-          t.setDaemon(true)
-          t.setUncaughtExceptionHandler(
-            new UncaughtExceptionHandler {
-              def uncaughtException(t: Thread, e: Throwable): Unit = {
-                println("----------- UNHANDLED EXCEPTION ---------")
-                e.printStackTrace()
-              }
-            })
-          t
-        }
-      }
-    )
   }
 }

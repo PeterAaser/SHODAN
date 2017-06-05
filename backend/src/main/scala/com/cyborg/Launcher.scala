@@ -12,7 +12,7 @@ object Launcher {
 
     // mainLoop.outerT.unsafeRun()
     // server.startServer.unsafeRun()
-    IO.runFromHttp(1000, List(3, 6, 9, 12)).unsafeRun()
+    staging.runFromHttp(1000, List(3, 6, 9, 12)).unsafeRun()
 
     println("wello")
 
