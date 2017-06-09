@@ -23,11 +23,7 @@ object wsIO {
   import backendImplicits._
   import sharedImplicits._
 
-  // hardcoded
-  val textPort = 9090
-  val dataPort = 9091
-  val agentPort = 9092
-
+  import params.webSocket._
 
   def wsSendOnlyPipe[F[_]:Async,I](inStream: Stream[F,I]):
       Pipe[F,Frame[Int],Frame[I]] = inbound =>
@@ -71,9 +67,9 @@ object wsIO {
   def webSocketWaveformObserver: Pipe[Task,Int,Int] = s => {
     val sink: Sink[Task,Int] = s => {
       val downsampled = s
-        .through(graphDownSampler(blockSize))
+        .through(graphDownSampler(params.waveformVisualizer.blockSize))
         .through(utilz.vectorize(1000))
-        .through(_.map( λ => { println("nice meme"); λ } ))
+        // .through(_.map( λ => { println("nice meme"); λ } ))
 
       Stream.eval(wsSendOnlyServer[Task,Vector[Int]](downsampled, dataPort))
     }
@@ -81,14 +77,6 @@ object wsIO {
   }
 
 
-  // hardcoded
-  val vizHeight = 60
-  val vizLength = 200
-  val pointsPerSec = 40000
-  val scalingFactor = 2000
-
-  // val blockSize = pointsPerSec/vizLength
-  val blockSize = 2000
   /**
     Downsamples a dataStream such that it can fill a waveForm of vizLength pixels
     blockSize is the amount of datapoints needed to fill a single pixel.

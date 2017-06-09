@@ -21,33 +21,54 @@ object spikeDetector {
   }
 
 
-  def spikeDetectorPipe[F[_]](period: Int, sampleRate: Int, threshold: Int): Pipe[F, Int, Int] = {
+  /**
+    operates on blocks of input of the size of a spike + refactory period (i.e input is blocked
+    such that the pipe is capable of outputting the max amount of spikes possible exactly)
 
-    val cooldown: Long = 100 // should be a function of sample rate
+    The spike detector feeds its output to a moving average pipe which ensures that the agent can
+    act somewhat consistantly inbetween detected spikes.
+    */
+  def spikeDetectorPipe[F[_]](sampleRate: Int, threshold: Int): Pipe[F, Int, Double] = s => {
 
-    // Rules for coalescing:
-    // If spiked, there is a cooldown until next time a spike may be triggered
-    // Might add more rules, who knows?
-    def coalescingPipe: Pipe[F, Int, Boolean] = {
-      def go(cd: Boolean): Handle[F, Boolean] => Pull[F, Boolean, Unit] = h => {
-        if(cd)
-          h.take(cooldown) flatMap { h => go(false)(h) }
-        else
-          h.takeThrough(λ => !λ) flatMap { h => go(true)(h) }
-      }
-      _.map(_ > threshold).pull(go(false))
-    }
+    import params.experiment._
 
+    val cooldown = (samplerate/maxSpikesPerSec) // should be a function of sample rate
 
-    def go: Handle[F,Boolean] => Pull[F,Int,Unit] = h => {
-      h.awaitN(period) flatMap {
-        case (chunks, h) =>
-          {
-            Pull.output1(chunks.map(_.foldLeft(0)((λ, µ) => {if(µ) λ + 1 else λ})).sum) >> go(h)
+    /**
+      spikeCooldownTimer: The refactory period between two spikes
+      windowTimer:        How much remains of the current window
+
+      the window must be the same length or shorter than the spike cooldown timer
+      */
+    def spikeDetector: Pipe[F, Boolean, Boolean] = {
+      def go(spikeCooldownTimer: Int): Handle[F, Boolean] => Pull[F, Boolean, Unit] = h => {
+        h.awaitN(cooldown) flatMap {
+          case (chunks, h) => {
+            val flattened = chunks.flatMap(_.toVector).toVector
+            val refactored = flattened.drop(spikeCooldownTimer)
+            val index = refactored.indexOf((λ: Boolean) => λ)
+            if (index == -1) {
+              // The case where none of the elements able to produce a spike triggered
+              // For scala/java interop legacy reasons we have to use -1 instead of Option
+              Pull.output1(false) >> go(0)(h)
+            }
+            else {
+              // The case where a spike was triggered after cooldown lifted. The next
+              // pull cooldown is calculated, and a spike is emitted
+              val nextCooldown = cooldown - (spikeCooldownTimer + index)
+              Pull.output1(true) >> go(nextCooldown)(h)
+            }
           }
+        }
       }
+      _.pull(go(0))
     }
 
-    _.through(coalescingPipe).pull(go)
+
+    s
+      .through(_.map(_ > threshold))
+      .through(spikeDetector)
+      .through(_.map(λ => (if(λ) 1 else 0)))
+      .through(utilz.fastMovingAverage(10))
   }
 }

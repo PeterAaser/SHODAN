@@ -15,6 +15,7 @@ object GApipes {
   import seqUtils._
   import genetics._
   import wallAvoid._
+  import params.GA._
 
   /**
     Sets up the actual experiment. Relies on three queues:
@@ -45,9 +46,6 @@ object GApipes {
 
       println("Looping")
 
-      //hardcoded
-      def evalFunc: Double => Double = x => x
-      val ticksPerEval = 200
 
       /**
         maps pipestream, a stream[pipe[ffIn,ffOut]],

@@ -1,6 +1,5 @@
 package com.cyborg
 
-import com.cyborg.params.NeuroDataParams
 import com.cyborg.wallAvoid.Agent
 import com.typesafe.config.ConfigFactory
 import fs2._
@@ -23,8 +22,7 @@ object staging {
 
   type agentFitnessFunction = Agent => Double
 
-  // hardcoded
-  val samplerate = 10000
+  import params.experiment._
 
 
   def GArun[F[_]:Async](
@@ -33,14 +31,8 @@ object staging {
     frontendAgentObservePipe: Pipe[F,Agent,Agent],
     channels: List[Int]): F[Unit] =
   {
-    // hardcoded
-    val MAGIC_PERIOD = 1000
-    val MAGIC_SAMPLERATE = 1000
-    val MAGIC_THRESHOLD = 1000
-    val pointsPerSweep = 1000
 
-    // hardcoded
-    val layout = List(2,3,2)
+    import params.filtering._
 
     val inputFilter = Assemblers.assembleInputFilter(channels)
     val spikes = meameReadStream.through(inputFilter)
@@ -56,7 +48,7 @@ object staging {
       .through(frontendAgentObservePipe)
       .through(_.map((λ: Agent) => {λ.distances}))
       .through(_.map(toStimFrequencyTransform))
-      // .through(_.map( λ => { println(λ); λ } ) )
+      //.through(utilz.printPipe(""))
       .through(text.utf8Encode)
 
     val memeTask = meme.through(meameWriteSink)

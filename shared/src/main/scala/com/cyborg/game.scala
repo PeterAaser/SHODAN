@@ -2,13 +2,7 @@ package com.cyborg
 
 object wallAvoid {
 
-  // hardcoded
-  val width = 10000.0
-  val height = 10000.0
-  val speed = 10.0
-  val turnRate = 0.01
-  val viewPoints = 4
-  val maxTurnRate = 0.01
+  import params.game._
 
   def compress(d: Double): Double =
     if (d > maxTurnRate)
@@ -72,7 +66,7 @@ object wallAvoid {
   val PI = 3.14
 
   def createChallenges: List[Agent] = {
-    //hardcoded
+
     val loc = Coord(7000.0, 5000.0)
     val firstAngle  = PI + PI/6.0
     val secondAngle = PI + PI/12.0

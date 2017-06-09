@@ -51,34 +51,6 @@ object utilz {
   }
 
 
-  /**
-    * Groups inputs in fixed size chunks by passing a "sliding window"
-    * of size `width` and with an overlap `stride` over them.
-    *
-    * @example {{{
-    * scala> Stream(1, 2, 3, 4, 5, 6, 7).stridedSliding(3, 1).toList
-    * res0: List[Vector[Int]] = List(Vector(1, 2, 3), Vector(3, 4, 5), Vector(5, 6, 7))
-    * }}}
-    * @throws scala.IllegalArgumentException if `n` <= 0
-    */
-
-  def stridedSlide[F[_],I](windowWidth: Int, overlap: Int): Pipe[F,I,Vector[I]] = {
-    require(windowWidth > 0,       "windowWidth must be > 0")
-    require(windowWidth > overlap, "windowWidth must be wider than overlap")
-    val stepsize = windowWidth - overlap
-    def go(last: Vector[I]): Handle[F,I] => Pull[F,Vector[I],Unit] = h => {
-      h.awaitN(stepsize, false).flatMap { case (chunks, h) =>
-        val window = chunks.foldLeft(last)(_ ++ _.toVector)
-        Pull.output1(window) >> go(window.drop(stepsize))(h)
-      }
-    }
-
-    _ pull { h => h.awaitN(windowWidth, false).flatMap { case (chunks, h) =>
-              // println(s"strided slide fillin up with $chunks")
-              val window = chunks.foldLeft(Vector.empty[I])(_ ++ _.toVector)
-              Pull.output1(window) >> go(window.drop(stepsize))(h)
-            }}
-  }
 
 
   def intsToBytes[F[_]]: Pipe[F, Int, Byte] = {
@@ -256,14 +228,71 @@ object utilz {
   }
 
 
-  /**
-    Attaches an observing queue to a stream of pipes
-    TODO actually implement this, currently just hardcoding it.
-   */ // 
-  def attachObserverQueue[F[_]:Async,I,O](pipes: Stream[F,Pipe[F,I,O]], queue: Queue[F,O]): Stream[F,Pipe[F,I,O]] = {
 
-    ???
+  /**
+    * Groups inputs in fixed size chunks by passing a "sliding window"
+    * of size `width` and with an overlap `stride` over them.
+    *
+    * @example {{{
+    * scala> Stream(1, 2, 3, 4, 5, 6, 7).stridedSliding(3, 1).toList
+    * res0: List[Vector[Int]] = List(Vector(1, 2, 3), Vector(3, 4, 5), Vector(5, 6, 7))
+    * }}}
+    * @throws scala.IllegalArgumentException if `n` <= 0
+    */
+
+  def stridedSlide[F[_],I](windowWidth: Int, overlap: Int): Pipe[F,I,Vector[I]] = {
+    require(windowWidth > 0,       "windowWidth must be > 0")
+    require(windowWidth > overlap, "windowWidth must be wider than overlap")
+    val stepsize = windowWidth - overlap
+    def go(last: Vector[I]): Handle[F,I] => Pull[F,Vector[I],Unit] = h => {
+      h.awaitN(stepsize, false).flatMap { case (chunks, h) =>
+        val window = chunks.foldLeft(last)(_ ++ _.toVector)
+        Pull.output1(window) >> go(window.drop(stepsize))(h)
+      }
+    }
+
+    _ pull { h => h.awaitN(windowWidth, false).flatMap { case (chunks, h) =>
+              // println(s"strided slide fillin up with $chunks")
+              val window = chunks.foldLeft(Vector.empty[I])(_ ++ _.toVector)
+              Pull.output1(window) >> go(window.drop(stepsize))(h)
+            }}
   }
+
+
+  def movingAverage[F[_]](windowSize: Int): Pipe[F,Int,Int] = s =>
+  s.through(pipe.sliding(windowSize)).through(_.map(_.foldLeft(0)(_+_)))
+
+
+  /**
+    A faster moving average, utilizing the fact that only the first and last element of the focus
+    neighbourhood decides the value of the focus
+    */
+  def fastMovingAverage[F[_]](windowWidth: Int): Pipe[F,Int,Double] = {
+
+    def go(window: Vector[Int]): Handle[F,Int] => Pull[F,Double,Unit] = h => {
+      h.receive {
+        (chunk, handle) => {
+          val stacked = ((window ++ chunk.toVector) zip (chunk.toVector)).map(λ => (λ._1 - λ._2))
+          val scanned = stacked.scanLeft(window.sum)(_+_).map(_.toDouble/windowWidth.toDouble)
+          Pull.output(Chunk.seq(scanned)) >> go(chunk.toVector.takeRight(windowWidth))(h)
+        }
+      }
+    }
+
+    _ pull { h => h.awaitN(windowWidth).flatMap { case (chunks, h) =>
+              val window = chunks.flatMap(_.toVector).toVector
+              Pull.output1(window.sum.toDouble/windowWidth.toDouble) >> go(window)(h)
+            }
+    }
+  }
+
+
+  def printPipe[F[_],I](message: String): Pipe[F,I,I] =
+    s => s.map( λ => { println(s"$message: $λ"); λ } )
+
+  def printWithFormat[F[_],I](printer: I => String): Pipe[F,I,I] =
+    s => s.map( λ => { println(printer(λ)); λ } )
+
 
 
   // TODO Not generalized

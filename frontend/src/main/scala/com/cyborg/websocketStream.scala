@@ -16,14 +16,10 @@ object websocketStream {
 
   import sharedImplicits._
   import frontendImplicits._
-
-  // hardcoded
-  val textPort = 9090
-  val rawDataPort = 9091
-  val agentPort = 9092
+  import params.webSocket._
 
   val wsProtocol = "ws"
-  val rawDataWsUri = s"$wsProtocol://127.0.0.1:$rawDataPort"
+  val rawDataWsUri = s"$wsProtocol://127.0.0.1:$dataPort"
   val textWsUri = s"$wsProtocol://127.0.0.1:$textPort"
   val agentWsUri = s"$wsProtocol://127.0.0.1:$agentPort"
 

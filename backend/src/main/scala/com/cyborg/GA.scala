@@ -20,21 +20,11 @@ object ffGA {
   import Filters.FeedForward._
   import seqUtils._
   import genetics._
-  import wallAvoid._
 
-  // >Hardcoded parameters
-  // >Typesafe config
-  // >Params from DB
-  // nice MEAME :^)
-
-  // hardcoded
-  val pipesPerGeneration = 6
-  val newPipesPerGeneration = 2
-  val newMutantsPerGeneration = 1
-  val pipesKeptPerGeneration = pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)
+  import params.GA._
 
   // Generates a new set of neural networks, no guarantees that they'll be any good...
-  def generate(seed: ScoredSeq[FeedForward[Double]]): List[FeedForward[Double]] = {
+  def generate(seed: ScoredSeq[FeedForward]): List[FeedForward] = {
     // println("generate pipes")
     val freak = mutate(seed.randomSample(1).repr.head._2)
     val rouletteScaled = seed.sort.rouletteScale
@@ -50,7 +40,7 @@ object ffGA {
   // the evaluations
   def experimentBatchPipe[F[_]](layout: List[Int]): Pipe[F,Double, Pipe[F,ffANNinput,ffANNoutput]] = {
 
-    def go(previous: List[FeedForward[Double]]):
+    def go(previous: List[FeedForward]):
                Handle[F,Double] => Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] = h =>
       {
         h.awaitN(pipesPerGeneration,false) flatMap {
@@ -66,7 +56,7 @@ object ffGA {
       }
 
 
-    def init(init: List[FeedForward[Double]]):
+    def init(init: List[FeedForward]):
         Handle[F,Double] => Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] = h =>
     {
       println("outputting some pipes :)")

@@ -7,8 +7,13 @@
 
 
 * Sist gang
-  Finn ut hvorfor socket prøver 9090 i stedet for 9092
+  Dokumenter spikeDetectorPipe som nå har:
+  moving average
+  spike cooldown timer
 
+  som viktigste medlem,
+  gjerne i params
+  
 * Database specification
 ** ER
    For each experiment
@@ -43,3 +48,10 @@
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
    
+
+* About neurons
+** Filtering
+   None of these assumptions have any sort of neurological basis, they're just assumed
+   in order to get a working prototype.
+
+   I assume maximum amount of spikes we're interested in recording is 50 per second

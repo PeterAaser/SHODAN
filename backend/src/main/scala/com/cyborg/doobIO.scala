@@ -100,9 +100,7 @@ object doobieTasks {
   // Inserts an experiment, creates a bunch of sinks
   def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
     val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
-      // Yes, not only is a hardcoded (wrong) date, it's also an attempt to handle dates and times
-      // in the experiment runner instead of, you know, letting the database handle it...
-      experimentId <- insertNewExperiment(Some("Test recording 15 april"))
+      experimentId <- insertNewExperiment(Some("Test recording $current date"))
       channelIds <- insertChannels(experimentId)
     } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
     sinks.transact(xa)

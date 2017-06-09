@@ -7,7 +7,7 @@ object genetics {
 
   val severity = 0.2
 
-  def mutate(ff: FeedForward[Double]): FeedForward[Double] = {
+  def mutate(ff: FeedForward): FeedForward = {
     val t1 = ff.bias.toArray
     val t2 = ff.weights.toArray
 
@@ -25,7 +25,7 @@ object genetics {
   }
 
 
-  def fugg(a: FeedForward[Double], b: FeedForward[Double]): (FeedForward[Double], FeedForward[Double]) = {
+  def fugg(a: FeedForward, b: FeedForward): (FeedForward, FeedForward) = {
     val aTempBias = a.bias.toArray
     val aTempWeight = a.weights.toArray
 

@@ -9,11 +9,7 @@ object waveformVisualizer {
 
   class WFVisualizerControl(canvas: html.Canvas) {
 
-    // hardcoded
-    val vizHeight = 60
-    val vizLength = 200
-    val pointsPerSec = 40000
-    val scalingFactor = 2000
+    import params.waveformVisualizer._
 
     canvas.width = vizLength*8
     canvas.height = vizHeight*8
@@ -94,7 +90,6 @@ object waveformVisualizer {
               val len = chunk.size
               val next = chunk.toVector ++ previous.dropRight(len)
 
-              // TODO Unfuckulate this
               println("drawSink is drawing now")
               Pull.output1({draw(next, imageData); drawMe; 1}) >> go(next)(h)
             }

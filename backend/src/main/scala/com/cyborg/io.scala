@@ -24,8 +24,7 @@ object IO {
   type SelectStreamHandler[F[_]] = Sink[F,Byte]
   type FeedbackStream[F[_]]      = Stream[F,Byte]
 
-  // hardcoded
-  val samplerate = 40000
+  import params.experiment._
 
 
   /**

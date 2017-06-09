@@ -15,10 +15,8 @@ object httpServer {
     */
 
   import backendImplicits._
+  import params.http.SHODANserver._
 
-  // hardcoded
-  val SHODANserverIP = "127.0.0.1"
-  val SHODANserverPort = 9998
   import java.net.InetSocketAddress
 
   val respondOk: Stream[Task,HttpResponse[Task]] =

@@ -18,46 +18,37 @@ object Assemblers {
     val conf = ConfigFactory.load()
     val experimentConf = conf.getConfig("experimentConf")
 
-    // val channels = experimentConf.getIntList("DAQchannels").toArray.toList
-    // val pointsPerSweep = experimentConf.getInt("sweepSize")
+    import params.filtering._
+    import params.experiment._
 
-    // hardcoded
-    val MAGIC_PERIOD = 1000
-    val MAGIC_SAMPLERATE = 1000
-    val MAGIC_THRESHOLD = 1000
-    val pointsPerSweep = 1000
 
-    val spikeDetectorPipe: Pipe[F, Int, Int] =
-      spikeDetector.spikeDetectorPipe(MAGIC_PERIOD, MAGIC_SAMPLERATE, MAGIC_THRESHOLD)
+    val spikeDetectorPipe: Pipe[F, Int, Double] =
+      spikeDetector.spikeDetectorPipe(samplerate, MAGIC_THRESHOLD)
 
     val neuronChannelsStream: Stream[F,Vector[Stream[F,Int]]] =
-      alternator(neuroStream, pointsPerSweep, channels.length, 10000)
+      alternator(neuroStream, segmentLength, channels.length, 10000)
 
 
     val spikeStream = neuronChannelsStream flatMap {
       streams: Vector[Stream [F,Int]] => {
 
-        println(channels)
-        println(channels.length)
-        println(streams)
-        println(streams.length)
-        val spikeChannels: Vector[Stream[F, Int]] = streams.toVector
+        val spikeChannels: Vector[Stream[F, Double]] = streams.toVector
           .map((λ: Stream[F,Int]) => λ.through(spikeDetectorPipe))
 
         val spikeTrains =
-          (Stream[F, Vector[Int]](Vector[Int]()).repeat /: spikeChannels){
-            (b: Stream[F, Vector[Int]], a: Stream[F, Int]) => b.zipWith(a){
+          (Stream[F, Vector[Double]](Vector[Double]()).repeat /: spikeChannels){
+            (b: Stream[F, Vector[Double]], a: Stream[F, Double]) => b.zipWith(a){
               (λ, µ) => µ +: λ
             }
           }
         spikeTrains
       }
     }
-    spikeStream.through(_.map(_.map(_.toDouble)))
+    spikeStream
   }
 
 
-  def assembleAgentPipe[F[_]: Async](ff: Filters.FeedForward[Double]): Pipe[F, ffANNinput, Agent] = ffInput => {
+  def assembleAgentPipe[F[_]: Async](ff: Filters.FeedForward): Pipe[F, ffANNinput, Agent] = ffInput => {
     val FF = Filters.ANNPipes.ffPipe[F](ff)
     val gamePipe = agentPipe.wallAvoidancePipe[F]()
 

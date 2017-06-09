@@ -60,6 +60,7 @@ lazy val backend = project.in(file("backend"))
   .dependsOn(sharedJVM)
   .settings(
     libraryDependencies ++= backendDeps.value,
+    fork in run := true,
     crossLibs(Compile),
 
     watchSources ++= (sourceDirectory in frontend).value.***.get

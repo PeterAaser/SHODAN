@@ -16,15 +16,10 @@ object httpClient {
 
   import backendImplicits._
 
-  // hardcoded
-  val ip = "129.241.201.110"
-  val port = "8888" // we're not an open server, so we don't use the regular http port.
+  import params.http.MEAMEclient._
+
   val baseUri = s"${ip}:${port}"
   val uri = Uri.http(ip, port=8888, path="/")
-
-  // hardcoded
-  val samplerate = 10000
-  val segmentLength = 100
 
   implicit val StringCodec = scodec.codecs.utf8_32
   import spinoco.fs2.http.body.BodyEncoder

@@ -15,8 +15,10 @@ object agentPipe {
   import com.cyborg.wallAvoid._
   import Agent._
 
-  val initAgent =
-    Agent(Coord(( wallAvoid.width/2.0), (wallAvoid.height/2.0)), 0.0, 90)
+  val initAgent = {
+    import params.game._
+    Agent(Coord(( width/2.0), ( height/2.0)), 0.0, 90)
+  }
 
 
   def wallAvoidancePipe[F[_]](init: Agent = initAgent): Pipe[F, ffANNoutput, Agent] = {
@@ -99,7 +101,7 @@ object agentPipe {
       )
     }
 
-    // Creates five (hardcoded) initial agents, each mapped to a pipe
+    // Creates five initial agents, each mapped to a pipe
     val challenges: List[Agent] = createChallenges
     val challengePipes: List[Pipe[F,ffANNoutput,Agent]] = challenges.map(challengeEvaluator(_))
 
@@ -151,7 +153,6 @@ object agentPipe {
       _.pull(go)
     }
 
-    // Creates five (hardcoded) initial agents, each mapped to a pipe
     val challenges: List[Agent] = createChallenges
     val challengePipes = challenges.map(challengeEvaluator(_))
 
