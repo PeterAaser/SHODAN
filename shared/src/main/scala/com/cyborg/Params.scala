@@ -82,13 +82,31 @@ object params {
   }
 
   object waveformVisualizer {
-    val vizHeight = 60
+
+    val vizHeight = 100
     val vizLength = 200
+    val canvasHeight = 8*vizLength
+    val canvasWidth = 8*vizLength
     val pointsPerSec = experiment.samplerate
-    val scalingFactor = 2000
-
     val blockSize = pointsPerSec/vizLength
-    // val blockSize = 2000
-  }
+    val reducedSegmentLength = experiment.segmentLength/blockSize
+    val maxVal = 3000
+    val wfMsgSize = 1200
+    val sixtyFPSrefreshRate = 17
+    val thirtyFPSrefreshRate = 33
+    val dataPointsReceivedPerSec = 60*(pointsPerSec/blockSize)
+    val wfMsgSentPerSecond = dataPointsReceivedPerSec/wfMsgSize
 
+    def printMe(): Unit = {
+      println("----[Wafeform stream parameters]----")
+      println(s"vizualizer height in pixels: $vizHeight")
+      println(s"vizualizer length in pixels: $vizLength")
+      println(s"\nIn order to fill one seconds worth of data in $vizLength pixels with a samplerate of $pointsPerSec")
+      println(s"One out $blockSize datapoints are needed\n")
+      println("By reducing the samplerate the segment length is reduced accordingly")
+      println(s"The reduced segment length is $reducedSegmentLength")
+      println(s"The web frontend receives ${dataPointsReceivedPerSec} datapoints per sec in total")
+      println(s"in the form of ${wfMsgSentPerSecond} messages per sec")
+    }
+  }
 }

@@ -10,6 +10,8 @@ object Launcher {
     params.experiment.printMe()
     println("\n\n----\n\n")
     params.filtering.printMe()
+    println("\n\n----\n\n")
+    params.waveformVisualizer.printMe()
     println("\n\n########################################")
     println("########################################")
     println("########################################")

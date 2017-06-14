@@ -30,7 +30,7 @@ object frontIO {
   /**
     Opens a websocket to get the hottest new Agent data
     */
-  def startAgentStream(cantvas: html.Canvas) = {
+  def startAgentStream(cantvas: html.Canvas): Task[Unit] = {
     val visualizerSink: Sink[Task,Agent] = Visualizer.visualizerControlSink[Task](cantvas)
 
     println("Creating agent visualizer")
@@ -40,27 +40,13 @@ object frontIO {
       val wsInStream = websocketStream.createAgentWsQueue(queue)
       Stream.eval(wsInStream).mergeDrainL(queue.dequeue.through(visualizerSink))
     }
-    request.run.unsafeRunAsync( _ => () )
+    request.run
   }
 
 
-  def startWaveformStream(cantvas: html.Canvas) = {
+  def startWaveformStream(cantvas: html.Canvas): Unit = {
 
-    val controller = new waveformVisualizer.WFVisualizerControl(cantvas)
-
-    println("Creating wf visualizer")
-    val queueTask = fs2.async.unboundedQueue[Task,Vector[Int]]
-    val request: Stream[Task,Unit] = Stream.eval(queueTask) flatMap { queue =>
-
-      val wsInStream = websocketStream.createWaveformWsQueue(queue)
-
-      val channelStreams = utilz.alternator(queue.dequeue, 4, 60, 1000)
-      val mapped =
-        channelStreams.flatMap(streams =>
-          controller.gogo[Task](streams.map(_.through(utilz.chunkify)).toList))
-
-        Stream.eval(wsInStream) merge mapped
-    }
-    request.run.unsafeRunAsync( _ => () )
+    val controller = new waveformVisualizer.WFVisualizerControl(cantvas, new scala.collection.mutable.Queue())
+    websocketStream.createWaveformWs(controller)
   }
 }

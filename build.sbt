@@ -39,12 +39,14 @@ lazy val SHODAN = project.in(file("."))
   .dependsOn(backend)
   .settings(
     publishArtifact := false,
+    fork in run := true,
     mainClass in Compile := Some("com.cyborg.Launcher")
   )
 
 
 lazy val shared = crossProject.crossType(CrossType.Pure).in(file("shared"))
   .settings(
+    fork in run := true,
     crossLibs(Provided)
   )
 
@@ -75,6 +77,7 @@ lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
   .settings(
     libraryDependencies ++= frontendDeps.value,
     crossLibs(Compile),
+    fork in run := true,
     jsDependencies ++= frontendJSDeps.value,
     persistLauncher in Compile := true
 

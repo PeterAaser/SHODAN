@@ -38,7 +38,7 @@ object testan extends js.JSApp {
     val visualizeAgentButton = button("visualize agent").render
     visualizeAgentButton.onclick = (_: MouseEvent) => {
       println("visualize button clicked")
-      frontIO.startAgentStream(agentCanvas)
+      frontIO.startAgentStream(agentCanvas).unsafeRunAsync( _ => () )
     }
 
     val connectWfButton = button("connect waveforms").render
@@ -53,6 +53,13 @@ object testan extends js.JSApp {
       frontIO.startWaveformStream(visualizerCanvas)
     }
 
+    val glButton = button("gl hf").render
+    glButton.onclick = (_: MouseEvent) => {
+      println("visualize waveform button clicked")
+      val aa = new webgltest.webgltestController(visualizerCanvas)
+      aa.test1()
+    }
+
 
 
     document.getElementById("playground").appendChild(startSHODANButton)
@@ -60,6 +67,7 @@ object testan extends js.JSApp {
     document.getElementById("playground").appendChild(visualizeAgentButton)
     document.getElementById("playground").appendChild(connectWfButton)
     document.getElementById("playground").appendChild(visualizeWfButton)
+    document.getElementById("playground").appendChild(glButton)
 
     document.getElementById("playground").appendChild(agentCanvas)
     document.getElementById("playground").appendChild(visualizerCanvas)

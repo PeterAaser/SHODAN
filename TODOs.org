@@ -7,12 +7,7 @@
 
 
 * Sist gang
-  Dokumenter spikeDetectorPipe som nå har:
-  moving average
-  spike cooldown timer
-
-  som viktigste medlem,
-  gjerne i params
+  Rydd opp visualizer. Seriøst
   
 * Database specification
 ** ER

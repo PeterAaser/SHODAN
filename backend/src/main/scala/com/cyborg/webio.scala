@@ -68,8 +68,7 @@ object wsIO {
     val sink: Sink[Task,Int] = s => {
       val downsampled = s
         .through(graphDownSampler(params.waveformVisualizer.blockSize))
-        .through(utilz.vectorize(1000))
-        // .through(_.map( λ => { println("nice meme"); λ } ))
+        .through(utilz.vectorize(params.waveformVisualizer.wfMsgSize))
 
       Stream.eval(wsSendOnlyServer[Task,Vector[Int]](downsampled, dataPort))
     }
@@ -82,18 +81,20 @@ object wsIO {
     blockSize is the amount of datapoints needed to fill a single pixel.
     Be careful to not run this on a muxed stream unless blockSize is a multiple of segment length
 
-    can be tuned if necessary
+    not very efficient, can be tuned if necessary
     */
-  // Currently lets through 200 per 40k
+
   def graphDownSampler[F[_]](blockSize: Int): Pipe[F,Int,Int] = {
     println(s"downsampler uses blocksize $blockSize")
     def go: Handle[F,Int] => Pull[F,Int,Unit] = h => {
-      h.awaitN(blockSize) flatMap {
-        case (chunks, h) => {
-          val waveform = chunks.map(_.toList).flatten
-          val smallest = waveform.map(λ => if (λ > 100000) 0 else λ).min
-          val largest = waveform.max
-          Pull.output1(if (math.abs(smallest) < largest) largest else smallest) >> go(h)
+      h.receive {
+        case (chunk, h) => {
+          val samples = (0 until chunk.size).indices.collect{
+            case i if i % blockSize == 0 => chunk(i)
+          }
+          h.push(Chunk.seq(chunk.toVector.takeRight(chunk.size % blockSize)))
+
+          Pull.output(Chunk.seq(samples)) >> go(h)
         }
       }
     }
