@@ -96,8 +96,6 @@ object Filters {
         bias: List[Double]
       , weights: List[List[Double]]
       , input: List[Double]
-    )(implicit ev: Numeric[Double]
-
     ): List[Double] = {
 
       val outputs = weights.map(λ => (λ zip input).map(λ => λ._1 * λ._2).sum)

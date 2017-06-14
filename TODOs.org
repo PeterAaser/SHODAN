@@ -1,3 +1,14 @@
+* TODO Investigate signal processing methods
+** Implementation
+*** Native libraries
+*** Matlab -> JVM
+*** Offload to FPGA
+**** Chisel!
+*** Offload to DSP
+
+** Theoretical
+*** Hør med Geir og Martinius
+
 * TODO Better DI
 ** TODO Figure out best practice for DI
 *** TODO Try out Free monad, ReaderWriter, or tagless final encoding (ps I have no fucking idea..)
@@ -5,10 +16,20 @@
    CLOSED: [2017-05-18 to. 16:54]
    Shitty version is in fact done
 
+* TODO Implement throttling streams
+* TODO Visualize spike detection
+* TODO Improve visualizers
+* TODO Rething user interaction
+* TODO Reimplement stimuli
+* TODO Refactor pipe assemblies again
+
+* TODO Better UX
+** Must be able to start/restart without refreshing webpage
+** MEAME2 must be able to handle all sorts of bullshit from the frontend
+** Robustness must be enforced, clicking two buttons to visualize is unacceptable
+
 
 * Sist gang
-  Rydd opp visualizer. Seriøst
-  
 * Database specification
 ** ER
    For each experiment
@@ -43,7 +64,7 @@
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
    
-
+   
 * About neurons
 ** Filtering
    None of these assumptions have any sort of neurological basis, they're just assumed

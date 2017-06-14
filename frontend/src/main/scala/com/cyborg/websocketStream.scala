@@ -43,36 +43,29 @@ object websocketStream {
       val bits: BitVector = BitVector(jsData2)
       val decoded = Codec.decode[Vector[Int]](bits).require
       controller.dataqueue.enqueue(decoded.value)
-      // controller.gogo(decoded.value)
     }
   }
 
 
-  def createAgentWsQueue(queue: fs2.async.mutable.Queue[Task,Agent]): Task[Unit] = {
+  def createAgentWsQueue(controller: Visualizer.VisualizerControl): Unit = {
 
-    val webSocketTask = {
-      val task = fs2.Task.delay {
 
-        println(s"creating new agent websocket with $agentWsUri")
-        val ws = new WebSocket(agentWsUri)
-        println(s"created $ws")
-        println(s"ws url was ${ws.url}")
+    println(s"creating new agent websocket with $agentWsUri")
+    val ws = new WebSocket(agentWsUri)
+    println(s"created $ws")
+    println(s"ws url was ${ws.url}")
 
-        ws.onopen = (event: Event) => {
-          println("opening agent WebSocket. YOLO")
-        }
-
-        ws.binaryType = "arraybuffer"
-        ws.onmessage = (event: MessageEvent) => {
-          val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
-          val jsData2 = TypedArrayBuffer.wrap(jsData)
-          val bits: BitVector = BitVector(jsData2)
-          val decoded = Codec.decode[Agent](bits).require
-          queue.enqueue1(decoded.value).unsafeRunAsync(a => ())
-        }
-      }
-      task
+    ws.onopen = (event: Event) => {
+      println("opening agent WebSocket. YOLO")
     }
-    webSocketTask
+
+    ws.binaryType = "arraybuffer"
+    ws.onmessage = (event: MessageEvent) => {
+      val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
+      val jsData2 = TypedArrayBuffer.wrap(jsData)
+      val bits: BitVector = BitVector(jsData2)
+      val decoded = Codec.decode[Agent](bits).require
+      controller.newestAgent = decoded.value
+    }
   }
 }

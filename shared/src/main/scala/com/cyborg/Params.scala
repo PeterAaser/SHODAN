@@ -4,9 +4,10 @@ package com.cyborg
 object params {
 
   object experiment {
-    val samplerate = 1000
+    val samplerate = 40000
     val segmentLength = 100
     val maxSpikesPerSec = 50
+    // val channels = List(3, 6, 9, 12)
 
     def printMe(): Unit = {
       println("----[Experiment params]----")
@@ -44,7 +45,10 @@ object params {
 
     val MAGIC_THRESHOLD = 1000
     val layout = List(2,3,2) // Layout of the neural network
-    val movingAverageRetention = 10
+    val movingAverageRetention = 10 // should depend on samplerate
+
+    val spikeCooldown = experiment.samplerate/experiment.maxSpikesPerSec
+
 
     def printNetworkLayout(): Unit = {
       layout.foreach { λ => print(s"[$λ]") }
@@ -57,6 +61,7 @@ object params {
       println(s"The current neural network layout is: ")
       printNetworkLayout()
       println(s"The input of to the neural network is the moving average of the last $movingAverageRetention spikes")
+      println(s"the 'cooldown' in samples between each possible spike is $spikeCooldown")
     }
 
   }
@@ -81,6 +86,19 @@ object params {
     val maxTurnRate = 0.01
   }
 
+
+  object gameVisualizer {
+    val sixtyFPSrefreshRate = 17
+    val thirtyFPSrefreshRate = 33
+
+    /**
+      Spike cooldown has a fairly important role for the visualizers since
+      it essentially decides how often a new agent is calculated as the agent
+      currently only moves on spike data
+      */
+    val agentMsgPerSec = experiment.maxSpikesPerSec
+  }
+
   object waveformVisualizer {
 
     val vizHeight = 100
@@ -90,7 +108,7 @@ object params {
     val pointsPerSec = experiment.samplerate
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
-    val maxVal = 3000
+    val maxVal = 600
     val wfMsgSize = 1200
     val sixtyFPSrefreshRate = 17
     val thirtyFPSrefreshRate = 33
@@ -108,5 +126,9 @@ object params {
       println(s"The web frontend receives ${dataPointsReceivedPerSec} datapoints per sec in total")
       println(s"in the form of ${wfMsgSentPerSecond} messages per sec")
     }
+  }
+  object selectWfVisualizer {
+    val vizHeight = 200
+    val vizLength = 1000
   }
 }

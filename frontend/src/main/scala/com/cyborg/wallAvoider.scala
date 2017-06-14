@@ -13,23 +13,9 @@ case class Point(x: Int, y: Int){
 
 object Visualizer {
 
-
-  def visualizerControlSink[F[_]](canvas: html.Canvas): Sink[F,Agent] = {
-
-    val vis = new VisualizerControl(canvas)
-
-    def go: Handle[F,Agent] => Pull[F,Unit,Unit] = { h =>
-      h.receive1 {
-        case (agent, h) => {
-          vis.update(agent)
-          go(h)
-        }
-      }
-    }
-    _.pull(go)
-  }
-
-  class VisualizerControl(canvas: html.Canvas) {
+  class VisualizerControl(
+    canvas: html.Canvas,
+    var newestAgent: Agent) {
 
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
@@ -132,6 +118,11 @@ object Visualizer {
       renderer.fillText(eyeString3, 200, 320)
       renderer.fillText(eyeString4, 200, 350)
       renderer.restore();
+    }
+
+
+    scalajs.js.timers.setInterval(40) {
+      run(newestAgent)
     }
 
     def run(agent: Agent): Unit = {

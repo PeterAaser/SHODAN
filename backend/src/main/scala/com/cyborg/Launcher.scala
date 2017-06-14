@@ -16,7 +16,8 @@ object Launcher {
     println("########################################")
     println("########################################")
 
-    staging.runFromHttp(1000, List(3, 6, 9, 12)).unsafeRun()
+    import params.experiment._
+    staging.runFromHttp(10000, List(3, 6, 9, 12)).unsafeRun()
 
     println("wello")
 

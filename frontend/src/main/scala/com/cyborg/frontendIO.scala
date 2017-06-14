@@ -2,7 +2,7 @@ package com.cyborg
 
 import fs2._
 import frontendImplicits._
-import wallAvoid.Agent
+import wallAvoid._
 import org.scalajs.dom.html
 
 object frontIO {
@@ -30,17 +30,10 @@ object frontIO {
   /**
     Opens a websocket to get the hottest new Agent data
     */
-  def startAgentStream(cantvas: html.Canvas): Task[Unit] = {
-    val visualizerSink: Sink[Task,Agent] = Visualizer.visualizerControlSink[Task](cantvas)
+  def startAgentStream(cantvas: html.Canvas): Unit = {
 
-    println("Creating agent visualizer")
-    val queueTask = fs2.async.unboundedQueue[Task,Agent]
-    val request = Stream.eval(queueTask) flatMap { queue =>
-
-      val wsInStream = websocketStream.createAgentWsQueue(queue)
-      Stream.eval(wsInStream).mergeDrainL(queue.dequeue.through(visualizerSink))
-    }
-    request.run
+    val controller = new Visualizer.VisualizerControl(cantvas, Agent(Coord(.0,.0),0,0))
+    websocketStream.createAgentWsQueue(controller)
   }
 
 

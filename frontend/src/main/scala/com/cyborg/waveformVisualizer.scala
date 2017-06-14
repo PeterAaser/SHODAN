@@ -1,8 +1,5 @@
 package com.cyborg
 
-import fs2._
-import fs2.util.Async
-
 import org.scalajs.dom
 import org.scalajs.dom.html
 
@@ -72,8 +69,10 @@ object waveformVisualizer {
 
     val groupSize = wfMsgSize/60
 
-    scalajs.js.timers.setInterval(40) {
-      println(dataqueue.size)
+    scalajs.js.timers.setInterval(70) {
+      if(dataqueue.size > 500){
+        println(dataqueue.size)
+      }
       if(!dataqueue.isEmpty){
         gogo(dataqueue.dequeue())
       }
@@ -115,7 +114,7 @@ object waveformVisualizer {
     def drawPixelArray(index: Int, idx: Int, idy: Int): Unit = {
 
       for(ii <- 0 until pixels(index).length){
-        renderer.fillRect(ii + (idx*vizLength*1.1), (idy + 2)*vizHeight*1.1, 1, pixels(index)(ii))
+        renderer.fillRect(ii + (idx*vizLength*2.0), (idy + 2)*vizHeight*2.0, 1, pixels(index)(ii))
       }
     }
 

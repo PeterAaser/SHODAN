@@ -32,7 +32,7 @@ object spikeDetector {
 
     import params.experiment._
 
-    val cooldown = (samplerate/maxSpikesPerSec) // should be a function of sample rate
+    val spikeCooldown = (samplerate/maxSpikesPerSec) // should be a function of sample rate
 
     /**
       spikeCooldownTimer: The refactory period between two spikes
@@ -42,7 +42,7 @@ object spikeDetector {
       */
     def spikeDetector: Pipe[F, Boolean, Boolean] = {
       def go(spikeCooldownTimer: Int): Handle[F, Boolean] => Pull[F, Boolean, Unit] = h => {
-        h.awaitN(cooldown) flatMap {
+        h.awaitN(spikeCooldown) flatMap {
           case (chunks, h) => {
             val flattened = chunks.flatMap(_.toVector).toVector
             val refactored = flattened.drop(spikeCooldownTimer)
@@ -55,7 +55,7 @@ object spikeDetector {
             else {
               // The case where a spike was triggered after cooldown lifted. The next
               // pull cooldown is calculated, and a spike is emitted
-              val nextCooldown = cooldown - (spikeCooldownTimer + index)
+              val nextCooldown = spikeCooldown - (spikeCooldownTimer + index)
               Pull.output1(true) >> go(nextCooldown)(h)
             }
           }

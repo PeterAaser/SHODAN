@@ -38,7 +38,7 @@ object testan extends js.JSApp {
     val visualizeAgentButton = button("visualize agent").render
     visualizeAgentButton.onclick = (_: MouseEvent) => {
       println("visualize button clicked")
-      frontIO.startAgentStream(agentCanvas).unsafeRunAsync( _ => () )
+      frontIO.startAgentStream(agentCanvas)
     }
 
     val connectWfButton = button("connect waveforms").render
