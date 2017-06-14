@@ -1,3 +1,11 @@
+* TODO general housecleaning
+** TODO GA
+** TODO IO
+** TODO subdividing
+** TODO "User area" removed from core logic
+** TODO Consider making SHODAN more library-like
+** TODO remove all instances of the word "meme"
+*** nice meme
 * TODO Investigate signal processing methods
 ** Implementation
 *** Native libraries
@@ -28,6 +36,7 @@
 ** MEAME2 must be able to handle all sorts of bullshit from the frontend
 ** Robustness must be enforced, clicking two buttons to visualize is unacceptable
 
+* TODO Add testing
 
 * Sist gang
 * Database specification
