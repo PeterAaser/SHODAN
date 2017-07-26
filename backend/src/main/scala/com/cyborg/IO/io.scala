@@ -15,8 +15,7 @@ object IO {
 
   import backendImplicits._
 
-  type ChannelStream[F[_],A]       = Stream[F,Vector[Stream[F,A]]]
-
+  type ChannelStream[F[_],A]     = Stream[F,Vector[Stream[F,A]]]
 
   // TODO these should be Option
   // then every function can take them as args and check if they exist
@@ -93,6 +92,12 @@ object IO {
 
   object IOmethods {
 
+    def trySomeKoolShit = {
+      val memeChannel = fs2.async.mutable.Topic[Task,Int](0)
+      memeChannel
+    }
+
+    // is this used? Should it?
     def channelSinkZipper[F[_]: Async](channelStreams: Stream[F,Vector[Stream[F,Int]]], sinks: F[List[Sink[F,Int]]]): F[Unit] = {
 
       val writeTaskStream = channelStreams flatMap {

@@ -73,81 +73,63 @@ object staging {
         ))
     }
 
-
-  def runFromHttp(
+  def runFromHttp2(
     segmentLength: Int,
     selectChannels: List[Int]
   ): Task[Unit] = {
 
     import httpCommands._
     val commandQueueTask: Task[Queue[Task,userCommand]] = fs2.async.unboundedQueue[Task,userCommand]
-
-    val configAndStartMEAMETask: Task[Option[Boolean]] =
-      httpClient.startMEAMEServer(samplerate, segmentLength, selectChannels)
-
     val wsAgentServerPipe: Pipe[Task,Agent,Agent] = wsIO.webSocketServerAgentObserver
+    def printStream(msg: String) = Stream.emit(Task.now(println(msg))).covary[Task]
 
-
-    def commandPipe: Pipe[Task,userCommand,Task[Unit]] = s => {
+    def commandPipe: Pipe[Task,userCommand, Task[Unit]] = s => {
       s flatMap { command =>
-        println(s"------Commandpipe received $command------")
-        command match {
+        printStream("---commandpipe received $command---") ++
+        (command match {
 
           case StartMEAME => {
-            println("------Starting MEAME------")
-            Stream.eval(configAndStartMEAMETask) flatMap {
-              ret => ret match
-              {
-                case None => Stream.empty
-                case Some(b) => {
-                  if(!b){
-                    println("MEAME returned negative")
-                    Stream.empty
-                  }
-                  else{
-                    println("MEAME returned positive")
-                    Stream.empty
-                  }
-                }
+            httpClient.startMEAMEServer2(samplerate, segmentLength, selectChannels) flatMap { resp =>
+              resp match {
+                case Left(errorMsg) => printStream("[ERROR]: $errorMsg")
+                case Right(_) => printStream("----starting MEAME----")
               }
             }
           }
 
           case AgentStart => {
-            println("------Starting Agent------")
+            printStream("------Starting Agent------") ++
             Stream.emit(launchGA(wsAgentServerPipe, selectChannels).run)
           }
 
           case StopMEAME => {
-            println("NYI, currently all is done in startMEAME...")
-            Stream.empty
+            printStream("NYI, currently all is done in startMEAME...")
           }
 
           case WfStart => {
-            println("------Starting WF------")
 
             val wfenqueued = networkIO.socketStream[Task](networkIO.allChannelsPort) flatMap { socket =>
-                val dataPipe: Pipe[Task,Int,Int] = wsIO.webSocketWaveformObserver
+              val dataPipe: Pipe[Task,Int,Int] = wsIO.webSocketWaveformObserver
 
               val enqs = socket.reads(1024*1024)
                 .through(utilz.bytesToInts)
                 .through(dataPipe)
 
-                enqs.drain
-              }
+              enqs.drain
+            }
+
+            printStream("------Starting WF------") ++
             Stream.emit(wfenqueued.run)
 
           }
 
           case ConfigureMEAME => {
-            println("NYI, currently all is done in startMEAME...")
-            Stream.empty
+            printStream("NYI, currently all is done in startMEAME...")
           }
           case _ => {
-            println("You fucked it up dude")
-            Stream.empty
+            printStream("You fucked it up dude")
           }
-        }
+        })
       }
     }
 
@@ -159,7 +141,7 @@ object staging {
         Stream.eval(httpServerTask) merge concurrent.join(5)(commands)
       }
     }
-
     doThing.run
   }
+
 }

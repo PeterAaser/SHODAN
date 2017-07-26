@@ -3,14 +3,17 @@ import sbt._
 
 object Dependencies {
   val doobieVersion = "0.4.1"
+  val fs2Version = "0.9.7"
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "com.typesafe" % "config" % "1.3.1",
-    "co.fs2" %%% "fs2-core" % "0.9.6",
-    "co.fs2" %% "fs2-io" % "0.9.6",
+
+    "co.fs2" %%% "fs2-core" % fs2Version,
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
-    "org.scodec" %%% "scodec-core" % "1.10.3"
+    "org.scodec" %%% "scodec-core" % "1.10.3",
+    "org.typelevel" %%% "cats" % "0.9.0"
+
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](
@@ -23,7 +26,7 @@ object Dependencies {
     "com.lihaoyi" %%% "scalatags" % "0.6.5",
 
 
-    "co.fs2" %%% "fs2-core" % "0.9.6",
+    "co.fs2" %%% "fs2-core" % fs2Version,
 
     "fr.hmil" %%% "roshttp" % "2.0.1"
   ))
@@ -38,8 +41,8 @@ object Dependencies {
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
 
-    "co.fs2" %% "fs2-core" % "0.9.6",
-    "co.fs2" %% "fs2-io" % "0.9.6",
+    "co.fs2" %% "fs2-core" % fs2Version,
+    "co.fs2" %% "fs2-io"   % fs2Version,
 
     "org.scalactic" %% "scalactic" % "3.0.0",
     "org.scalactic" %% "scalactic" % "3.0.0" % "test",

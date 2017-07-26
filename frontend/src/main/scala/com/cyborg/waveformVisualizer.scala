@@ -46,6 +46,16 @@ object waveformVisualizer {
       # # # # # # # #
         # # # # # #
 
+
+        _ _ o o _ _
+      _ x _ o o _ x _
+      _ _ _ o o _ _ _
+      o o o o o o o o
+      o o o o o o o o
+      _ _ _ o o _ _ _
+      _ x _ o o _ x _
+        _ _ o o _ _
+
       Some tuple rearranging, but conceptually simple, just follow the types
       */
 

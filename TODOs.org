@@ -1,11 +1,51 @@
+* TODO IO
+** DONE Investigate codebase IO and sketch out spec
+   120 min (35 min)
+   
+   Possibly add IO-Control for prettifying the whole http interface?
+   Currently I have large blocks of code in entrypoint doing rather arbitrary stuff.
+   
+   Ideally IO-Control should contain composable imperative blocks that can be strung
+   together using a free monad.
+   
+   All IO blocks should then either observe async, or consume a stream.
+   Possibly the IO block for starting MEAME should return two tokens (one-time use?)
+   that can be used to start a stream from either full channel or selective channel.
+
+   Seemingly we want to always go full channel, even for ANN input. It would be a good
+   idea to run some tests to see if the slowdown experienced was because of sync/async.
+   
+   A set of utils to attach and detach observers etc could be fairly useful.
+   In order to refactor IO a test-suite is getting pretty necessary, rather than
+   always testing manually.
+   Possibly a benchmarking tool should be used as well?
+
+   Decide if we want to go full DSL or not on experiment assembly
+   
+   Entrypoint should still be the staging area for the IO pipes, needing only to import
+   IO-Control
+
+** TODO String all that shit together in a free monad
+   ???
+   read the red book once more
+
+* TODO Add a goddamn test-suite
+** TODO Spec out what I actually want to test
+   30 min
+** TODO Make some reasonable cases
+   30 min
+** TODO explore mocked streaming
+** TODO explore streaming from DB 
+** TODO explore benchmarking
+   
 * TODO general housecleaning
 ** TODO GA
-** TODO IO
 ** TODO subdividing
 ** TODO "User area" removed from core logic
 ** TODO Consider making SHODAN more library-like
 ** TODO remove all instances of the word "meme"
 *** nice meme
+** TODO Refactor pipe assemblies again
 * TODO Investigate signal processing methods
 ** Implementation
 *** Native libraries
@@ -29,8 +69,7 @@
 * TODO Improve visualizers
 * TODO Rething user interaction
 * TODO Reimplement stimuli
-* TODO Refactor pipe assemblies again
-
+  reimplement? really?
 * TODO Better UX
 ** Must be able to start/restart without refreshing webpage
 ** MEAME2 must be able to handle all sorts of bullshit from the frontend
@@ -80,3 +119,7 @@
    in order to get a working prototype.
 
    I assume maximum amount of spikes we're interested in recording is 50 per second
+
+* QUEUE
+** Read the red book about free monads
+** Read the red book about scalatest

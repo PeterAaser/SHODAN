@@ -30,37 +30,31 @@ object httpServer {
     println("\ngot request:")
 
     if (request.path == Uri.Path / "connect"){
-      println("emmitting connect command")
       Stream.emit(StartMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "stop"){
-      println("emitting stop command")
       Stream.emit(StopMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "start"){
-      println("emitting start command")
       Stream.emit(StartMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "agent"){
-      println("emitting agent command")
       Stream.emit(AgentStart).through(commands).mergeDrainL(
-      Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
+        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "wf"){
-      println("emitting wf command")
       Stream.emit(WfStart).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else {
-      println("no match")
       Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
     }
   }
