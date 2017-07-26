@@ -2,6 +2,7 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
+import fs2.async.mutable.Topic
 import fs2.util.Async
 import fs2.async.mutable.Queue
 
@@ -315,5 +316,50 @@ object utilz {
     val meme = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
     // println(memeString)
     meme
+  }
+
+  type dataSegment = (Vector[Int], Int)
+  type dataTopic = Topic[Task,dataSegment]
+
+  // Should take in a datasource and emit a list of topics, one per channel
+  def newIOmonstrosity(source: Stream[Task,Int])(implicit s: Strategy): Stream[Task,List[Topic[Task,dataSegment]]] = {
+    import params.experiment._
+
+    val topicTask: Task[dataTopic] = fs2.async.topic[Task,dataSegment]((Vector.empty,0))
+
+    // creates a stream with a list of topics of dataSegment
+    val topicStream = (Stream[Task,List[dataTopic]]() /: (0 to 60)){
+      (acc: Stream[Task,List[dataTopic]], _) => {
+        for {
+          a <- acc
+          b <- Stream.eval(topicTask)
+        } yield b :: a
+      }
+    }
+
+    // Ideally should take a bunch of topics and an input source and blast that shit loud yo
+    def publishPipe(topics: List[dataTopic]): Sink[Task,Int] = h => {
+      def loop(segmentId: Int, topics: List[dataTopic]): Handle[Task,Int] => Pull[Task,Task[Unit],Unit] = h => {
+        h.awaitN(segmentLength*totalChannels, false) flatMap {
+          case (chunks, h) => {
+            val flattened = Chunk.concat(chunks).toVector
+            val grouped = flattened.grouped(segmentLength)
+            val stamped = grouped.map((_,segmentId)).toList
+            val broadCasts = stamped.zip(topics).map{
+              case(segment, topic) => topic.publish1(segment)
+            }
+
+            // TODO when fs2 cats integration hits traverse broadcasts and use Pull.eval
+            Pull.output(Chunk.seq(broadCasts)) >> loop(segmentId + 1, topics)(h)
+          }
+        }
+      }
+      concurrent.join(totalChannels)(h.pull(loop(0, topics)).map(Stream.eval))
+    }
+
+    // Should ideally emit a list of topics doing their thing
+    topicStream flatMap { topics =>
+      source.through(publishPipe(topics)).mergeDrainL(Stream.emit(topics))
+    }
   }
 }
