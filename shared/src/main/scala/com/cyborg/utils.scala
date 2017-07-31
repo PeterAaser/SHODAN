@@ -6,6 +6,9 @@ import fs2.async.mutable.Topic
 import fs2.util.Async
 import fs2.async.mutable.Queue
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.language.higherKinds
 
@@ -322,7 +325,8 @@ object utilz {
   type dataTopic = Topic[Task,dataSegment]
 
   // Should take in a datasource and emit a list of topics, one per channel
-  def newIOmonstrosity(source: Stream[Task,Int])(implicit s: Strategy): Stream[Task,List[Topic[Task,dataSegment]]] = {
+  // TODO take in a signal to show state? Or to reset?
+  def createBroadcaster(source: Stream[Task,Int])(implicit s: Strategy): Stream[Task,List[dataTopic]] = {
     import params.experiment._
 
     val topicTask: Task[dataTopic] = fs2.async.topic[Task,dataSegment]((Vector.empty,0))
@@ -361,5 +365,40 @@ object utilz {
     topicStream flatMap { topics =>
       source.through(publishPipe(topics)).mergeDrainL(Stream.emit(topics))
     }
+  }
+
+  def throttle[I](period: FiniteDuration)(implicit s: Strategy, t: Scheduler): Pipe[Task,I,I] = {
+
+    val throttler: Stream[Task,Unit] = {
+      val u = Task.now{ () }.schedule(period)
+      Stream.eval(u).repeat
+    }
+
+    val throttleQueueTask = fs2.async.circularBuffer[Task,Unit](10)
+
+    // Should now periodically input tokens to the throttle queue
+    val throttleStream: Stream[Task, Unit] =
+      Stream.eval(throttleQueueTask) flatMap { queue =>
+        val in = throttler.through(queue.enqueue)
+        val out = queue.dequeue
+        in.mergeDrainL(out)
+      }
+
+    s => s.zip(throttleStream).map(_._1)
+  }
+
+  /**
+    Takes a stream of lists of streams and converts it into a single stream
+    by selecting output from each input stream in a round robin fashion.
+
+    Not built for speed
+    */
+  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],I] = _.flatMap { streams =>
+    val spliced = (Stream[F,List[I]]().repeat /: streams){
+      (b: Stream[F,List[I]], a: Stream[F,I]) => b.zipWith(a){
+        (λ, µ) => µ :: λ
+      }
+    }
+    spliced through unpacker
   }
 }

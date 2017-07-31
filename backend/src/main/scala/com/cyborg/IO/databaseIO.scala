@@ -7,6 +7,9 @@ import scala.language.higherKinds
 
 object databaseIO {
 
+  /**
+    ???
+    */
   def arrayBreaker[F[_]](chunkSize: Int): Pipe[F,Array[Int], Int] = {
     def get: Handle[F,Array[Int]] => Pull[F,Int,Unit] = h => {
       h.receive1 {
@@ -26,29 +29,26 @@ object databaseIO {
     _.pull(get)
   }
 
-  // this method collects data on an array to array basis, but it dumps it all in a
-  // single stream so it must be re-alternated
-  // TODO it would be much more natural to deliver a list of streams as per above comments
-  def dbChannelStream(channels: List[Int], experimentId: Int): Stream[Task, Int] = {
-    val dbChannelStreams = Stream.eval(doobieTasks.selectChannelStreams(3, List(1, 2, 3)))
-    dbChannelStreams flatMap (channelStreamList =>
-      {
-        val unpacked: List[Stream[Task, Vector[Int]]] =
-          channelStreamList.map(_.through(arrayBreaker(512)).through(utilz.vectorize(1024*4)))
+  /**
+    Reads from the database, returning a stream of integers as if they were collected live.
+    This means we have to demux them all over.
+    */
+  def dbChannelStream(experimentId: Int): Stream[Task, Int] = {
 
-        val spliced: Stream[Task, Vector[Int]] =
-          (Stream[Task, Vector[Int]](Vector[Int]()).repeat /: unpacked){
-            (b: Stream[Task, Vector[Int]], a: Stream[Task, Vector[Int]]) => b.zipWith(a){
-              (λ, µ) => µ ++: λ
-            }
-          }
+    import params.experiment.segmentLength
 
-        val rechunked: Stream[Task, Int] =
-          spliced.through(utilz.chunkify)
+    // A list of streams from each channel
+    val dbChannelStreams: Stream[Task, List[Stream[Task, Array[Int]]]] =
+      Stream.eval(doobieTasks.doobieReaders.selectChannelStreams(experimentId, (0 to 60).toList))
 
-        rechunked
-      }
-    )
+    // An unpacking function breaking down huge pieces of database data
+    def unpack = (s: Stream[Task,Array[Int]]) =>
+      s.through(arrayBreaker(segmentLength)).through(utilz.vectorize(segmentLength))
+
+    dbChannelStreams
+      .map(_.map(_.through(unpack)))
+      .through(utilz.roundRobin)
+      .through(utilz.chunkify)
   }
 
 }

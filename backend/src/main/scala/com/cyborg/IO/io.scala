@@ -30,7 +30,7 @@ object IO {
     * For offline playback of data, select experiment id and a list of channels for playback
     */
   def streamFromDatabase(channels: List[Int], experimentId: Int): Stream[Task, Int] =
-    databaseIO.dbChannelStream(channels, experimentId)
+    databaseIO.dbChannelStream(experimentId)
 
 
   /**
@@ -40,35 +40,6 @@ object IO {
     println("-------------- NYI -------------")
     ???
   }
-
-
-  /**
-    * Stream raw data from a TCP socket
-    */
-  // def streamFromTCPraw: Stream[Task,Int] =
-  //   networkIO.socketStream[Task] flatMap ( socket =>
-  //     {
-  //       networkIO.rawDataStream(socket)
-  //     })
-
-
-  /**
-    * Stream raw data from a TCP socket, send data back as well
-    */
-  // def streamFromTCPraw2(program: ((Stream[Task,Int], Sink[Task,Byte]) => Task[Unit])): Task[Unit] = {
-  //   val disaster = networkIO.socketStream[Task] flatMap ( (socket: Socket[Task]) =>
-  //     {
-  //       val a = networkIO.rawDataStream(socket)
-  //       Stream.eval(program(a, socket.writes()))
-  //     })
-  //   disaster.run
-  // }
-
-
-  /**
-    * Creates database records and observes a stream, recording it to the database
-    */
-  def streamToDatabase: Task[Pipe[Task,Int,Int]] = ???
 
 
   /**
@@ -92,27 +63,14 @@ object IO {
 
   object IOmethods {
 
-    def trySomeKoolShit = {
-      val memeChannel = fs2.async.mutable.Topic[Task,Int](0)
-      memeChannel
+    def dbRead(exepirmentId: Int): Stream[Task, Int] = {
+
+      ???
     }
 
-    // is this used? Should it?
-    def channelSinkZipper[F[_]: Async](channelStreams: Stream[F,Vector[Stream[F,Int]]], sinks: F[List[Sink[F,Int]]]): F[Unit] = {
+  }
 
-      val writeTaskStream = channelStreams flatMap {
-        channels: Vector[Stream[F,Int]] => {
-          Stream.eval(sinks) flatMap {
-            sinks: List[Sink[F,Int]] => {
-              val a =
-                ((channels zip sinks)
-                   .map( { case (channel, sink) => channel.through(sink).drain } ))
 
-              Stream.emits(a)
-            }}}
-      }
-
-      concurrent.join(200)(writeTaskStream).drain.run
-    }
+  object IOactions {
   }
 }
