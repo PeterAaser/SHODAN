@@ -14,6 +14,13 @@ import scala.language.higherKinds
 
 object utilz {
 
+  type dataSegment = (Vector[Int], Int)
+  type dataTopic[F[_]] = Topic[F,dataSegment]
+  type meameDataTopic[F[_]] = List[Topic[F,dataSegment]]
+  type dbDataTopic[F[_]] = List[Topic[F,dataSegment]]
+  type Channel = Int
+
+
   /**
     *   Outputs a list of streams that divides stream input in a round
     *   robin fashion. Each output gets size elements before the next
@@ -171,18 +178,6 @@ object utilz {
   }
 
 
-  // TODO this thing has no reason to live other than being a bandaid.
-  def unpacker[F[_],I]: Pipe[F,Seq[I],I] = {
-    def go: Handle[F,Seq[I]] => Pull[F,I,Unit] = h => {
-      h.receive1 {
-        (v, h) => {
-          Pull.output(Chunk.seq(v)) >> go(h)
-        }
-      }
-    }
-    _.pull(go)
-  }
-
 
   /**
     Partitions a stream vectors of length n
@@ -321,52 +316,31 @@ object utilz {
     meme
   }
 
-  type dataSegment = (Vector[Int], Int)
-  type dataTopic = Topic[Task,dataSegment]
 
-  // Should take in a datasource and emit a list of topics, one per channel
-  // TODO take in a signal to show state? Or to reset?
-  def createBroadcaster(source: Stream[Task,Int])(implicit s: Strategy): Stream[Task,List[dataTopic]] = {
-    import params.experiment._
-
-    val topicTask: Task[dataTopic] = fs2.async.topic[Task,dataSegment]((Vector.empty,0))
-
-    // creates a stream with a list of topics of dataSegment
-    val topicStream = (Stream[Task,List[dataTopic]]() /: (0 to 60)){
-      (acc: Stream[Task,List[dataTopic]], _) => {
+  /**
+    Creates a list containing num topics of type T
+    Requires an initial message init.
+    */
+  def createTopics[F[_]: Async,T](num: Int, init: T): Stream[F,List[Topic[F,T]]] = {
+    val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
+    val topicStream = (Stream[F,List[Topic[F,T]]]() /: (0 to num)){
+      (acc: Stream[F,List[Topic[F,T]]], _) => {
         for {
           a <- acc
           b <- Stream.eval(topicTask)
         } yield b :: a
       }
     }
-
-    // Ideally should take a bunch of topics and an input source and blast that shit loud yo
-    def publishPipe(topics: List[dataTopic]): Sink[Task,Int] = h => {
-      def loop(segmentId: Int, topics: List[dataTopic]): Handle[Task,Int] => Pull[Task,Task[Unit],Unit] = h => {
-        h.awaitN(segmentLength*totalChannels, false) flatMap {
-          case (chunks, h) => {
-            val flattened = Chunk.concat(chunks).toVector
-            val grouped = flattened.grouped(segmentLength)
-            val stamped = grouped.map((_,segmentId)).toList
-            val broadCasts = stamped.zip(topics).map{
-              case(segment, topic) => topic.publish1(segment)
-            }
-
-            // TODO when fs2 cats integration hits traverse broadcasts and use Pull.eval
-            Pull.output(Chunk.seq(broadCasts)) >> loop(segmentId + 1, topics)(h)
-          }
-        }
-      }
-      concurrent.join(totalChannels)(h.pull(loop(0, topics)).map(Stream.eval))
-    }
-
-    // Should ideally emit a list of topics doing their thing
-    topicStream flatMap { topics =>
-      source.through(publishPipe(topics)).mergeDrainL(Stream.emit(topics))
-    }
+    topicStream
   }
 
+
+
+
+  /**
+    Periodically emits "tokens" to a queue. By zipping the output of the queue with a
+    stream and then discarding the token the stream will be throttled to the rate of token outputs.
+    */
   def throttle[I](period: FiniteDuration)(implicit s: Strategy, t: Scheduler): Pipe[Task,I,I] = {
 
     val throttler: Stream[Task,Unit] = {
@@ -393,12 +367,21 @@ object utilz {
 
     Not built for speed
     */
-  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],I] = _.flatMap { streams =>
+  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap { streams =>
     val spliced = (Stream[F,List[I]]().repeat /: streams){
       (b: Stream[F,List[I]], a: Stream[F,I]) => b.zipWith(a){
         (λ, µ) => µ :: λ
       }
     }
-    spliced through unpacker
+    spliced
+  }
+
+
+  /**
+    Synchronizes a list of streams, discarding segment ID
+    */
+  def synchronize[F[_]]: Pipe[F,List[Stream[F,dataSegment]], List[Stream[F,Vector[Int]]]] = {
+
+    ???
   }
 }

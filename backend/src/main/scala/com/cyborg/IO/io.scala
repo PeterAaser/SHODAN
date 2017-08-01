@@ -7,6 +7,9 @@ import fs2.util.Async
 import fs2.io.tcp._
 
 import wallAvoid.Agent
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration._
+import utilz._
 
 import scala.language.higherKinds
 
@@ -27,18 +30,25 @@ object IO {
 
 
   /**
-    * For offline playback of data, select experiment id and a list of channels for playback
+    * For offline playback of data, select experiment id to publish on provided topics
     */
-  def streamFromDatabase(channels: List[Int], experimentId: Int): Stream[Task, Int] =
-    databaseIO.dbChannelStream(experimentId)
+  def streamFromDatabase(experimentId: Int, topics: Stream[Task,dbDataTopic[Task]]): Stream[Task, Unit] = {
+    for {
+      experimentInfo <- databaseIO.getExperimentSampleRate(experimentId) // samplerate, not use atm
+      experimentData = databaseIO.dbChannelStream(experimentId)
+    } yield {
+      Assemblers.broadcastDataStream(experimentData, topics)
+    }
+  }
 
 
   /**
-    * Open a TCP connection to stream data from other other computer
+    * Open a TCP connection to stream data from other computer
+    * Data is broadcasted to provided topics
     */
-  def streamFromTCP(segmentLength: Int): Socket[Task] => ChannelStream[Task,Int] = {
-    println("-------------- NYI -------------")
-    ???
+  def streamFromTCP(topics: Stream[Task,meameDataTopic[Task]]): Stream[Task, Unit] = {
+    val experimentData = networkIO.streamAllChannels[Task]
+    Assemblers.broadcastDataStream(experimentData, topics)
   }
 
 
