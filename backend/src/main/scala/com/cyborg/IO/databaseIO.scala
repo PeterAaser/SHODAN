@@ -8,7 +8,7 @@ import scala.language.higherKinds
 object databaseIO {
 
   /**
-    ???
+    Breaks bigass database chunks into something more manageable
     */
   def arrayBreaker[F[_]](chunkSize: Int): Pipe[F,Array[Int], Int] = {
     def get: Handle[F,Array[Int]] => Pull[F,Int,Unit] = h => {
@@ -35,6 +35,7 @@ object databaseIO {
     */
   def dbChannelStream(experimentId: Int): Stream[Task, Int] = {
 
+    // This is OK because we only multiplex, thus segmentLength when recorded is irrelevant.
     import params.experiment.segmentLength
 
     // A list of streams from each channel
@@ -49,6 +50,10 @@ object databaseIO {
       .map(_.map(_.through(unpack)))
       .through(utilz.roundRobin)
       .through(utilz.chunkify)
+      .through(utilz.chunkify)
   }
+
+  def getExperimentSampleRate(experimentId: Int): Stream[Task,Int] =
+    doobieTasks.doobieReaders.getExperimentInfo(experimentId).map(_.sampleRate)
 
 }

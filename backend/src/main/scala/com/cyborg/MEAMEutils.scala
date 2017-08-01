@@ -29,7 +29,6 @@ object MEAMEutilz {
   val maxDistance: Double = sightRange
 
 
-
   val lnOf2 = scala.math.log(2) // natural log of 2
   def log2(x: Double): Double = scala.math.log(x) / lnOf2
 

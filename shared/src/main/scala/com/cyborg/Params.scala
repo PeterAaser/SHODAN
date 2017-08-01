@@ -4,6 +4,7 @@ package com.cyborg
 object params {
 
   object experiment {
+    val totalChannels = 60
     val samplerate = 40000
     val segmentLength = 100
     val maxSpikesPerSec = 50
@@ -40,6 +41,14 @@ object params {
       val SHODANserverPort = 9998
     }
   }
+
+  object TCP {
+    val ip = "129.241.201.110"
+    val port = 8899
+    val sendBufSize = 4096        // rather low bandwidth required for stimreqs
+    val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
+  }
+
 
   object filtering {
 

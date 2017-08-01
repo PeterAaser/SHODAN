@@ -25,8 +25,10 @@ object doobieTasks {
 
   case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
   case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
+  case class ExperimentParams(sampleRate: Int)
 
   object doobieReaders {
+
     def selectChannelStreams(experimentId: Int, channels: List[Int]): Task[List[Stream[Task,Array[Int]]]] = {
 
       def getChannels(experimentId: Int): ConnectionIO[List[ChannelRecording]] =
@@ -56,6 +58,11 @@ object doobieTasks {
 
       dbio.transact(xa)
     }
+
+    def getExperimentInfo(experimentId: Int): Stream[Task,ExperimentParams] =
+      Stream(ExperimentParams(40000))
+
+
   }
 
   object doobieWriters {
