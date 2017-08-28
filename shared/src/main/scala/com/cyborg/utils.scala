@@ -195,6 +195,22 @@ object utilz {
   }
 
 
+  /**
+    Partitions a stream vectors of length n
+    */
+  def vectorizeList[F[_],I](length: Int): Pipe[F,I,List[I]] = {
+    def go: Handle[F, I] => Pull[F,List[I],Unit] = h => {
+      h.awaitN(length, false).flatMap {
+        case (chunks, h) => {
+          val folded = chunks.foldLeft(List[I]())(_ ::: _.toList)
+          Pull.output1(folded) >> go(h)
+        }
+      }
+    }
+    _.pull(go)
+  }
+
+
   // TODO figure out if this is actually needed or not
   // Very likely not needed
   def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
@@ -311,9 +327,8 @@ object utilz {
 
     // Apparently scala cannot escape quotes in string interpolation.
     // This will eventually be assembled with a real JSON handler. TODO
-    val meme = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
-    // println(memeString)
-    meme
+    val jsonString = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
+    jsonString
   }
 
 
@@ -323,18 +338,13 @@ object utilz {
     */
   def createTopics[F[_]: Async,T](num: Int, init: T): Stream[F,List[Topic[F,T]]] = {
     val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
-    val topicStream = (Stream[F,List[Topic[F,T]]]() /: (0 to num)){
-      (acc: Stream[F,List[Topic[F,T]]], _) => {
-        for {
-          a <- acc
-          b <- Stream.eval(topicTask)
-        } yield b :: a
+    val topicStream: Stream[F,Topic[F,T]] = (Stream[F,Topic[F,T]]() /: (0 to num)){
+      (acc: Stream[F,Topic[F,T]], _) => {
+        Stream.eval(topicTask) ++ acc
       }
     }
-    topicStream
+    topicStream.through(utilz.vectorizeList(num))
   }
-
-
 
 
   /**
@@ -361,6 +371,7 @@ object utilz {
     s => s.zip(throttleStream).map(_._1)
   }
 
+
   /**
     Takes a stream of lists of streams and converts it into a single stream
     by selecting output from each input stream in a round robin fashion.
@@ -383,5 +394,35 @@ object utilz {
   def synchronize[F[_]]: Pipe[F,List[Stream[F,dataSegment]], List[Stream[F,Vector[Int]]]] = {
 
     ???
+  }
+
+
+  /**
+    Normally a pipe like this would be implemented in a much simpler fashion.
+    The reason for making a more low level implementation is that in many cases
+    you downsample for performance reasons, so if you can effectively downsample then
+    less optimized pipes downstream won't matter too much.
+    */
+  def downSamplePipe[F[_],I](blockSize: Int): Pipe[F,I,I] = {
+    def go(cutoffPoint: Int): Handle[F,I] => Pull[F,I,Unit] = h => {
+      h.receive {
+        case (chunk, h) => {
+
+          val sizeAfterCutoff = chunk.size - cutoffPoint
+          val numSamples = (sizeAfterCutoff / blockSize) + (if ((sizeAfterCutoff % blockSize) == 0) 0 else 1)
+          val indicesToSample = List.tabulate(numSamples)(λ => (λ*blockSize) + cutoffPoint)
+
+          // Calculates how many elements to drop from next chunk
+          val cutoffElements = (chunk.size - cutoffPoint) % blockSize
+          val nextCutOffPoint = (blockSize - cutoffElements) % blockSize
+
+          val samples = indicesToSample.map(chunk(_))
+
+
+          Pull.output(Chunk.seq(samples)) >> go(nextCutOffPoint)(h)
+        }
+      }
+    }
+    _.pull(go(0))
   }
 }
