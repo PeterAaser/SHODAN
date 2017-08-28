@@ -86,13 +86,19 @@ object doobieTasks {
       _.pull(go).flatMap{ λ: Task[Int] => Stream.eval_(λ) }
     }
 
+    def insertDataRecord(channelRecordingId: Long, data: Array[Int]): Task[Int] = {
+      sql"""
+      INSERT INTO datapiece (channelRecordingId, sample)
+      VALUES ($channelRecordingId, $data)
+    """.update.run.transact(xa)
+    }
 
-    def insertNewExperiment(comment: Option[String]): ConnectionIO[Long] = {
+    def insertNewExperiment(comment: Option[String]): Task[Long] = {
       val comment_ = comment.getOrElse("no comment")
-      for {
+      (for {
         _ <- sql"INSERT INTO experimentInfo (comment) VALUES ($comment_)".update.run
         id <- sql"select lastval()".query[Long].unique
-      } yield (id)
+      } yield (id)).transact(xa)
     }
 
     def insertChannel(experimentId: Long, channel: Int): ConnectionIO[Long] = {
@@ -102,18 +108,19 @@ object doobieTasks {
       } yield (id)
     }
 
-    def insertChannels(experimentId: Long): ConnectionIO[List[Long]] = {
+    // Inserts a bunch of channels to an experiment
+    def insertChannels(experimentId: Long): Task[List[Long]] = {
       val insertionTasks: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
-      insertionTasks.sequence
+      insertionTasks.sequence.transact(xa)
     }
 
     // Inserts an experiment, creates a bunch of sinks
-    def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
-      val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
-        experimentId <- insertNewExperiment(Some("Test recording $current date"))
-        channelIds <- insertChannels(experimentId)
-      } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
-      sinks.transact(xa)
-    }
+    // def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
+    //   val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
+    //     experimentId <- insertNewExperiment(Some("Test recording $current date"))
+    //     channelIds <- insertChannels(experimentId)
+    //   } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
+    //   sinks.transact(xa)
+    // }
   }
 }

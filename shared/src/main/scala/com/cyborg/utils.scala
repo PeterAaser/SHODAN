@@ -386,6 +386,18 @@ object utilz {
     }
   }
 
+  // TODO find out why this didn't work
+  // Likely has to do with nil element declaration not containing an empty list, but simply being
+  // an empty stream
+  def roundRobinOld[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap { streams =>
+    val spliced = (Stream[F,List[I]]().repeat /: streams){
+      (b: Stream[F,List[I]], a: Stream[F,I]) => b.zipWith(a){
+        (λ, µ) => µ :: λ
+      }
+    }
+    spliced
+  }
+
 
   /**
     Synchronizes a list of streams, discarding segment ID

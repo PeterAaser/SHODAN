@@ -43,7 +43,3 @@ object namedACG {
     )
   }
 }
-
-object dunnoLol {
-  val what = 99
-}

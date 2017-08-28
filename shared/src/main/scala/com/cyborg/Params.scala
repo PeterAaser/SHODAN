@@ -5,10 +5,9 @@ object params {
 
   object experiment {
     val totalChannels = 60
-    val samplerate = 40000
+    val samplerate = 1000
     val segmentLength = 100
     val maxSpikesPerSec = 50
-    // val channels = List(3, 6, 9, 12)
 
     def printMe(): Unit = {
       println("----[Experiment params]----")
@@ -84,6 +83,9 @@ object params {
 
     def evalFunc: Double => Double = x => x
     val ticksPerEval = 200 // How many ticks should each run last
+
+    val inputChannels = List(0,1,2)
+    val outputChannels = List(3,4,5)
   }
 
   object game {

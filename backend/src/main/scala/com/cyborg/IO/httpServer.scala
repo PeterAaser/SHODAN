@@ -30,26 +30,31 @@ object httpServer {
     println("\ngot request:")
 
     if (request.path == Uri.Path / "connect"){
+      println(s"connect")
       Stream.emit(StartMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "stop"){
+      println(s"stop")
       Stream.emit(StopMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "start"){
+      println(s"start")
       Stream.emit(StartMEAME).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "agent"){
+      println(s"agent")
       Stream.emit(AgentStart).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "wf"){
+      println(s"wf")
       Stream.emit(WfStart).through(commands).mergeDrainL(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
@@ -73,7 +78,12 @@ object httpCommands {
 
   case object AgentStart extends userCommand
   case object WfStart extends userCommand
+  case object StartWaveformVisualizer extends userCommand
 
   case object ConfigureMEAME extends userCommand
+
+  case class RunFromDB(experimentId: Int) extends userCommand
+  case class StoreToDB(comment: String) extends userCommand
+
 
 }

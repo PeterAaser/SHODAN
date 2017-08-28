@@ -77,7 +77,10 @@
 
 * TODO Add testing
 
-* Sist gang
+* Neste gang
+  Fikset tull med topics. Se på mainrunner, få httpServer back up
+  Tror det funker med st olavs data nå
+  
 * Database specification
 ** ER
    For each experiment
@@ -123,3 +126,25 @@
 * QUEUE
 ** Read the red book about free monads
 ** Read the red book about scalatest
+
+* TODO Unified source
+  Should gather up an entire segment. 
+  Inbetween each segment new queues may be added to the send queue.
+  
+  If the topic solution is used then each segment must have an identifier
+  in order to assure synchronization between topics. 
+  if I sub to topic 4, 5 and 9 with segments 445, 445 and 446 then I must
+  discard a segment from topic 4 and 5.
+
+  This doesn't matter for visualizing, but it's important for ANNs etc.
+  
+** Use case:
+*** Source arbitrates a connection, either to DB or to MEAME
+*** User starts visualizing 
+    From the source PoV this is just a bunch of (queue, channel) tuples
+*** User stops visualizing
+    The source must remove the now invalid queues
+*** Visualization is restarted
+    Same as first
+*** ???
+    

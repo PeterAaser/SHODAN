@@ -93,102 +93,17 @@ object httpClient {
     tryHttpWithError(client.request(_), stopDAQrequest, resp => s"stop DAQ failed with ${resp.header.status}")
 
 
-  def startMEAMEServer2(
-    samplerate: Int,
-    segmentLength: Int,
-    specialChannels: List[Int]): Stream[Task,Either[String,Unit]] =
+  def startMEAMEServer: Stream[Task,Either[String,Unit]] =
   {
+
+    import params.experiment._
+
     val clientTask: Task[HttpClient[Task]] = http.client[Task]()
     for {
       client <- Stream.eval(clientTask)
       _ <- sayHelloT(client)
-      _ <- connectDAQrequestT(samplerate, segmentLength, specialChannels, client)
+      _ <- connectDAQrequestT(samplerate, segmentLength, List(1,2,3), client)
       a <- startDAQrequestT(client)
     } yield a
   }
-
-
-  def startMEAMEServer(
-    samplerate: Int,
-    segmentLength: Int,
-    specialChannels: List[Int]): Task[Option[Boolean]] =
-  {
-
-    val clientTask: Task[HttpClient[Task]] = http.client[Task]()
-    val connectDAQrequest = createConnectDAQrequest[Task](samplerate, segmentLength, specialChannels)
-
-    val requestTask = clientTask flatMap { client =>
-      {
-        val requestTask = for {
-          _ <- client.request(sayHello)
-          confResponse  <- client.request(connectDAQrequest)
-          startResponse <- client.request(startDAQrequest)
-        }
-        yield
-        {
-          val ret =
-            (List(confResponse.header.status, startResponse.header.status)
-               .map(_ == HttpStatusCode.Ok).foldLeft(true)(_&&_))
-
-          println(s"MEAME responded with $ret")
-          ret
-        }
-        requestTask.runLast
-      }
-    }
-    requestTask
-  }
-
-  // object FreeHttpClient {
-
-  //   import cats.free.Free
-  //   import cats.free.Free.liftF
-  //   import cats.arrow.FunctionK
-  //   import cats.{Id, ~>}
-  //   import scala.collection.mutable
-  //   import cats.data.State
-
-  //   sealed trait HttpOp[A]
-  //   case object sayHello extends HttpOp[Either[String,Unit]]
-  //   case class connectDAQ(samplerate: Int,
-  //                         segmentLength: Int,
-  //                         selectChannels: List[Int]) extends HttpOp[Either[String,Unit]]
-  //   case object startDAQ extends HttpOp[Either[String,Unit]]
-  //   case object stopDAQ extends HttpOp[Either[String,Unit]]
-
-  //   type HttpClientAction[A] = Free[HttpOp,A]
-
-  //   def connectDAQrequest(
-  //     samplerate: Int,
-  //     segmentLength: Int,
-  //     selectChannels: List[Int]): HttpClientAction[Either[String,Unit]] =
-  //     liftF[HttpOp,Either[String,Unit]](connectDAQ(samplerate,segmentLength,selectChannels))
-
-  //   val sayHelloRequest: HttpClientAction[Either[String,Unit]] =
-  //     liftF[HttpOp,Either[String,Unit]](sayHello)
-
-  //   val startDAQrequest: HttpClientAction[Either[String,Unit]] =
-  //     liftF[HttpOp,Either[String,Unit]](startDAQ)
-
-  //   val stopDAQrequest: HttpClientAction[Either[String,Unit]] =
-  //     liftF[HttpOp,Either[String,Unit]](stopDAQ)
-
-
-  //   def HttpDoer: HttpClientAction ~> Task =
-  //     new (HttpClientAction ~> Task) {
-
-  //       val clientTask: Task[HttpClient[Task]] = http.client[Task]()
-
-  //       def apply[A](fa: HttpOp[A]): Task[A] =
-  //         fa match {
-  //           case connectDAQ(samplerate, segmentLength, selectChannels) =>
-  //             val req = createConnectDAQrequest[Task](samplerate, segmentLength, selectChannels)
-  //             val tmp = Stream.eval(clientTask) flatMap { client =>
-  //               val fug = client.request(req).runLast
-  //               ???
-  //             }
-  //             ???
-  //         }
-  //     }
-  // }
 }

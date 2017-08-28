@@ -24,6 +24,7 @@ object wsIO {
   import sharedImplicits._
 
   import params.webSocket._
+  import params.waveformVisualizer._
 
   def wsSendOnlyPipe[F[_]:Async,I](inStream: Stream[F,I]):
       Pipe[F,Frame[Int],Frame[I]] = inbound =>
@@ -52,28 +53,19 @@ object wsIO {
   /**
     Creates a ws server for an agent and attaches it as an observer
     */
-  def webSocketServerAgentObserver: Pipe[Task,Agent,Agent] = s => {
+  def webSocketServerAgentObserver: Sink[Task,Agent] = s => {
     val sink: Sink[Task,Agent] = s => {
       Stream.eval(wsSendOnlyServer(s, agentPort))
     }
-    pipe.observeAsync(s, 100000)(sink)
+    s.through(sink)
   }
 
 
   /**
     Creates a ws server for waveform data and attaches it as a consumer
-    Does a lot of assumptions, beware
     */
-  def webSocketWaveformObserver: Pipe[Task,Int,Int] = s => {
-    val sink: Sink[Task,Int] = s => {
-      val downsampled = s
-        .through(graphDownSampler(params.waveformVisualizer.blockSize))
-        .through(utilz.vectorize(params.waveformVisualizer.wfMsgSize))
-
-      Stream.eval(wsSendOnlyServer[Task,Vector[Int]](downsampled, dataPort))
-    }
-    pipe.observeAsync(s, 100000)(sink)
-  }
+  def webSocketWaveformSink[F[_]:Async](s: Stream[F,Vector[Int]]): Stream[F,Unit] =
+    Stream.eval(wsSendOnlyServer[F,Vector[Int]](s, dataPort))
 
 
   /**

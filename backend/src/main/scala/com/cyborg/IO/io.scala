@@ -32,13 +32,23 @@ object IO {
   /**
     * For offline playback of data, select experiment id to publish on provided topics
     */
-  def streamFromDatabase(experimentId: Int, topics: Stream[Task,dbDataTopic[Task]]): Stream[Task, Unit] = {
+  def streamFromDatabase(experimentId: Int, topics: dbDataTopic[Task]): Stream[Task, Unit] = {
     for {
-      experimentInfo <- databaseIO.getExperimentSampleRate(experimentId) // samplerate, not use atm
-      experimentData = databaseIO.dbChannelStream(experimentId)
+      experimentInfo <- databaseIO.dbReaders.getExperimentSampleRate(experimentId) // samplerate, not use atm
+      experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
     } yield {
       Assemblers.broadcastDataStream(experimentData, topics)
     }
+  }
+
+  /**
+    * Stream data to a database from a list of topics yada yada
+    */
+  def streamToDatabase(topics: dbDataTopic[Task], comment: String): Stream[Task, Unit] = {
+    for {
+      id <- eval(databaseIO.dbWriters.createExperiment(Some(comment)))
+      _ <- databaseIO.dbWriters.startRecording(topics, id)
+    } yield ()
   }
 
 
@@ -46,41 +56,15 @@ object IO {
     * Open a TCP connection to stream data from other computer
     * Data is broadcasted to provided topics
     */
-  def streamFromTCP(topics: Stream[Task,meameDataTopic[Task]]): Stream[Task, Unit] = {
+  def streamFromTCP(topics: meameDataTopic[Task]): Stream[Task, Unit] = {
     val experimentData = networkIO.streamAllChannels[Task]
     Assemblers.broadcastDataStream(experimentData, topics)
   }
 
 
   /**
-    * Reads a dump file from MEAME
+    * Open a TCP connection to stream stimuli requests to MEAME
     */
-  // TODO move implementation details
-  def meameDumpReader: ChannelStream[Task,Int] = {
-    val rawStream = fileIO.meameDumpReader[Task]
-    utilz.alternator(rawStream, 1024, 60, 1024)
-  }
+  def stimulusToTCP(stimuli: Stream[Task,String]): Stream[Task, Unit] = ???
 
-
-  /**
-    * Reads a flat file from MEAME
-    */
-  def meameDataReader(filename: String): ChannelStream[Task,Int] = {
-    val rawStream = fileIO.meameDataReader[Task](filename)
-    utilz.alternator(rawStream, 1024, 60, 1024)
-  }
-
-
-  object IOmethods {
-
-    def dbRead(exepirmentId: Int): Stream[Task, Int] = {
-
-      ???
-    }
-
-  }
-
-
-  object IOactions {
-  }
 }
