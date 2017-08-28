@@ -33,7 +33,6 @@ object utilz {
     def loop(activeQ: Int, qs: Vector[Queue[F,Vector[A]]]): Handle[F,A] => Pull[F,A,Unit] = h => {
       h.awaitN(segmentLength, false) flatMap {
         case (chunks, h) => {
-          log(())
           Pull.eval(qs(activeQ).enqueue1(chunks.flatMap(_.toVector).toVector)) >>
             loop(((activeQ + 1) % outputs), qs)(h)
         }
@@ -378,13 +377,13 @@ object utilz {
 
     Not built for speed
     */
-  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap { streams =>
-    val spliced = (Stream[F,List[I]]().repeat /: streams){
-      (b: Stream[F,List[I]], a: Stream[F,I]) => b.zipWith(a){
-        (λ, µ) => µ :: λ
-      }
+  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap {
+    streams => {
+      val nilStream = Stream( List[I]() ).covary[F].repeat
+      val zipped = streams.foldLeft(nilStream)((b: Stream[F,List[I]], a: Stream[F,I]) =>
+        b.zipWith(a)((λ, µ) => µ :: λ))
+      zipped
     }
-    spliced
   }
 
 
