@@ -14,7 +14,7 @@ import utilz._
 import scala.language.higherKinds
 
 
-object IO {
+object sIO {
 
   import backendImplicits._
 

@@ -3,7 +3,7 @@ import sbt._
 
 object Dependencies {
   val doobieVersion = "0.4.1"
-  val fs2Version = "0.9.7"
+  val fs2Version = "0.10.0-M6"
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "com.typesafe" % "config" % "1.3.1",
@@ -40,6 +40,8 @@ object Dependencies {
     "com.spinoco" %% "fs2-http" % "0.1.7",
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
+
+    "org.typelevel" %% "cats-effect" % "0.4",
 
     "co.fs2" %% "fs2-core" % fs2Version,
     "co.fs2" %% "fs2-io"   % fs2Version,

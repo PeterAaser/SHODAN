@@ -113,14 +113,5 @@ object doobieTasks {
       val insertionTasks: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
       insertionTasks.sequence.transact(xa)
     }
-
-    // Inserts an experiment, creates a bunch of sinks
-    // def setupExperimentStorage: Task[List[Sink[Task,Int]]] = {
-    //   val sinks: ConnectionIO[List[Sink[Task,Int]]] = for {
-    //     experimentId <- insertNewExperiment(Some("Test recording $current date"))
-    //     channelIds <- insertChannels(experimentId)
-    //   } yield (channelIds.zipWithIndex.map { case (id, i) => channelSink(i, id) })
-    //   sinks.transact(xa)
-    // }
   }
 }

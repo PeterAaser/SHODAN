@@ -47,7 +47,7 @@ object staging {
                 case Left(e) => println("error!")
                 case Right(_) => println("MEAME started")
               }
-              IO.streamFromTCP(meameTopics)
+              sIO.streamFromTCP(meameTopics)
             }
 
 
@@ -64,13 +64,13 @@ object staging {
 
           case RunFromDB(id) =>
             {
-              IO.streamFromDatabase(id, meameTopics)
+              sIO.streamFromDatabase(id, meameTopics)
             }
 
 
           case StoreToDB(comment) =>
             {
-              IO.streamToDatabase(meameTopics, comment)
+              sIO.streamToDatabase(meameTopics, comment)
             }
 
 
