@@ -29,6 +29,8 @@
    ???
    read the red book once more
 
+** TODO Add parser from MCS bullshit to SHODAN format
+** TODO Investigate separating database into its own separate entitiy.
 * TODO Add a goddamn test-suite
 ** TODO Spec out what I actually want to test
    30 min
@@ -40,12 +42,10 @@
    
 * TODO general housecleaning
 ** TODO GA
-** TODO subdividing
-** TODO "User area" removed from core logic
 ** TODO Consider making SHODAN more library-like
 ** TODO remove all instances of the word "meme"
 *** nice meme
-** TODO Refactor pipe assemblies again
+** DONE Refactor pipe assemblies again
 * TODO Investigate signal processing methods
 ** Implementation
 *** Native libraries
@@ -64,12 +64,10 @@
    CLOSED: [2017-05-18 to. 16:54]
    Shitty version is in fact done
 
-* TODO Implement throttling streams
+* DONE Implement throttling streams
 * TODO Visualize spike detection
 * TODO Improve visualizers
 * TODO Rething user interaction
-* TODO Reimplement stimuli
-  reimplement? really?
 * TODO Better UX
 ** Must be able to start/restart without refreshing webpage
 ** MEAME2 must be able to handle all sorts of bullshit from the frontend
@@ -78,8 +76,10 @@
 * TODO Add testing
 
 * Neste gang
-  Fikset tull med topics. Se på mainrunner, få httpServer back up
-  Tror det funker med st olavs data nå
+  Tulla masse med hdf5. Prøvde å muxe, men det er ikke noe vits, skal jo inn i en database
+  hvor ting ligger hver for seg...
+  
+  Kan vi bli kvitt channelRecordingId? Virker bare i veien...
   
 * Database specification
 ** ER

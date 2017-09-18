@@ -53,10 +53,6 @@ object staging {
 
           case AgentStart =>
             {
-              // Assemblers.plumbo(
-              //   meameTopics,
-              //   inputChannels
-              // )
               Assemblers.assembleGA(
                 meameTopics,
                 inputChannels,
@@ -80,6 +76,7 @@ object staging {
 
           case StartWaveformVisualizer =>
             {
+              println("Starting wf assembler")
               Assemblers.assembleWebsocketVisualizer[Task](meameTopics, pipe.id)
             }
 

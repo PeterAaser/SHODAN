@@ -375,7 +375,7 @@ object utilz {
     Takes a stream of lists of streams and converts it into a single stream
     by selecting output from each input stream in a round robin fashion.
 
-    Not built for speed
+    Not built for speed, at least not when chunksize is low
     */
   def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap {
     streams => {

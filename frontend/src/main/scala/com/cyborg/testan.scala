@@ -1,5 +1,6 @@
 package com.cyborg
 
+import fs2.async.mutable.Topic
 import org.scalajs.dom
 import org.scalajs.dom.html
 import scalajs.js
@@ -71,6 +72,10 @@ object testan extends js.JSApp {
 
     document.getElementById("playground").appendChild(agentCanvas)
     document.getElementById("playground").appendChild(visualizerCanvas)
+
+
+    // I have a stream of tokens from the user each corresponding to an action, often asynchronous.
+    //   What I want is to have a pipe that looks something like this:
 
 
   }
