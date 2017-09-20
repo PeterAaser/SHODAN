@@ -5,7 +5,7 @@ import Dependencies._
 name := "SHODAN"
 
 version in ThisBuild := "0.1.0-SNAPSHOT"
-scalaVersion in ThisBuild := "2.11.11"
+scalaVersion in ThisBuild := "2.12.3"
 organization in ThisBuild := "com.cyborg"
 crossPaths in ThisBuild := false
 scalacOptions in ThisBuild ++= Seq(

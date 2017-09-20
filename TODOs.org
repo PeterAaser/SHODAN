@@ -81,6 +81,8 @@
   
   Kan vi bli kvitt channelRecordingId? Virker bare i veien...
   
+  Migrerer til grønnere jaktmarker!
+  
 * Database specification
 ** ER
    For each experiment

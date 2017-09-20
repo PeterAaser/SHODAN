@@ -2,7 +2,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt._
 
 object Dependencies {
-  val doobieVersion = "0.4.1"
+  val doobieVersion = "0.5.0-M7"
   val fs2Version = "0.10.0-M6"
 
   val crossDeps = Def.setting(Seq[ModuleID](
@@ -12,16 +12,11 @@ object Dependencies {
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",
-    "org.typelevel" %%% "cats" % "0.9.0"
+    "org.typelevel" %%% "cats-core" % "1.0.0-MF"
 
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](
-    "com.github.japgolly.scalacss" %%% "core" % "0.5.0",
-    "com.github.japgolly.scalacss" %%% "ext-scalatags" % "0.5.0",
-    "org.singlespaced" %%% "scalajs-d3" % "0.3.4",
-    "com.lihaoyi" %%% "upickle" % "0.4.3",
-
     "org.scala-js" %%% "scalajs-dom" % "0.9.2",
     "com.lihaoyi" %%% "scalatags" % "0.6.5",
 
@@ -35,6 +30,7 @@ object Dependencies {
   ))
 
   val backendDeps = Def.setting(Seq[ModuleID](
+    "com.chuusai" %% "shapeless" % "2.3.2",
     "com.spinoco" %% "protocol-http" % "0.1.8",
     "com.spinoco" %% "protocol-websocket" % "0.1.8",
     "com.spinoco" %% "fs2-http" % "0.1.7",
@@ -49,9 +45,10 @@ object Dependencies {
     "org.scalactic" %% "scalactic" % "3.0.0",
     "org.scalactic" %% "scalactic" % "3.0.0" % "test",
 
-    "org.tpolecat" %% "doobie-core-cats"       % doobieVersion,
-    "org.tpolecat" %% "doobie-postgres-cats"   % doobieVersion,
-    "org.tpolecat" %% "doobie-specs2-cats"     % doobieVersion,
+
+    "org.tpolecat" %% "doobie-core"       % doobieVersion,
+    "org.tpolecat" %% "doobie-postgres"   % doobieVersion,
+    "org.tpolecat" %% "doobie-specs2"     % doobieVersion,
 
     "io.spray" %%  "spray-json" % "1.3.3",
     "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",

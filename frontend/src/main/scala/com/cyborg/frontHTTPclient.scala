@@ -2,7 +2,6 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
-import fs2.util.Async
 import fs2.util.syntax._
 
 import scala.language.higherKinds

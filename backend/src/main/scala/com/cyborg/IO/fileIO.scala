@@ -4,7 +4,6 @@ import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
 import fs2.concurrent
 
-import fs2.util.Async
 import java.io.File
 import java.nio.file.Paths
 import fs2.io.tcp._

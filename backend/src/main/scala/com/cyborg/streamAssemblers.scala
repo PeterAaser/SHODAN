@@ -2,11 +2,11 @@ package com.cyborg
 
 import com.cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.Queue
-import fs2.util.Async
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
-import com.typesafe.config._
 import utilz._
+import cats.effect.IO
+import cats.effect.Effect
 
 object Assemblers {
 
@@ -19,7 +19,7 @@ object Assemblers {
     detector, before aggregating spikes from each channel into ANN input vectors
     */
   // TODO rename to spike detector something?
-  def assembleInputFilter[F[_]:Async](
+  def assembleInputFilter[F[_]: Effect](
     broadcastSource: List[dataTopic[F]],
     channels: List[Channel],
     spikeDetector: Pipe[F,Int,Double]
@@ -37,7 +37,7 @@ object Assemblers {
       .map(_.through(chunkify))
       .map(_.through(spikeDetector))
 
-    Stream.emit(spikeChannels).through(roundRobin).map(_.toVector)
+    Stream.emit(spikeChannels).covary[F].through(roundRobin).map(_.toVector)
   }
 
 
@@ -45,34 +45,31 @@ object Assemblers {
     Takes a multiplexed dataSource and a list of topics.
     Demultiplexes the data and publishes data to all channel topics.
     */
-  def broadcastDataStream[F[_]:Async](
-    source: Stream[F,Int],
-    topics: List[dataTopic[F]]): Stream[F,Unit] =
-  {
+  def broadcastDataStream(
+    source: Stream[IO,Int],
+    topics: List[dataTopic[IO]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
-    var throttle = 0
     import params.experiment._
 
-    def publishSink(topics: List[dataTopic[F]]): Sink[F,Int] = h => {
-      def loop(segmentId: Int, topics: List[dataTopic[F]]): Handle[F,Int] => Pull[F,F[Unit],Unit] = h => {
-        h.awaitN(segmentLength*totalChannels, false) flatMap {
-          case (chunks, h) => {
-            if(throttle == 0)
-              println("broadcasting")
-            throttle = (throttle + 1) % 20
-            val flattened = Chunk.concat(chunks).toVector
-            val grouped = flattened.grouped(segmentLength)
+    def publishSink(topics: List[dataTopic[IO]]): Sink[IO,Int] = {
+      def loop(segmentId: Int, topics: List[dataTopic[IO]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
+        s.pull.unconsN(segmentLength*totalChannels.toLong, false) flatMap {
+          case Some((seg, tl)) => {
+            val grouped = seg.toVector.grouped(segmentLength)
             val stamped = grouped.map((_,segmentId)).toList
             val broadCasts = stamped.zip(topics).map{
               case(segment, topic) => topic.publish1(segment)
             }
 
             // TODO when fs2 cats integration hits traverse broadcasts and use Pull.eval
-            Pull.output(Chunk.seq(broadCasts)) >> loop(segmentId + 1, topics)(h)
+            // Pull.output(Chunk.seq(broadCasts)) >> loop(segmentId + 1, topics)(h)
+            import cats.implicits._
+
+            Pull.output(Segment.seq(broadCasts)) >> loop(segmentId + 1, topics, tl)
           }
         }
       }
-      concurrent.join(totalChannels)(h.pull(loop(0, topics)).map(Stream.eval))
+      in => loop(0, topics, in).stream.map(Stream.eval).join(totalChannels)
     }
 
     // Should ideally emit a list of topics doing their thing
@@ -84,7 +81,7 @@ object Assemblers {
     Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
     parametrized with the import params thing because db might have more or less channels
     */
-  def assembleTopics[F[_]:Async]: Stream[F,(dbDataTopic[F],meameDataTopic[F])] = {
+  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,(dbDataTopic[F],meameDataTopic[F])] = {
 
     // hardcoded
     val dbChannels = 60
@@ -99,23 +96,18 @@ object Assemblers {
         }
       }
     }
-
-    // for {
-    //   dbTopics <- createTopics[F,dataSegment](dbChannels, (Vector.empty[Int],-1))
-    //   meameTopics <- createTopics[F,dataSegment](meameChannels, (Vector.empty[Int],-1))
-    // } yield ((dbTopics, meameTopics))
   }
 
 
   /**
     Assembles a GA run from an input topic and returns a byte stream to MEAME
     */
-  def assembleGA[F[_]:Async](
+  def assembleGA[F[_]: Effect](
     dataSource: List[dataTopic[F]],
     inputChannels: List[Channel],
     outputChannels: List[Channel],
     frontendAgentObserver: Sink[F,Agent],
-    feedbackSink: Sink[F,Byte]): Stream[F,Unit] =
+    feedbackSink: Sink[F,Byte])(implicit ec: ExecutionContext): Stream[F,Unit] =
   {
 
     import params.experiment._

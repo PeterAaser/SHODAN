@@ -1,9 +1,10 @@
 package com.cyborg
 
 import cats._, cats.data._, cats.implicits._
+import cats.effect.IO
+
 import doobie.imports._
 import doobie.postgres.imports._
-import fs2.interop.cats._
 import fs2._
 
 import shapeless._
@@ -16,7 +17,7 @@ object doobieTasks {
 
   val superdupersecretPassword = ""
 
-  val xa = DriverManagerTransactor[Task](
+  val xa = Transactor.fromDriverManager[IO](
     "org.postgresql.Driver",
     "jdbc:postgresql:fug",
     "postgres",
@@ -29,7 +30,7 @@ object doobieTasks {
 
   object doobieReaders {
 
-    def selectChannelStreams(experimentId: Int, channels: List[Int]): Task[List[Stream[Task,Array[Int]]]] = {
+    def selectChannelStreams(experimentId: Int, channels: List[Int]): IO[List[Stream[IO,Array[Int]]]] = {
 
       def getChannels(experimentId: Int): ConnectionIO[List[ChannelRecording]] =
         sql"""
@@ -38,7 +39,7 @@ object doobieTasks {
        WHERE channelRecordingId = $experimentId
      """.query[ChannelRecording].list
 
-      def getChannelStream(recording: ChannelRecording): Stream[Task,Array[Int]] = {
+      def getChannelStream(recording: ChannelRecording): Stream[IO,Array[Int]] = {
         sql"""
        SELECT sample
        FROM datapiece
@@ -59,41 +60,39 @@ object doobieTasks {
       dbio.transact(xa)
     }
 
-    def getExperimentInfo(experimentId: Int): Stream[Task,ExperimentParams] =
+    def getExperimentInfo(experimentId: Int): Stream[IO,ExperimentParams] =
       Stream(ExperimentParams(40000))
-
-
   }
 
   object doobieWriters {
 
     // Creates a sink for a channel inserting DATAPIECES
-    def channelSink(channel: Int, channelRecordingId: Long): Sink[Task, Int] = {
-      def go: Handle[Task,Int] => Pull[Task,Task[Int],Unit] = h => {
-        h.awaitN(1024, false) flatMap {
-          case (chunks, h) => {
-            val folded = (chunks.foldLeft(Vector.empty[Int])(_ ++ _.toVector)).toArray
-            val insert: Task[Int] = {
+    def channelSink(channel: Int, channelRecordingId: Long): Sink[IO, Int] = {
+      def go(s: Stream[IO, Int]): Pull[IO, IO[Int], Unit] = {
+        s.pull.unconsN(1024, false) flatMap {
+          case Some((segment, tl)) => {
+            val folded = segment.toArray
+            val insert: IO[Int] = {
               sql"""
               INSERT INTO datapiece (channelRecordingId, sample)
               VALUES ($channelRecordingId, $folded)
             """.update.run.transact(xa)
             }
-            Pull.output1(insert) >> go(h)
+            Pull.output1(insert) >> go(tl)
           }
         }
       }
-      _.pull(go).flatMap{ λ: Task[Int] => Stream.eval_(λ) }
+      in => go(in).stream.drain
     }
 
-    def insertDataRecord(channelRecordingId: Long, data: Array[Int]): Task[Int] = {
+    def insertDataRecord(channelRecordingId: Long, data: Array[Int]): IO[Int] = {
       sql"""
       INSERT INTO datapiece (channelRecordingId, sample)
       VALUES ($channelRecordingId, $data)
     """.update.run.transact(xa)
     }
 
-    def insertNewExperiment(comment: Option[String]): Task[Long] = {
+    def insertNewExperiment(comment: Option[String]): IO[Long] = {
       val comment_ = comment.getOrElse("no comment")
       (for {
         _ <- sql"INSERT INTO experimentInfo (comment) VALUES ($comment_)".update.run
@@ -109,7 +108,7 @@ object doobieTasks {
     }
 
     // Inserts a bunch of channels to an experiment
-    def insertChannels(experimentId: Long): Task[List[Long]] = {
+    def insertChannels(experimentId: Long): IO[List[Long]] = {
       val insertionTasks: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
       insertionTasks.sequence.transact(xa)
     }

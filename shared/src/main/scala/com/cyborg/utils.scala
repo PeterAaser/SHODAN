@@ -31,9 +31,9 @@ object utilz {
       s.pull.uncons flatMap {
         case Some((chunk, tl)) => {
           val fug = chunk.toList.flatMap(intToByteList(_))
-          val fugs = Chunk.seq(fug)
           Pull.output(Chunk.seq(fug)) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -75,6 +75,7 @@ object utilz {
 
           Pull.output(Chunk.seq(intBuf)) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -102,6 +103,7 @@ object utilz {
             println(s"doubles 2 bytes seent $d which was packed to $le_bytes")
           Pull.output(Chunk.seq(le_bytes)) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -118,6 +120,7 @@ object utilz {
         case Some((segment, tl)) => {
           Pull.output1(segment.toVector) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -134,6 +137,7 @@ object utilz {
         case Some((segment, tl)) => {
           Pull.output1(segment.toList) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -148,6 +152,7 @@ object utilz {
       s.pull.uncons1 flatMap {
         case Some((segment, tl)) =>
           Pull.output(Segment.seq(segment)) >> go(tl)
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -170,8 +175,10 @@ object utilz {
     require(windowWidth > overlap, "windowWidth must be wider than overlap")
     val stepsize = windowWidth - overlap
     def go(s: Stream[F,I], last: Vector[I]): Pull[F,Vector[I],Unit] = {
-      s.pull.unconsN(stepsize, false).flatMap { case Some((seg, tl)) =>
-        Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
+      s.pull.unconsN(stepsize, false).flatMap {
+        case Some((seg, tl)) =>
+          Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
+        case None => Pull.done
       }
     }
 
@@ -179,6 +186,7 @@ object utilz {
       case Some((seg, tl)) => {
         Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
       }
+      case None => Pull.done
     }.stream
 
   }
@@ -198,6 +206,7 @@ object utilz {
           val scanned = stacked.scanLeft(window.sum)(_+_).map(_.toDouble/windowWidth.toDouble)
           Pull.output(Chunk.seq(scanned)) >> go(tl, seg.toVector.takeRight(windowWidth))
         }
+        case None => Pull.done
       }
     }
 
@@ -205,6 +214,7 @@ object utilz {
       case Some((seg, tl)) => {
         Pull.output1(seg.toList.sum.toDouble/windowWidth.toDouble) >> go(tl, seg.toVector)
       }
+      case None => Pull.done
     }.stream
   }
 
@@ -312,6 +322,7 @@ object utilz {
 
           Pull.output(Chunk.seq(samples)) >> go(tl, nextCutOffPoint)
         }
+        case None => Pull.done
       }
     }
     in => go(in, 0).stream

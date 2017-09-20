@@ -110,15 +110,16 @@ object Filters {
 
     def ffPipe[F[_]](net: FeedForward): Pipe[F,Vector[Double], List[Double]] = {
 
-      def go: Handle[F,Vector[Double]] => Pull[F,List[Double],Unit] = h => {
-        h.await1 flatMap {
-          case (chunk, h) => {
-            val outputs = net.feed(chunk.toList)
-            Pull.output1(outputs) >> go(h)
+      def go(s: Stream[F, Vector[Double]]): Pull[F,List[Double],Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((seg, tl)) => {
+            val outputs = net.feed(seg.toList)
+            Pull.output1(outputs) >> go(tl)
           }
+          case None => Pull.done
         }
       }
-      _.pull(go)
+      in => go(in).stream
     }
   }
 }
