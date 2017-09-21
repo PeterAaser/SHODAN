@@ -2,17 +2,8 @@ package com.cyborg
 
 import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
-import fs2.concurrent
 
 import java.io.File
-import java.nio.file.Paths
-import fs2.io.tcp._
-import fs2._
-import params._
-
-import spray.json._
-import fommil.sjs.FamilyFormats._
-
 
 /**
   Currently not in use, but might be useful in order to parse MCS data

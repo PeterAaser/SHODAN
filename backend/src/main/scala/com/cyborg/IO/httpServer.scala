@@ -2,6 +2,8 @@ package com.cyborg
 
 import fs2._
 
+import cats.effect.IO
+import scala.concurrent.ExecutionContext
 import spinoco.fs2.http
 import spinoco.protocol.http._
 import http._
@@ -14,58 +16,56 @@ object httpServer {
     web client.
     */
 
-  import backendImplicits._
   import params.http.SHODANserver._
 
   import java.net.InetSocketAddress
 
-  val respondOk: Stream[Task,HttpResponse[Task]] =
-    Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
+  val respondOk = Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
 
   import httpCommands._
 
-  def service(commands: Sink[Task,userCommand])(request: HttpRequestHeader, body: Stream[Task,Byte])
-      : Stream[Task,HttpResponse[Task]] = {
+  def service(commands: Sink[IO,userCommand])(request: HttpRequestHeader, body: Stream[IO,Byte])(implicit ec: ExecutionContext): Stream[IO,HttpResponse[IO]] = {
 
     println("\ngot request:")
 
     if (request.path == Uri.Path / "connect"){
       println(s"connect")
-      Stream.emit(StartMEAME).through(commands).mergeDrainL(
+      Stream.emit(StartMEAME).covary[IO].through(commands).drain.concurrently(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "stop"){
       println(s"stop")
-      Stream.emit(StopMEAME).through(commands).mergeDrainL(
+      Stream.emit(StopMEAME).covary[IO].through(commands).drain.concurrently(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "start"){
       println(s"start")
-      Stream.emit(StartMEAME).through(commands).mergeDrainL(
+      Stream.emit(StartMEAME).covary[IO].through(commands).drain.concurrently(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "agent"){
       println(s"agent")
-      Stream.emit(AgentStart).through(commands).mergeDrainL(
+      Stream.emit(AgentStart).covary[IO].through(commands).drain.concurrently(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else if (request.path == Uri.Path / "wf"){
       println(s"wf")
-      Stream.emit(WfStart).through(commands).mergeDrainL(
+      Stream.emit(WfStart).covary[IO].through(commands).drain.concurrently(
         Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
       )
     }
     else {
-      Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
+      Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World")).drain
     }
   }
 
-  def startServer(commands: Sink[Task,userCommand]): Task[Unit] = {
+  def startServer(commands: Sink[IO,userCommand])(implicit ec: ExecutionContext): IO[Unit] = {
     println(s"Starting server at port $SHODANserverPort")
+    import backendImplicits._
     http.server(new InetSocketAddress("127.0.0.1", SHODANserverPort))(service(commands)).run
   }
 }

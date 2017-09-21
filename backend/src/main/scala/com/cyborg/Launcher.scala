@@ -21,9 +21,9 @@ object Launcher {
     println(mcsParser.getFiles.sorted)
 
     println("starting")
-    val fug = mcsParser.gogo[Task]
-    println(fug.through(_.map(_ => println("yo"))).run.unsafeRun())
-    println("done")
+    // val fug = mcsParser.gogo[Task]
+    // println(fug.through(_.map(_ => println("yo"))).run.unsafeRun())
+    // println("done")
 
     // val hurr = utilz.throttler(200.milliseconds).through(_.map{_ => println("ayy")})
     // val durr = Stream( 1 ).repeat.covary[Task].through(_.map{_ => println("lmao"); 1})

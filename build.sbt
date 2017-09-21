@@ -17,7 +17,6 @@ scalacOptions in ThisBuild ++= Seq(
   "-language:dynamics",
   "-language:higherKinds",
   "-Xfuture",
-  "-Xfatal-warnings",
   "-Xlint:_,-missing-interpolator,-adapted-args"
 )
 

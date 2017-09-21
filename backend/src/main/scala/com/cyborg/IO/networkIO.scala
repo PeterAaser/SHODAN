@@ -1,13 +1,14 @@
 package com.cyborg
 
+import cats.effect.Effect
 import fs2._
 import fs2.Stream._
-import fs2.util.Async
 import fs2.io.tcp._
 
 import java.net.InetSocketAddress
 
 import java.net.InetSocketAddress
+import scala.concurrent.ExecutionContext
 
 import scala.language.higherKinds
 import com.typesafe.config._
@@ -27,7 +28,7 @@ object networkIO {
 
   val maxQueued = 3
 
-  def socketStream[F[_]: Async](port: Int): Stream[F, Socket[F]] =
+  def socketStream[F[_]: Effect](port: Int)(implicit ec: ExecutionContext): Stream[F, Socket[F]] =
     client(
       new InetSocketAddress(ip, port),
       reuseAddress,
@@ -37,12 +38,12 @@ object networkIO {
       noDelay)
 
 
-  def streamAllChannels[F[_]:Async]: Stream[F, Int] = {
+  def streamAllChannels[F[_]: Effect](implicit ec: ExecutionContext): Stream[F, Int] = {
     socketStream[F](allChannelsPort) flatMap { socket =>
       socket.reads(1024*1024).through(utilz.bytesToInts)
     }
   }
 
 
-  def sendStimreqStream[F[_]:Async]: Sink[F,Int] = ???
+  // def sendStimreqStream[F[_]:Async]: Sink[F,Int] = ???
 }

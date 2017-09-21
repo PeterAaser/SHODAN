@@ -1,7 +1,5 @@
 package com.cyborg
 
-import fs2._
-import frontendImplicits._
 import wallAvoid._
 import org.scalajs.dom.html
 

@@ -1,7 +1,6 @@
 package com.cyborg
 
 import fs2._
-import fs2.util.Async
 import scala.language.higherKinds
 
 object RBNassembly {

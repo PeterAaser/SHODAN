@@ -2,7 +2,6 @@ package com.cyborg
 
 import org.scalajs.dom
 import org.scalajs.dom.html
-import fs2._
 
 import wallAvoid._
 

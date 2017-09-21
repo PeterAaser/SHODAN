@@ -2,6 +2,8 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
+import cats.effect.IO
+import scala.concurrent.ExecutionContext
 
 import scala.language.higherKinds
 
@@ -25,9 +27,9 @@ object httpClient {
   import spinoco.fs2.http.body.BodyEncoder
 
   def tryHttpWithError(
-    client: HttpRequest[Task] => Stream[Task,HttpResponse[Task]],
-    req: HttpRequest[Task],
-    errorMsg: HttpResponse[Task] => String): Stream[Task,Either[String,Unit]] = {
+    client: HttpRequest[IO] => Stream[IO,HttpResponse[IO]],
+    req: HttpRequest[IO],
+    errorMsg: HttpResponse[IO] => String): Stream[IO,Either[String,Unit]] = {
 
     client(req).map { response =>
       if(response.header.status == HttpStatusCode.Ok)
@@ -59,13 +61,13 @@ object httpClient {
     samplerate: Int,
     segmentLengt: Int,
     selectChannels: List[Int],
-    client: HttpClient[Task]): Stream[Task, Either[String,Unit]] =
+    client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
   {
-    def failureMsg(resp: HttpResponse[Task]): String = {
+    def failureMsg(resp: HttpResponse[IO]): String = {
       s"DAQ connection failed with error code ${resp.header.status}\n" +
       s"reason was: \nFuck knows..."
     }
-    val req = createConnectDAQrequest[Task](samplerate, segmentLengt, selectChannels)
+    val req = createConnectDAQrequest[IO](samplerate, segmentLengt, selectChannels)
     tryHttpWithError(client.request(_), req, failureMsg)
   }
 
@@ -73,7 +75,7 @@ object httpClient {
   def sayHello[F[_]]: HttpRequest[F] =
     HttpRequest.get[F](Uri.http(ip, port=8888, path="/status"))
 
-  def sayHelloT(client: HttpClient[Task]): Stream[Task, Either[String,Unit]] =
+  def sayHelloT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
     tryHttpWithError(client.request(_), sayHello, resp => s"sayHello failed with ${resp.header.status}")
 
 
@@ -81,7 +83,7 @@ object httpClient {
   def startDAQrequest[F[_]]: HttpRequest[F] =
     HttpRequest.get[F](Uri.http(ip, port=8888, path="/DAQ/start"))
 
-  def startDAQrequestT(client: HttpClient[Task]): Stream[Task, Either[String,Unit]] =
+  def startDAQrequestT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
     tryHttpWithError(client.request(_), startDAQrequest, resp => s"start DAQ failed with ${resp.header.status}")
 
 
@@ -89,16 +91,16 @@ object httpClient {
   def stopDAQrequest[F[_]]: HttpRequest[F] =
     HttpRequest.get[F](Uri.http(ip, port=8888, path="/DAQ/stop"))
 
-  def stopDAQrequestT(client: HttpClient[Task]): Stream[Task, Either[String,Unit]] =
+  def stopDAQrequestT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
     tryHttpWithError(client.request(_), stopDAQrequest, resp => s"stop DAQ failed with ${resp.header.status}")
 
 
-  def startMEAMEServer: Stream[Task,Either[String,Unit]] =
+  def startMEAMEServer(implicit ec: ExecutionContext): Stream[IO,Either[String,Unit]] =
   {
 
     import params.experiment._
 
-    val clientTask: Task[HttpClient[Task]] = http.client[Task]()
+    val clientTask: IO[HttpClient[IO]] = http.client[IO]()
     for {
       client <- Stream.eval(clientTask)
       _ <- sayHelloT(client)

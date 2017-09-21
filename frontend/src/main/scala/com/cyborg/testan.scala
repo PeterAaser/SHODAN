@@ -1,19 +1,12 @@
 package com.cyborg
 
-import fs2.async.mutable.Topic
-import org.scalajs.dom
 import org.scalajs.dom.html
 import scalajs.js
 import scalatags.JsDom.all._
 import org.scalajs.dom.raw.MouseEvent
 
-import fs2._
-
 import scala.scalajs.js
-import org.scalajs.dom
 import org.scalajs.dom.document
-
-import com.cyborg.wallAvoid.Agent
 
 
 object testan extends js.JSApp {

@@ -1,7 +1,9 @@
 package com.cyborg
 
+import cats.effect.Effect
 import com.cyborg.Assemblers.ffANNinput
 import com.cyborg.Filters.FeedForward
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 object agentPipe {
@@ -10,9 +12,10 @@ object agentPipe {
   type ffANNoutput = List[Double]
 
   import fs2._
+  import wallAvoid._
+  import wallAvoid.Agent._
 
   import com.cyborg.wallAvoid._
-  import Agent._
 
   val initAgent = {
     import params.game._
@@ -22,17 +25,17 @@ object agentPipe {
 
   def wallAvoidancePipe[F[_]](init: Agent = initAgent): Pipe[F, ffANNoutput, Agent] = {
 
-    def go(agent: Agent): Handle[F, ffANNoutput] => Pull[F, Agent, Unit] = h => {
-      h.receive1 {
-        case (input, h) => {
+    def go(agent: Agent, s: Stream[F,ffANNoutput]): Pull[F, Agent, Unit] = {
+      s.pull.uncons1 flatMap {
+        case Some((input, tl)) => {
           val nextAgent = updateAgent(agent, input)
-          Pull.output1(agent) >> go(nextAgent)(h)
+          Pull.output1(agent) >> go(nextAgent, tl)
         }
+        case None => Pull.done
       }
     }
 
-    _.pull(go(init))
-
+    in => go(init, in).stream
   }
 
 
@@ -40,10 +43,10 @@ object agentPipe {
     Sets up 5 challenges, evaluates ANN performance and returns
     the evaluation via the eval sink
     */
-  def evaluatorPipe[F[_]:Async](
+  def evaluatorPipe[F[_]: Effect](
     ticksPerEval: Int,
     evalFunc: Double => Double,
-    evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = {
+    evalSink: Sink[F,Double])(implicit ec: ExecutionContext): Pipe[F,ffANNoutput,Agent] = {
 
 
     // println("running evaluatorPipe")
@@ -52,35 +55,35 @@ object agentPipe {
     // and halts
     def challengeEvaluator(agent: Agent): Pipe[F,ffANNoutput,Agent] = {
 
-      def go(ticks: Int, agent: Agent): Handle[F,ffANNoutput] => Pull[F,Agent,Unit] = h => {
-        h.receive1 {
-          (agentInput, h) => {
-            val nextAgent = updateAgent(agent, agentInput)
+      def go(ticks: Int, agent: Agent, s: Stream[F,ffANNoutput]): Pull[F,Agent,Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((agentInput, tl)) => {
+            val nextAgent = Agent.updateAgent(agent, agentInput)
             if (ticks > 0)
-              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent)(h)
+              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             else {
-              // println(" →→→→→→→→→→→→→→→→→→ Evaluation complete ←←←←←←←←←←←←←←←←←←←← ")
               Pull.output1(nextAgent)
               }
           }
         }
       }
-      _.pull(go(ticksPerEval, agent))
+      in => go(ticksPerEval, agent, in).stream
     }
 
     def evaluateRun: Pipe[F,Agent,Double] = {
-      def go: Handle[F,Agent] => Pull[F,Double,Unit] = h => {
-        h.awaitN(ticksPerEval, false) flatMap {
-          case (chunks, _) => {
+      def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
+        s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
+          case Some((seg, _)) => {
             // println("evalRun evaluating")
-            val closest = chunks.map(_.toList).flatten
+            val closest = seg.toList
               .map(_.distanceToClosest)
               .min
+
             Pull.output1(closest)
           }
         }
       }
-      _.pull(go)
+      in => go(in).stream
     }
 
 
@@ -89,15 +92,19 @@ object agentPipe {
       experimentPipe: Pipe[F,ffANNoutput,Agent],
       evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = s => {
 
-      // println("Attaching single sink!")
-
+      // TODO grok observer in 0.10
       val t = s.through(experimentPipe)
-      pipe.observe(t)(λ =>
-        λ.through(evaluateRun)
-          .through(pipe.fold(.0)(_+_)).through(_.map(evalFunc(_)))
-          // .through(_.map(λ => {println(s" enqueuing the evaluation $λ"); λ}))
+      t.observe(λ =>
+        λ.through(evaluateRun).fold(.0)(_+_).through(_.map(evalFunc(_)))
           .through(evalSink)
       )
+
+      // val t = s.through(experimentPipe)
+      // pipe.observe(t)(λ =>
+      //   λ.through(evaluateRun)
+      //     .through(pipe.fold(.0)(_+_)).through(_.map(evalFunc(_)))
+      //     .through(evalSink)
+      // )
     }
 
     // Creates five initial agents, each mapped to a pipe
@@ -106,15 +113,15 @@ object agentPipe {
 
     // Joins the five challenges, attaches an evaluator to the joined pipe
     val challengePipe: Pipe[F,ffANNoutput,Agent]
-      = pipe.join(Stream.emits(challengePipes.map(attachSink(_, evalSink))))
+      = Pipe.join(Stream.emits(challengePipes.map(attachSink(_, evalSink))))
 
-    s: Stream[F,ffANNoutput] => s.through(challengePipe).through(pipe.take(ticksPerEval.toLong*5))
+    s: Stream[F,ffANNoutput] => s.through(challengePipe).take(ticksPerEval.toLong*5)
   }
 
-  def testEvaluatorPipe[F[_]:Async](
+  def testEvaluatorPipe[F[_]: Effect](
     ticksPerEval: Int,
     evalFunc: Double => Double
-    ): Pipe[F,ffANNoutput,Agent] = {
+    )(implicit ec: ExecutionContext): Pipe[F,ffANNoutput,Agent] = {
 
 
     println("running evaluatorPipe")
@@ -122,34 +129,18 @@ object agentPipe {
     // Runs an agent through 1000 ticks, recording the closest it was a wall
     def challengeEvaluator(agent: Agent): Pipe[F,ffANNoutput,Agent] = {
 
-      def go(ticks: Int, agent: Agent): Handle[F,ffANNoutput] => Pull[F,Agent,Unit] = h => {
-        h.receive1 {
-          (agentInput, h) => {
+      def go(ticks: Int, agent: Agent, s: Stream[F,ffANNoutput]): Pull[F,Agent,Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((agentInput, tl)) => {
             val nextAgent = updateAgent(agent, agentInput)
             if (ticks > 0)
-              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent)(h)
+              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             else
               Pull.output1(nextAgent)
           }
         }
       }
-      _.pull(go(ticksPerEval, agent))
-    }
-
-    def evaluateRun: Pipe[F,Agent,Double] = {
-      def go: Handle[F,Agent] => Pull[F,Double,Unit] = h => {
-        println("test evaluate run called")
-        h.awaitN(ticksPerEval, false) flatMap {
-          case (chunks, _) => {
-            println("test evaluate flatmapping")
-            val closest = chunks.map(_.toList).flatten
-              .map(_.distanceToClosest)
-              .min
-            Pull.output1(closest)
-          }
-        }
-      }
-      _.pull(go)
+      in => go(ticksPerEval, agent, in).stream
     }
 
     val challenges: List[Agent] = createChallenges
@@ -157,7 +148,7 @@ object agentPipe {
 
     // Joins the five challenges, attaches an evaluator to the joined pipe
     val challengePipe: Pipe[F,ffANNoutput,Agent] =
-      pipe.join(Stream.emits(challengePipes))
+      Pipe.join(Stream.emits(challengePipes).covary[F])
 
     challengePipe
   }

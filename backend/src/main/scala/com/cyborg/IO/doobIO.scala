@@ -1,17 +1,19 @@
 package com.cyborg
 
-import cats._, cats.data._, cats.implicits._
+// import cats._
+// import cats.data._
+import cats.implicits._
 import cats.effect.IO
 
 import doobie.imports._
 import doobie.postgres.imports._
 import fs2._
 
-import shapeless._
-import shapeless.record.Record
+// import shapeless._
+// import shapeless.record.Record
 
 import com.github.nscala_time.time.Imports._
-import com.github.nscala_time.time.Implicits._
+// import com.github.nscala_time.time.Implicits._
 
 object doobieTasks {
 

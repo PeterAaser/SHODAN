@@ -126,7 +126,7 @@ object Assemblers {
     val experimentPipe = GApipes.experimentPipe(inputSpikes, params.filtering.layout)
 
     experimentPipe
-      .through(pipe.observeAsync(_, 10000)(frontendAgentObserver))
+      .observeAsync(10000)(frontendAgentObserver)
       .through(_.map((λ: Agent) => {λ.distances}))
       .through(_.map(toStimFrequencyTransform))
       .through(text.utf8Encode)
@@ -139,12 +139,10 @@ object Assemblers {
     before demuxing it to a single stream which is sent to the visualizer
     */
   // TODO where should data filtering really be handled?
-  def assembleWebsocketVisualizer[F[_]:Async](
+  def assembleWebsocketVisualizer[F[_]: Effect](
     dataSource: List[dataTopic[F]],
-    dataFilter: Pipe[F,Int,Int]
-  ): Stream[F, Unit] =
+    dataFilter: Pipe[F,Int,Int])(implicit ec: ExecutionContext): Stream[F, Unit] =
   {
-
     import params.waveformVisualizer.wfMsgSize
     val mapped = dataSource
       .map(_.subscribe(1000))
@@ -152,24 +150,7 @@ object Assemblers {
       .map(_.through(dataFilter))
       .map(_.through(utilz.vectorize(wfMsgSize)))
 
-    val muxed = Stream.emit(mapped).through(roundRobin).through(chunkify)
+    val muxed = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
     wsIO.webSocketWaveformSink(muxed)
-  }
-
-
-  /**
-    Assembles a simple test to help unclog the pipes.
-    Please ask a professional before using plumbo on your own pipes.
-    If you put it in a plastic bottle with some water and shake it it will explode, I sure miss being 13
-    */
-  def plumbo[F[_]:Async](
-      dataSource: List[dataTopic[F]]
-    , inputChannels: List[Channel]
-    // , outputChannels: List[Channel]
-    // , frontendAgentObserver: Sink[F,Agent]
-    // , feedbackSink: Sink[F,Byte]
-  ): Stream[F,Unit] =
-  {
-    Stream.empty
   }
 }

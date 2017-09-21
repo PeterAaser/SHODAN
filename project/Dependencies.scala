@@ -4,6 +4,8 @@ import sbt._
 object Dependencies {
   val doobieVersion = "0.5.0-M7"
   val fs2Version = "0.10.0-M6"
+  val fs2httpVersion = "0.2.0-RC1"
+  val scodecVersion = "TODO"
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "com.typesafe" % "config" % "1.3.1",
@@ -31,9 +33,11 @@ object Dependencies {
 
   val backendDeps = Def.setting(Seq[ModuleID](
     "com.chuusai" %% "shapeless" % "2.3.2",
+    // "com.spinoco" %% "protocol-http" % fs2httpVersion,
+    // "com.spinoco" %% "protocol-websocket" % fs2httpVersion,
+    "com.spinoco" %% "fs2-http" % fs2httpVersion,
     "com.spinoco" %% "protocol-http" % "0.1.8",
     "com.spinoco" %% "protocol-websocket" % "0.1.8",
-    "com.spinoco" %% "fs2-http" % "0.1.7",
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
 

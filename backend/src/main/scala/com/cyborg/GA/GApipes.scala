@@ -2,18 +2,15 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
-import fs2.util.Async
-import fs2.async.mutable.Queue
+
+import cats.effect.Effect
+import scala.concurrent.ExecutionContext
 
 object GApipes {
 
   type ffANNinput = Vector[Double]
   type ffANNoutput = List[Double]
 
-  import Filters._
-  import Filters.FeedForward._
-  import seqUtils._
-  import genetics._
   import wallAvoid._
   import params.GA._
 
@@ -28,8 +25,7 @@ object GApipes {
     of book-keeping between the three queues while the inner does the actual evaluation and
     number crunching working with the supplied queues
     */
-  def experimentPipe[F[_]:Async](inStream: Stream[F,ffANNinput], layout: List[Int]):
-      Stream[F,Agent] = {
+  def experimentPipe[F[_]: Effect](inStream: Stream[F,ffANNinput], layout: List[Int])(implicit ec: ExecutionContext): Stream[F,Agent] = {
 
 
     println("Creating GA experiment pipe")
@@ -64,7 +60,7 @@ object GApipes {
         }
       }
 
-      val evaluatingAgentPipe: Pipe[F,ffANNinput,Agent] = pipe.join(evaluatingAgentPipeStream)
+      val evaluatingAgentPipe: Pipe[F,ffANNinput,Agent] = Pipe.join(evaluatingAgentPipeStream)
 
 
       // We run the input through the consolidated pipe

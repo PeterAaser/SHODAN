@@ -1,6 +1,5 @@
 package com.cyborg
 
-import fs2._
 import scala.scalajs.js.typedarray.TypedArrayBuffer
 import scodec._
 import scodec.bits._
@@ -15,7 +14,6 @@ import wallAvoid.Agent
 object websocketStream {
 
   import sharedImplicits._
-  import frontendImplicits._
   import params.webSocket._
 
   val wsProtocol = "ws"

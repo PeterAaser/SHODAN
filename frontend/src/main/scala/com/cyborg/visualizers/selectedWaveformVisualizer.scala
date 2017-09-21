@@ -10,7 +10,6 @@ object selectedWfVisualizer {
     val dataqueue: scala.collection.mutable.Queue[Vector[Int]]) {
 
     import params.selectWfVisualizer._
-    import params.experiment._
 
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
@@ -21,7 +20,6 @@ object selectedWfVisualizer {
     renderer.fillStyle = "yellow"
 
     canvas.width = vizLength
-    // canvas.height = vizHeight*channels.length
 
   }
 

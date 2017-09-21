@@ -3,14 +3,17 @@ package com.cyborg
 import com.cyborg.wallAvoid.Agent
 import com.typesafe.config.ConfigFactory
 import fs2._
-import fs2.util.Async
 import MEAMEutilz._
 
 
 import fs2.Stream._
 import fs2.async.mutable.Queue
-import fs2.util.Async
 import fs2.io.tcp._
+
+import cats.effect.IO
+import cats.effect.Effect
+import cats.effect.Sync
+import scala.concurrent.ExecutionContext
 
 import wallAvoid.Agent
 import utilz._
@@ -28,69 +31,77 @@ object staging {
 
 
   def commandPipe(
-    dbTopics: List[dataTopic[Task]],
-    meameTopics: List[dataTopic[Task]],
-    frontendAgentSink: Sink[Task,Agent],
-    meameFeedbackSink: Sink[Task,Byte]
-  ): Pipe[Task,userCommand, Stream[Task,Unit]] = {
+    dbTopics: List[dataTopic[IO]],
+    meameTopics: List[dataTopic[IO]],
+    frontendAgentSink: Sink[IO,Agent],
+    meameFeedbackSink: Sink[IO,Byte]
+  )(implicit ec: ExecutionContext): Pipe[IO,userCommand, Stream[IO,Unit]] = {
 
-    def go: Handle[Task, userCommand] => Pull[Task, Stream[Task,Unit], Unit] = h => {
-      h.await1 flatMap { case (cmd, h) =>
-        println(s"got a $cmd")
-        val action = cmd match {
+    def go(s: Stream[IO,userCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
+      s.pull.uncons1 flatMap { case Some((cmd, tl)) =>
+        {
+          println(s"got a $cmd")
+          val action = cmd match {
 
 
-          case StartMEAME =>
-            {
-              val huh = httpClient.startMEAMEServer.runLog.unsafeRun().head
-              huh match {
-                case Left(e) => println("error!")
-                case Right(_) => println("MEAME started")
+            case StartMEAME =>
+              {
+                val huh = httpClient.startMEAMEServer.runLog.unsafeRunSync().head
+                huh match {
+                  case Left(e) => println("error!")
+                  case Right(_) => println("MEAME started")
+                }
+                sIO.streamFromTCP(meameTopics)
               }
-              sIO.streamFromTCP(meameTopics)
-            }
 
 
-          case AgentStart =>
-            {
-              Assemblers.assembleGA(
-                meameTopics,
-                inputChannels,
-                outputChannels,
-                frontendAgentSink,
-                meameFeedbackSink)
-            }
+            case AgentStart =>
+              {
+                val uhm: Stream[IO,Unit] = Assemblers.assembleGA(
+                  meameTopics,
+                  inputChannels,
+                  outputChannels,
+                  frontendAgentSink,
+                  meameFeedbackSink)
+                uhm
+              }
 
 
-          case RunFromDB(id) =>
-            {
-              sIO.streamFromDatabase(id, meameTopics)
-            }
+            case RunFromDB(id) =>
+              {
+                val uhm = sIO.streamFromDatabase(id, meameTopics)
+                uhm
+              }
 
 
-          case StoreToDB(comment) =>
-            {
-              sIO.streamToDatabase(meameTopics, comment)
-            }
+            case StoreToDB(comment) =>
+              {
+                val uhm = sIO.streamToDatabase(meameTopics, comment)
+                uhm
+              }
 
 
-          case StartWaveformVisualizer =>
-            {
-              println("Starting wf assembler")
-              Assemblers.assembleWebsocketVisualizer[Task](meameTopics, pipe.id)
-            }
+            case StartWaveformVisualizer =>
+              {
+                println("Starting wf assembler")
+                // TODO: identity pipe is missing, but this seems to just be a placeholder anyways
+                // Assemblers.assembleWebsocketVisualizer[IO](meameTopics, pipe.id)
+                val uhm: Stream[IO,Unit] = Stream.empty
+                uhm
+              }
 
-          case wat: Any =>
-            {
-              println(wat)
-              println("Unsupported")
-              Stream.empty
-            }
+            case _ =>
+              {
+                println("Unsupported")
+                val uhm: Stream[IO,Unit] = Stream.empty
+                uhm
+              }
+          }
+
+          Pull.output1(action) >> go(tl)
         }
-
-        Pull.output1(action) >> go(h)
       }
     }
-    _.pull(go)
+    in: Stream[IO,userCommand] => go(in).stream
   }
 }

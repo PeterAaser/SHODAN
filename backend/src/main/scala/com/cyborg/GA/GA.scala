@@ -2,7 +2,6 @@ package com.cyborg
 
 import fs2._
 import fs2.Stream._
-import fs2.async.mutable.Queue
 
 /**
   Responsible for trying different neural networks as well as handling the
@@ -16,7 +15,7 @@ object ffGA {
   type ffANNoutput = List[Double]
 
   import Filters._
-  import Filters.FeedForward._
+  // import Filters.FeedForward._
   import seqUtils._
   import genetics._
 
@@ -39,34 +38,27 @@ object ffGA {
   // the evaluations
   def experimentBatchPipe[F[_]](layout: List[Int]): Pipe[F,Double, Pipe[F,ffANNinput,ffANNoutput]] = {
 
-    def go(previous: List[FeedForward]):
-               Handle[F,Double] => Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] = h =>
-      {
-        h.awaitN(pipesPerGeneration,false) flatMap {
-          case(chunks,h) => {
-            // println("experiment batch pipe firing")
-            val folded = chunks.foldLeft(List[Double]())(_++_.toList).zip(previous)
-            val asScored = ScoredSeq(folded.toVector)
-            val nextPop = generate(asScored)
-            val nextPipes = nextPop.map(ANNPipes.ffPipe[F](_))
-            Pull.output(Chunk.seq(nextPipes)) >> go(nextPop)(h)
-          }
+    def go(previous: List[FeedForward], s: Stream[F,Double]): Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] =
+      s.pull.unconsN(pipesPerGeneration,false) flatMap {
+        case Some((segment,tl)) => {
+            // val folded = chunks.foldLeft(List[Double]())(_++_.toList).zip(previous)
+          val folded = segment.toList.zip(previous)
+          val asScored = ScoredSeq(folded.toVector)
+          val nextPop = generate(asScored)
+          val nextPipes = nextPop.map(ANNPipes.ffPipe[F](_))
+          Pull.output(Chunk.seq(nextPipes)) >> go(nextPop, tl)
         }
+        case None => Pull.done
       }
 
 
-    def init(init: List[FeedForward]):
-        Handle[F,Double] => Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] = h =>
-    {
-      println("outputting some pipes :)")
-      Pull.output(Chunk.seq(init.map(ANNPipes.ffPipe[F](_)))) >> go(init)(h)
-    }
+    def init(init: List[FeedForward], s: Stream[F,Double]): Pull[F,Pipe[F,ffANNinput,ffANNoutput],Unit] =
+      Pull.output(Chunk.seq(init.map(ANNPipes.ffPipe[F](_)))) >> go(init, s)
 
     val initNetworks =
-      (0 until pipesPerGeneration).map(_ => (randomNetWithLayout(layout))).toList
+      (0 until pipesPerGeneration).map(_ => (Filters.FeedForward.randomNetWithLayout(layout))).toList
 
-    val asStream = Stream.emits(initNetworks)
-    _.pull(init(initNetworks))
+    in => init(initNetworks, in).stream
   }
 }
 

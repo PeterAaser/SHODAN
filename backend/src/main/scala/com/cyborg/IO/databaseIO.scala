@@ -109,7 +109,9 @@ object databaseIO {
             .through(channelSink)
         }
       }
-      concurrent.join(60)(Stream.emits(huh).covary[IO])
+      // TODO are these the same?
+      // concurrent.join(60)(Stream.emits(huh).covary[IO])
+      Stream.emits(huh).join(60)
     }
   }
 }
