@@ -76,12 +76,9 @@
 * TODO Add testing
 
 * Neste gang
-  Tulla masse med hdf5. Prøvde å muxe, men det er ikke noe vits, skal jo inn i en database
-  hvor ting ligger hver for seg...
-  
-  Kan vi bli kvitt channelRecordingId? Virker bare i veien...
-  
-  Migrerer til grønnere jaktmarker!
+  Gå gjennom database og doobie.
+  Fiks opp crufty kode.
+  Start evighetsjobben på windows VMen.
   
 * Database specification
 ** ER

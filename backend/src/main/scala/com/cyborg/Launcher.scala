@@ -19,6 +19,7 @@ object Launcher {
     println("wello")
 
     println(mcsParser.getFiles.sorted)
+    println(mcsParser.getFolders.sorted)
 
     println("starting")
     // val fug = mcsParser.gogo[Task]

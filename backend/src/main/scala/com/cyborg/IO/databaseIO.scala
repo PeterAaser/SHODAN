@@ -5,6 +5,7 @@ import fs2.Stream._
 import cats.effect.IO
 import scala.concurrent.ExecutionContext
 import utilz._
+import com.github.nscala_time.time.Imports._
 
 import scala.language.higherKinds
 
@@ -24,6 +25,7 @@ object databaseIO {
             val grouped = d.grouped(chunkSize).toList
             unload(grouped, tl)
           }
+          case None => Pull.done
         }
       }
       def unload(dudes: List[Array[Int]], tl: Stream[F,Array[Int]]): Pull[F,Int,Unit] = {
@@ -76,6 +78,16 @@ object databaseIO {
       } yield (id)
     }
 
+    /**
+      Creates a new experiment for an old recording and sets up channels etc
+      */
+    def createOldExperiment(comment: Option[String], date: DateTime): IO[ExperimentId] = {
+      for {
+        id <- doobieTasks.doobieWriters.insertOldExperiment(comment, date)
+        _ <- doobieTasks.doobieWriters.insertChannels(id)
+      } yield (id)
+    }
+
 
     /**
       Creates a sink that inserts data to the database (duh)
@@ -89,15 +101,21 @@ object databaseIO {
 
             Pull.eval(insert) >> go(tl)
           }
+          case None => Pull.done
         }
       }
       in => go(in).stream
     }
 
 
+    def getChannelSinks(experimentId: Long, channels: List[Int]): List[Sink[IO,Int]] = {
+      ???
+    }
+
+
     /**
       Starts pumping in ze data!
-      TODO explodes
+      TODO should probably be removed?
       */
     def startRecording(topics: List[dataTopic[IO]], id: ExperimentId)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
       val channels = (0 to 60).map(createChannelSink(_, id))

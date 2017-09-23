@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS MEA (
     info varchar NOT NULL -- Placeholder for all sorts of exciting information about Neural cultures
 );
 
+-- Not too fond of this one, but in case I want to use a file URI or similar it's useful to have
+-- a layer of indirection between experiment -> data
 CREATE TABLE IF NOT EXISTS channelRecording (
     experimentId integer NOT NULL,
     channelRecordingId serial NOT NULL UNIQUE,
