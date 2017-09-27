@@ -108,11 +108,6 @@ object databaseIO {
     }
 
 
-    def getChannelSinks(experimentId: Long, channels: List[Int]): List[Sink[IO,Int]] = {
-      ???
-    }
-
-
     /**
       Starts pumping in ze data!
       TODO should probably be removed?
@@ -127,8 +122,6 @@ object databaseIO {
             .through(channelSink)
         }
       }
-      // TODO are these the same?
-      // concurrent.join(60)(Stream.emits(huh).covary[IO])
       Stream.emits(huh).join(60)
     }
   }

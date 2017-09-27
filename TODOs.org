@@ -76,9 +76,8 @@
 * TODO Add testing
 
 * Neste gang
-  Gå gjennom database og doobie.
-  Fiks opp crufty kode.
-  Start evighetsjobben på windows VMen.
+  Sjekk at filepath ikke blir kluss og dritt
+  Se Launcher
   
 * Database specification
 ** ER

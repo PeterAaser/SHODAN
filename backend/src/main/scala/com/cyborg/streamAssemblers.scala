@@ -2,6 +2,7 @@ package com.cyborg
 
 import com.cyborg.wallAvoid.Agent
 import fs2._
+import java.io.File
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 import utilz._
@@ -152,5 +153,11 @@ object Assemblers {
 
     val muxed = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
     wsIO.webSocketWaveformSink(muxed)
+  }
+
+
+  def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+    val theThing = mcsParser.eatDirectory(new File("/home/peteraa/Fuckton_of_MEA_data/hfd5_test").toPath())
+    theThing
   }
 }

@@ -7,6 +7,9 @@ import moment
 def get_info(fileinfo):
     valid = True
 
+    # fails
+    # 2017-05-18_16-31-S
+
     mea_no = -1
     mea_idx = -1
     try:
@@ -75,6 +78,7 @@ def parsedir(directory, dir_info):
         datestring = fileinfo[0]
         if "MEA" in datestring:
             datestring = datestring.split("MEA")[0]
+            fileinfo[0] = "MEA"
 
         # Get date info
         try:
@@ -82,7 +86,7 @@ def parsedir(directory, dir_info):
             # print m.weekday
             # print m.format('YYYY-M-D_H-m')
             try:
-                dirname = os.path.join(directory, m.format('YYYY-M-D_H-m'))
+                dirname = os.path.join(directory, m.format('YYYY-M-D_H-m-s'))
                 if not os.path.exists(dirname):
                     outdir = os.makedirs(dirname)
             except Exception as e:
@@ -112,6 +116,6 @@ def parsedir(directory, dir_info):
 
 
 def main():
-    files = process_directories("/home/peteraa/Fuckton of MEA data/hfd5_test", "")
+    files = process_directories("/home/peteraa/Fuckton_of_MEA_data/hdf5_15", "")
 
 main()

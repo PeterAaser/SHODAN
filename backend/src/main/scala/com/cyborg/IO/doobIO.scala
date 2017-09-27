@@ -12,11 +12,12 @@ import com.github.nscala_time.time.Imports._
 
 object doobieTasks {
 
-  val superdupersecretPassword = ""
+  // haha nice meme dude!
+  val superdupersecretPassword = "meme"
 
   val xa = Transactor.fromDriverManager[IO](
     "org.postgresql.Driver",
-    "jdbc:postgresql:memeStorage",
+    "jdbc:postgresql:memestorage",
     "postgres",
     s"$superdupersecretPassword"
   )
@@ -31,7 +32,7 @@ object doobieTasks {
       val huh = sql"""
        SELECT experimentId, channelRecordingId, channelNumber
        FROM channelRecording
-       WHERE channelRecordingId = $experimentId
+       WHERE experimentId = $experimentId
      """.query[ChannelRecording].process
 
       huh.transact(xa)
@@ -116,18 +117,28 @@ object doobieTasks {
     }
 
     def insertDataRecord(channelRecordingId: Long, data: Array[Int]): IO[Int] = {
-      sql"""
+
+      val lel = "{" + data.head + ("" /: data.tail.map(λ => "," + λ))(_ + _) + "}"
+      val query = sql"""
       INSERT INTO datapiece (channelRecordingId, sample)
-      VALUES ($channelRecordingId, $data)
-    """.update.run.transact(xa)
+      VALUES ($channelRecordingId, $lel::int4[])
+    """
+      // println(query)
+
+
+      query.update.run.transact(xa)
     }
 
     def insertOldExperiment(comment: Option[String], timestamp: DateTime): IO[Long] = {
       val comment_ = comment.getOrElse("no comment")
-      val fmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
+      val fmt = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss")
       val timeString = timestamp.toString(fmt)
+
+      println(s"inserting old experiment with comment $comment_, date: $timeString::timestamp")
+
       val op = for {
-        _ <- sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment_, $timeString)".update.run
+        _ <- sql"set datestyle = dmy".update.run
+        _ <- sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment_, $timeString::timestamp)".update.run
         id <- sql"select lastval()".query[Long].unique
       } yield (id)
       op.transact(xa)
