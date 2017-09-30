@@ -19,6 +19,10 @@ object Launcher {
 
     println("wello")
 
-    Assemblers.assembleMcsFileReader.run.unsafeRunSync()
+    // http4sClient.doTheThing()
+    // newHttpClient.someTests()
+
+    // newHttpClient.createConnectDAQrequestJSON(10000, 1000, List(1,2,3))
+    // Assemblers.assembleMcsFileReader.run.unsafeRunSync()
   }
 }

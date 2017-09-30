@@ -13,31 +13,11 @@ import scala.language.higherKinds
 
 object utilz {
 
-  type dataSegment = (Vector[Int], Int)
-  type dataTopic[F[_]] = Topic[F,dataSegment]
-  type meameDataTopic[F[_]] = List[Topic[F,dataSegment]]
-  type dbDataTopic[F[_]] = List[Topic[F,dataSegment]]
+  type DataSegment = (Vector[Int], Int)
+  type DataTopic[F[_]] = Topic[F,DataSegment]
+  type MeameDataTopic[F[_]] = List[Topic[F,DataSegment]]
+  type DbDataTopic[F[_]] = List[Topic[F,DataSegment]]
   type Channel = Int
-
-
-
-  def intsToBytes[F[_]]: Pipe[F, Int, Byte] = {
-
-    def intToByteList(i: Int): List[Byte] =
-      java.nio.ByteBuffer.allocate(4).putInt(i).array().toList
-
-    def go(s: Stream[F,Int]): Pull[F, Byte, Unit] = {
-    // def go: Handle[F, Int] => Pull[F, Byte, Unit] = h => {
-      s.pull.uncons flatMap {
-        case Some((chunk, tl)) => {
-          val fug = chunk.toList.flatMap(intToByteList(_))
-          Pull.output(Chunk.seq(fug)) >> go(tl)
-        }
-        case None => Pull.done
-      }
-    }
-    in => go(in).stream
-  }
 
 
   /**
@@ -51,6 +31,7 @@ object utilz {
         case Some((chunk, tl)) => {
           if(chunk.size % 4 != 0){
             println("CHUNK MISALIGNMENT IN BYTES TO INTS CONVERTER")
+            println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             assert(false)
           }
           val intBuf = Array.ofDim[Int](chunk.size/4)
@@ -83,25 +64,20 @@ object utilz {
 
 
   /**
-    Does what it says on the tin...
-    not really perf critical
+    Encodes int to byte arrays. Assumes 4 bit integers
     */
-  def doubleToByte[F[_]](silent: Boolean): Pipe[F, Double, Byte] = {
+  def intToBytes[F[_]]: Pipe[F, Int, Array[Byte]] = {
 
-    import java.nio.ByteBuffer
-    def doubleToByteArray(x: Double): Array[Byte] = {
-      val l = java.lang.Double.doubleToLongBits(x)
-      val bb = ByteBuffer.allocate(8).putLong(l).array().reverse
-      bb
-    }
+    def go(s: Stream[F, Int]): Pull[F,Array[Byte],Unit] = {
+      s.pull.uncons flatMap {
+        case Some((seg, tl)) => {
 
-    def go(s: Stream[F,Double]): Pull[F,Byte,Unit] = {
-      s.pull.uncons1 flatMap {
-        case Some((d, tl)) => {
-          val le_bytes = doubleToByteArray(d)
-          if(!silent)
-            println(s"doubles 2 bytes seent $d which was packed to $le_bytes")
-          Pull.output(Chunk.seq(le_bytes)) >> go(tl)
+          val data = seg.toArray
+          val bb = java.nio.ByteBuffer.allocate(data.length*4)
+          for(ii <- 0 until data.length){
+            bb.putInt(data(ii))
+          }
+          Pull.output(Segment(bb.array())) >> go(tl)
         }
         case None => Pull.done
       }
@@ -226,6 +202,7 @@ object utilz {
     s => s.map( λ => { println(printer(λ)); λ } )
 
 
+  // TODO: delete
   def simpleJsonAssembler(electrodes: List[Int], stimFrequencise: List[Double]): String = {
     val electrodeString = electrodes.mkString("[", ", ", "]")
     val stimString = stimFrequencise.mkString("[", ", ", "]")
@@ -278,6 +255,8 @@ object utilz {
     by selecting output from each input stream in a round robin fashion.
 
     Not built for speed, at least not when chunksize is low
+
+    TODO: By adding queues we would stop blocking while waiting
     */
   def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap {
     streams => {
@@ -292,7 +271,7 @@ object utilz {
   /**
     Synchronizes a list of streams, discarding segment ID
     */
-  def synchronize[F[_]]: Pipe[F,List[Stream[F,dataSegment]], List[Stream[F,Vector[Int]]]] = {
+  def synchronize[F[_]]: Pipe[F,List[Stream[F,DataSegment]], List[Stream[F,Vector[Int]]]] = {
 
     ???
   }

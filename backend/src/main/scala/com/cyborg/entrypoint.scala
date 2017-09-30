@@ -31,8 +31,8 @@ object staging {
 
 
   def commandPipe(
-    dbTopics: List[dataTopic[IO]],
-    meameTopics: List[dataTopic[IO]],
+    dbTopics: List[DataTopic[IO]],
+    meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,Byte]
   )(implicit ec: ExecutionContext): Pipe[IO,userCommand, Stream[IO,Unit]] = {
@@ -46,12 +46,8 @@ object staging {
 
             case StartMEAME =>
               {
-                val huh = httpClient.startMEAMEServer.runLog.unsafeRunSync().head
-                huh match {
-                  case Left(e) => println("error!")
-                  case Right(_) => println("MEAME started")
-                }
-                sIO.streamFromTCP(meameTopics)
+                val huh = Stream.eval(httpClient.startMEAMEserver)
+                huh.through(_.map(println)) ++ sIO.streamFromTCP(meameTopics)
               }
 
 

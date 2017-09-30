@@ -4,8 +4,10 @@ import sbt._
 object Dependencies {
   val doobieVersion = "0.5.0-M7"
   val fs2Version = "0.10.0-M6"
-  val fs2httpVersion = "0.2.0-RC1"
   val scodecVersion = "TODO"
+  val http4sVersion = "0.18.0-M1"
+  val circeVersion = "0.8.0"
+
 
   val crossDeps = Def.setting(Seq[ModuleID](
     "com.typesafe" % "config" % "1.3.1",
@@ -14,7 +16,20 @@ object Dependencies {
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",
-    "org.typelevel" %%% "cats-core" % "1.0.0-MF"
+    "org.typelevel" %%% "cats-core" % "1.0.0-MF",
+
+    "io.circe" %%% "circe-core" % circeVersion,
+    "io.circe" %%% "circe-generic" % circeVersion,
+    "io.circe" %%% "circe-parser" % circeVersion,
+
+
+    // Optional for auto-derivation of JSON codecs
+    "io.circe" %%% "circe-generic" % "0.9.0-M1",
+
+    // Optional for string interpolation to JSON model
+    "io.circe" %%% "circe-literal" % "0.9.0-M1"
+
+
 
   ))
 
@@ -32,12 +47,14 @@ object Dependencies {
   ))
 
   val backendDeps = Def.setting(Seq[ModuleID](
+
+    "org.http4s" %%% "http4s-circe" % http4sVersion,
+
     "com.chuusai" %% "shapeless" % "2.3.2",
-    // "com.spinoco" %% "protocol-http" % fs2httpVersion,
-    // "com.spinoco" %% "protocol-websocket" % fs2httpVersion,
-    "com.spinoco" %% "fs2-http" % fs2httpVersion,
-    "com.spinoco" %% "protocol-http" % "0.1.8",
-    "com.spinoco" %% "protocol-websocket" % "0.1.8",
+
+    "org.http4s" %% "http4s-dsl" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-server" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
 

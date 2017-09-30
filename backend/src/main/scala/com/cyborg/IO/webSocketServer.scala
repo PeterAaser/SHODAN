@@ -1,3 +1,77 @@
+package com.cyborg
+
+object webSocketServer {
+
+  import io.circe.literal._
+  import io.circe.generic.auto._
+  import io.circe.syntax._
+
+  import cats.effect.IO
+  import scala.concurrent.ExecutionContext
+
+  import org.http4s._
+  import org.http4s.dsl._
+  import org.http4s.server.Server
+  import org.http4s.headers.`Cache-Control`
+  import org.http4s.CacheDirective.`no-cache`
+  import org.http4s.client.blaze._
+  import org.http4s.Uri
+  import org.http4s.server.blaze.BlazeBuilder
+  import org.http4s.websocket.WebsocketBits._
+  import org.http4s.server.websocket._
+  import scodec.Codec
+
+  import utilz._
+
+  import fs2._
+  import fs2.Stream._
+
+  import com.cyborg.wallAvoid._
+  import sharedImplicits._
+
+
+  def webSocketService(waveforms: List[DataTopic[IO]], agent: Stream[IO,Agent]) = {
+
+    // TODO: Currently ignores segments etc
+    val inStream: Stream[IO,WebSocketFrame] = {
+      val dur = waveforms
+        .map(_.subscribe(100))
+
+      Stream.emit(dur).covary[IO]
+        .through(roundRobin)
+        .through(chunkify)
+        .through(_.map(_._1))
+        .through(chunkify)
+        .through(downSamplePipe(1000))
+        .through(intToBytes)
+        .through(_.map(Binary(_)))
+    }
+
+    def agentInStream(s: Stream[IO,Agent]): Stream[IO,WebSocketFrame] =
+      s.map(λ => Binary(Codec.encode(λ).require.toByteArray))
+
+    val outSink: Sink[IO,WebSocketFrame] = _.drain
+
+
+    def route: HttpService[IO] = HttpService[IO] {
+      case GET -> Root / "ws" / "wave" =>
+        WS[IO](inStream, outSink)
+
+      case GET -> Root / "ws" / "agent" =>
+        WS[IO](agentInStream(agent), outSink)
+    }
+    route
+  }
+
+  def webSocketServer(waveforms: List[DataTopic[IO]], agent: Stream[IO,Agent]) = {
+    val service = webSocketService(waveforms, agent)
+    val builder = BlazeBuilder[IO].bindHttp(8080).mountService(service).start
+    builder
+  }
+}
+
+// object wsIO {
+
 //   import cats.effect.IO
 //   import cats.effect.Effect
 //   import cats.effect.Async
@@ -8,9 +82,6 @@
 
 //   import scodec.codecs.implicits._
 //   import scodec.Codec
-
-// object wsIO {
-
 
 //   import com.cyborg.wallAvoid._
 

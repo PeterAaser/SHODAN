@@ -76,8 +76,9 @@
 * TODO Add testing
 
 * Neste gang
-  Sjekk at filepath ikke blir kluss og dritt
-  Se Launcher
+  Jobbe mot DSP'en.
+  Sjekke recordings visualizer vs
+  live recording.
   
 * Database specification
 ** ER

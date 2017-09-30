@@ -112,7 +112,7 @@ object databaseIO {
       Starts pumping in ze data!
       TODO should probably be removed?
       */
-    def startRecording(topics: List[dataTopic[IO]], id: ExperimentId)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+    def startRecording(topics: List[DataTopic[IO]], id: ExperimentId)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
       val channels = (0 to 60).map(createChannelSink(_, id))
       val huh = channels zip topics map{
         case(channelSink: Sink[IO,Int], topic) => {

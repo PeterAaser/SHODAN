@@ -1,111 +1,95 @@
 package com.cyborg
 
-import fs2._
-import fs2.Stream._
-import cats.effect.IO
-import scala.concurrent.ExecutionContext
-
-import scala.language.higherKinds
-
-import spinoco.fs2.http
-import http._
-
-import spinoco.protocol.http.Uri
-import spinoco.protocol.http._
-
 
 object httpClient {
 
-  import backendImplicits._
+  import io.circe.literal._
+  import io.circe.generic.auto._
+  import io.circe.syntax._
 
-  import params.http.MEAMEclient._
+  import fs2._
+  import cats.effect.IO
+  import cats.effect._
 
-  val baseUri = s"${ip}:${port}"
-  val uri = Uri.http(ip, port=8888, path="/")
+  import org.http4s._
+  import org.http4s.client._
+  import org.http4s.dsl._
+  import org.http4s.client.blaze._
+  import org.http4s.Uri
+  import org.http4s.server.blaze.BlazeBuilder
+  import org.http4s.circe._
 
-  implicit val StringCodec = scodec.codecs.utf8_32
-  import spinoco.fs2.http.body.BodyEncoder
+  val httpClient = PooledHttp1Client[IO]()
+  implicit val decoder = jsonOf[IO, DAQparams]
+  case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
 
-  def tryHttpWithError(
-    client: HttpRequest[IO] => Stream[IO,HttpResponse[IO]],
-    req: HttpRequest[IO],
-    errorMsg: HttpResponse[IO] => String): Stream[IO,Either[String,Unit]] = {
+  def connectDAQrequest(params: DAQparams): IO[String] = {
+    val req = POST(Uri.uri("http://localhost:8080/"), params.asJson)
+    httpClient.expect[String](req)
+  }
 
-    client(req).map { response =>
-      if(response.header.status == HttpStatusCode.Ok)
-        Right(())
-      else
-        Left(errorMsg(response))
+  def startDAQrequest: IO[String] =
+    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+
+  def stopDAQrequest: IO[String] =
+    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+
+  def sayHello: IO[String] =
+    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+
+
+  import params.experiment._
+
+  def startMEAMEserver: IO[String] = {
+    val daqParams = DAQparams(samplerate, segmentLength, List(1,2,3))
+    connectDAQrequest(daqParams).attempt flatMap {
+      case Left(e) => IO.pure("Something went wrong when connecting to the DAQ")
+      case Right(_) => startDAQrequest flatMap {
+        resp => {
+          IO.pure(s"Looks like we're good. resp was $resp")
+        }
+      }
     }
   }
 
 
-  def createConnectDAQrequest[F[_]](
-    samplerate: Int,
-    segmentLength: Int,
-    selectChannels: List[Int]): HttpRequest[F] =
-  {
 
-    val json =
-      "{ \"samplerate\": " + s"${samplerate}," +
-        "\"segmentLength\": " + s"${segmentLength}," +
-        "\"specialChannels\": " +
-        s"[${selectChannels.head}" +
-        ("" /: selectChannels.tail)((λ, µ) => λ + s",$µ") +
-        "]}"
+  // def someTests(): Unit = {
 
-    HttpRequest.post[F,String](Uri.http(ip, port=8888, path="/DAQ/connect"), json)(BodyEncoder.utf8String)
-  }
+  //   val jsonService: HttpService[IO] = HttpService {
+  //     case req @ POST -> Root / "hello" =>
+  //       for {
+	//         // Decode a User request
+	//         user <- req.as[DAQparams]
+	//         // Encode a hello response
+	//         resp <- Ok("Cool beans")
+  //       } yield (resp)
+  //   }
 
-  def connectDAQrequestT(
-    samplerate: Int,
-    segmentLengt: Int,
-    selectChannels: List[Int],
-    client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
-  {
-    def failureMsg(resp: HttpResponse[IO]): String = {
-      s"DAQ connection failed with error code ${resp.header.status}\n" +
-      s"reason was: \nFuck knows..."
-    }
-    val req = createConnectDAQrequest[IO](samplerate, segmentLengt, selectChannels)
-    tryHttpWithError(client.request(_), req, failureMsg)
-  }
+  //   val builder = BlazeBuilder[IO].bindHttp(8080).mountService(jsonService, "/")
+  //   builder.start.unsafeRunSync
+
+  //   val myReq = DAQparams(10000, 2000, List(1, 2, 3))
+
+  //   val hello = connectDAQrequest(myReq).unsafeRunSync()
+  //   println(hello)
 
 
-  def sayHello[F[_]]: HttpRequest[F] =
-    HttpRequest.get[F](Uri.http(ip, port=8888, path="/status"))
+  // }
 
-  def sayHelloT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
-    tryHttpWithError(client.request(_), sayHello, resp => s"sayHello failed with ${resp.header.status}")
-
-
-
-  def startDAQrequest[F[_]]: HttpRequest[F] =
-    HttpRequest.get[F](Uri.http(ip, port=8888, path="/DAQ/start"))
-
-  def startDAQrequestT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
-    tryHttpWithError(client.request(_), startDAQrequest, resp => s"start DAQ failed with ${resp.header.status}")
-
-
-
-  def stopDAQrequest[F[_]]: HttpRequest[F] =
-    HttpRequest.get[F](Uri.http(ip, port=8888, path="/DAQ/stop"))
-
-  def stopDAQrequestT(client: HttpClient[IO]): Stream[IO, Either[String,Unit]] =
-    tryHttpWithError(client.request(_), stopDAQrequest, resp => s"stop DAQ failed with ${resp.header.status}")
-
-
-  def startMEAMEServer(implicit ec: ExecutionContext): Stream[IO,Either[String,Unit]] =
-  {
-
-    import params.experiment._
-
-    val clientTask: IO[HttpClient[IO]] = http.client[IO]()
-    for {
-      client <- Stream.eval(clientTask)
-      _ <- sayHelloT(client)
-      _ <- connectDAQrequestT(samplerate, segmentLength, List(1,2,3), client)
-      a <- startDAQrequestT(client)
-    } yield a
-  }
+  // object MEAMEmocks {
+  //   val jsonService: HttpService[IO] = HttpService {
+  //     case req @ POST -> Root / "hello" =>
+  //       for {
+	//         // Decode a User request
+	//         user <- req.as[DAQparams]
+	//         // Encode a hello response
+	//         resp <- Ok("Cool beans")
+  //       } yield (resp)
+  //     case a: Any => {
+  //       println(a)
+  //       Ok("Uncool beans")
+  //     }
+  //   }
+  // }
 }

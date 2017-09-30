@@ -1,89 +1,95 @@
 package com.cyborg
 
-import fs2._
+import io.circe.literal._
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 import cats.effect.IO
+import org.http4s.server.Server
 import scala.concurrent.ExecutionContext
-import spinoco.fs2.http
-import spinoco.protocol.http._
-import http._
+
+import org.http4s._
+import org.http4s.dsl._
+import org.http4s.headers.`Cache-Control`
+import org.http4s.CacheDirective.`no-cache`
+import org.http4s.client.blaze._
+import org.http4s.Uri
+import org.http4s.server.blaze.BlazeBuilder
+
+import fs2._
 
 object httpServer {
 
-  /**
-    At the moment this is very sparsely populated.
-    When CORS token issue is resolved this code will act as entrypoint for the
-    web client.
-    */
-
   import params.http.SHODANserver._
-
   import java.net.InetSocketAddress
-
-  val respondOk = Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
 
   import httpCommands._
 
-  def service(commands: Sink[IO,userCommand])(request: HttpRequestHeader, body: Stream[IO,Byte])(implicit ec: ExecutionContext): Stream[IO,HttpResponse[IO]] = {
+  def SHODANservice(commands: Sink[IO,UserCommand]): HttpService[IO] = {
 
-    println("\ngot request:")
+    def cmd(command: UserCommand): IO[Unit] =
+      Stream.emit(command).covary[IO].through(commands).run
 
-    if (request.path == Uri.Path / "connect"){
-      println(s"connect")
-      Stream.emit(StartMEAME).covary[IO].through(commands).drain.concurrently(
-        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
-      )
-    }
-    else if (request.path == Uri.Path / "stop"){
-      println(s"stop")
-      Stream.emit(StopMEAME).covary[IO].through(commands).drain.concurrently(
-        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
-      )
-    }
-    else if (request.path == Uri.Path / "start"){
-      println(s"start")
-      Stream.emit(StartMEAME).covary[IO].through(commands).drain.concurrently(
-        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
-      )
-    }
-    else if (request.path == Uri.Path / "agent"){
-      println(s"agent")
-      Stream.emit(AgentStart).covary[IO].through(commands).drain.concurrently(
-        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
-      )
-    }
-    else if (request.path == Uri.Path / "wf"){
-      println(s"wf")
-      Stream.emit(WfStart).covary[IO].through(commands).drain.concurrently(
-        Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World"))
-      )
-    }
-    else {
-      Stream.emit(HttpResponse(HttpStatusCode.Ok).withUtf8Body("Hello World")).drain
+    HttpService {
+      case req @ POST -> Root / "connect" => {
+        println("connect. WARNING DOES THE SAME AS STARTMEAME")
+        for {
+          emit <- cmd(StartMEAME)
+          resp <- Ok("Connected")
+        } yield (resp)
+      }
+      case req @ POST -> Root / "stop" => {
+        println("stop")
+        for {
+          emit <- cmd(StopMEAME)
+          resp <- Ok("Stopped")
+        } yield (resp)
+      }
+      case req @ POST -> Root / "start" => {
+        println("stop")
+        for {
+          emit <- cmd(StartMEAME)
+          resp <- Ok("Stopped")
+        } yield (resp)
+      }
+      case req @ POST -> Root / "agent" => {
+        println("stop")
+        for {
+          emit <- cmd(AgentStart)
+          resp <- Ok("Stopped")
+        } yield (resp)
+      }
+      case req @ POST -> Root / "wf" => {
+        println("waveform")
+        for {
+          emit <- cmd(AgentStart)
+          resp <- Ok("Stopped")
+        } yield (resp)
+      }
     }
   }
 
-  def startServer(commands: Sink[IO,userCommand])(implicit ec: ExecutionContext): IO[Unit] = {
-    println(s"Starting server at port $SHODANserverPort")
+  def SHODANserver(commands: Sink[IO,UserCommand]): IO[Server[IO]] = {
     import backendImplicits._
-    http.server(new InetSocketAddress("127.0.0.1", SHODANserverPort))(service(commands)).run
+    val service = SHODANservice(commands)
+    val builder = BlazeBuilder[IO].bindHttp(8080).mountService(service).start
+    builder
   }
 }
 
 object httpCommands {
 
-  trait userCommand
-  case object StartMEAME extends userCommand
-  case object StopMEAME extends userCommand
+  trait UserCommand
+  case object StartMEAME extends UserCommand
+  case object StopMEAME extends UserCommand
 
-  case object AgentStart extends userCommand
-  case object WfStart extends userCommand
-  case object StartWaveformVisualizer extends userCommand
+  case object AgentStart extends UserCommand
+  case object WfStart extends UserCommand
+  case object StartWaveformVisualizer extends UserCommand
 
-  case object ConfigureMEAME extends userCommand
+  case object ConfigureMEAME extends UserCommand
 
-  case class RunFromDB(experimentId: Int) extends userCommand
-  case class StoreToDB(comment: String) extends userCommand
-
+  case class RunFromDB(experimentId: Int) extends UserCommand
+  case class StoreToDB(comment: String) extends UserCommand
 
 }

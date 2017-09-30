@@ -20,6 +20,10 @@ scalacOptions in ThisBuild ++= Seq(
   "-Xlint:_,-missing-interpolator,-adapted-args"
 )
 
+resolvers += Resolver.sonatypeRepo("snapshots")
+autoCompilerPlugins := true
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+
 
 fork in run := true
 

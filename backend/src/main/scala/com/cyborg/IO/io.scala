@@ -25,7 +25,7 @@ object sIO {
   /**
     * For offline playback of data, select experiment id to publish on provided topics
     */
-  def streamFromDatabase(experimentId: Int, topics: dbDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def streamFromDatabase(experimentId: Int, topics: DbDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     for {
       experimentInfo <- databaseIO.dbReaders.getExperimentSampleRate(experimentId) // samplerate, not use atm
       experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
@@ -37,7 +37,7 @@ object sIO {
   /**
     * Stream data to a database from a list of topics yada yada
     */
-  def streamToDatabase(topics: dbDataTopic[IO], comment: String)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def streamToDatabase(topics: DbDataTopic[IO], comment: String)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     for {
       id <- eval(databaseIO.dbWriters.createExperiment(Some(comment)))
       _ <- databaseIO.dbWriters.startRecording(topics, id)
@@ -49,7 +49,7 @@ object sIO {
     * Open a TCP connection to stream data from other computer
     * Data is broadcasted to provided topics
     */
-  def streamFromTCP(topics: meameDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def streamFromTCP(topics: MeameDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     val experimentData = networkIO.streamAllChannels[IO]
     Assemblers.broadcastDataStream(experimentData, topics)
   }

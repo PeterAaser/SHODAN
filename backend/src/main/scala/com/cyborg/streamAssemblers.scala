@@ -21,7 +21,7 @@ object Assemblers {
     */
   // TODO rename to spike detector something?
   def assembleInputFilter[F[_]: Effect](
-    broadcastSource: List[dataTopic[F]],
+    broadcastSource: List[DataTopic[F]],
     channels: List[Channel],
     spikeDetector: Pipe[F,Int,Double]
   ): Stream[F,ffANNinput] = {
@@ -48,12 +48,12 @@ object Assemblers {
     */
   def broadcastDataStream(
     source: Stream[IO,Int],
-    topics: List[dataTopic[IO]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+    topics: List[DataTopic[IO]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
     import params.experiment._
 
-    def publishSink(topics: List[dataTopic[IO]]): Sink[IO,Int] = {
-      def loop(segmentId: Int, topics: List[dataTopic[IO]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
+    def publishSink(topics: List[DataTopic[IO]]): Sink[IO,Int] = {
+      def loop(segmentId: Int, topics: List[DataTopic[IO]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
         s.pull.unconsN(segmentLength*totalChannels.toLong, false) flatMap {
           case Some((seg, tl)) => {
             val grouped = seg.toVector.grouped(segmentLength)
@@ -82,7 +82,7 @@ object Assemblers {
     Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
     parametrized with the import params thing because db might have more or less channels
     */
-  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,(dbDataTopic[F],meameDataTopic[F])] = {
+  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,(DbDataTopic[F],MeameDataTopic[F])] = {
 
     // hardcoded
     val dbChannels = 60
@@ -104,7 +104,7 @@ object Assemblers {
     Assembles a GA run from an input topic and returns a byte stream to MEAME
     */
   def assembleGA[F[_]: Effect](
-    dataSource: List[dataTopic[F]],
+    dataSource: List[DataTopic[F]],
     inputChannels: List[Channel],
     outputChannels: List[Channel],
     frontendAgentObserver: Sink[F,Agent],
@@ -136,12 +136,12 @@ object Assemblers {
 
 
   /**
-    Takes data from the dataTopic list, filters the data, vectorizes it to fit message size
+    Takes data from the DataTopic list, filters the data, vectorizes it to fit message size
     before demuxing it to a single stream which is sent to the visualizer
     */
   // TODO where should data filtering really be handled?
   def assembleWebsocketVisualizer[F[_]: Effect](
-    dataSource: List[dataTopic[F]],
+    dataSource: List[DataTopic[F]],
     dataFilter: Pipe[F,Int,Int])(implicit ec: ExecutionContext): Stream[F, Unit] =
   {
     import params.waveformVisualizer.wfMsgSize
