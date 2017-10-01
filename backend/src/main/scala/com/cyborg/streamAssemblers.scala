@@ -68,6 +68,7 @@ object Assemblers {
 
             Pull.output(Segment.seq(broadCasts)) >> loop(segmentId + 1, topics, tl)
           }
+          case None => Pull.done
         }
       }
       in => loop(0, topics, in).stream.map(Stream.eval).join(totalChannels)
@@ -85,9 +86,6 @@ object Assemblers {
   def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,(DbDataTopic[F],MeameDataTopic[F])] = {
 
     // hardcoded
-    val dbChannels = 60
-    val meameChannels = 60
-
     createTopics(60, (Vector.empty[Int],-1)) flatMap {
       dbTopics => {
         createTopics(60, (Vector.empty[Int],-1)) map {
@@ -115,7 +113,6 @@ object Assemblers {
     import params.filtering._
 
     def filter = spikeDetector.spikeDetectorPipe[F](samplerate, MAGIC_THRESHOLD)
-    // def filter = (a: Stream[F,Int]) => Stream[F,Double](0.0).repeat
 
     def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
 
@@ -140,19 +137,23 @@ object Assemblers {
     before demuxing it to a single stream which is sent to the visualizer
     */
   // TODO where should data filtering really be handled?
-  def assembleWebsocketVisualizer[F[_]: Effect](
-    dataSource: List[DataTopic[F]],
-    dataFilter: Pipe[F,Int,Int])(implicit ec: ExecutionContext): Stream[F, Unit] =
+  def assembleWebsocketVisualizer(
+    dataSource: List[DataTopic[IO]],
+    dataFilter: Pipe[IO,Int,Int]): Stream[IO, Unit] =
   {
+    // TODO: Currently ignores segments etc
     import params.waveformVisualizer.wfMsgSize
-    val mapped = dataSource
+    val mapped: List[Stream[IO,Vector[Int]]] = dataSource
       .map(_.subscribe(1000))
       .map(_.map(_._2))
       .map(_.through(dataFilter))
       .map(_.through(utilz.vectorize(wfMsgSize)))
 
-    val muxed = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
-    wsIO.webSocketWaveformSink(muxed)
+    val muxed = Stream.emit(mapped).covary[IO].through(roundRobin).through(chunkify).through(chunkify)
+    val server = webSocketServer.webSocketWaveformServer(muxed)
+
+    // Does this actually work? TODO: Possibly test failure point
+    Stream.eval_(server)
   }
 
 

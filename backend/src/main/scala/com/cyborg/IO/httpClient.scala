@@ -20,22 +20,32 @@ object httpClient {
   import org.http4s.circe._
 
   val httpClient = PooledHttp1Client[IO]()
-  implicit val decoder = jsonOf[IO, DAQparams]
+  implicit val DAQdecoder = jsonOf[IO, DAQparams]
+  implicit val regDecoder = jsonOf[IO, RegisterList]
+
+
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
+  case class RegisterList(adresses: List[Int], values: List[Int])
 
   def connectDAQrequest(params: DAQparams): IO[String] = {
-    val req = POST(Uri.uri("http://localhost:8080/"), params.asJson)
+    val req = POST(Uri.uri("http://129.241.201.110:8888/connectDAQ"), params.asJson)
     httpClient.expect[String](req)
   }
 
+  def setRegistersRequest(regs: RegisterList): IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/setreg"), regs.asJson)
+    httpClient.expect[String](req)
+  }
+
+
   def startDAQrequest: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/startDAQ")))
 
   def stopDAQrequest: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/stopDAQ")))
 
   def sayHello: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://localhost:8080/")))
+    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/status")))
 
 
   import params.experiment._
@@ -51,45 +61,4 @@ object httpClient {
       }
     }
   }
-
-
-
-  // def someTests(): Unit = {
-
-  //   val jsonService: HttpService[IO] = HttpService {
-  //     case req @ POST -> Root / "hello" =>
-  //       for {
-	//         // Decode a User request
-	//         user <- req.as[DAQparams]
-	//         // Encode a hello response
-	//         resp <- Ok("Cool beans")
-  //       } yield (resp)
-  //   }
-
-  //   val builder = BlazeBuilder[IO].bindHttp(8080).mountService(jsonService, "/")
-  //   builder.start.unsafeRunSync
-
-  //   val myReq = DAQparams(10000, 2000, List(1, 2, 3))
-
-  //   val hello = connectDAQrequest(myReq).unsafeRunSync()
-  //   println(hello)
-
-
-  // }
-
-  // object MEAMEmocks {
-  //   val jsonService: HttpService[IO] = HttpService {
-  //     case req @ POST -> Root / "hello" =>
-  //       for {
-	//         // Decode a User request
-	//         user <- req.as[DAQparams]
-	//         // Encode a hello response
-	//         resp <- Ok("Cool beans")
-  //       } yield (resp)
-  //     case a: Any => {
-  //       println(a)
-  //       Ok("Uncool beans")
-  //     }
-  //   }
-  // }
 }

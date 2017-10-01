@@ -35,9 +35,9 @@ object staging {
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,Byte]
-  )(implicit ec: ExecutionContext): Pipe[IO,userCommand, Stream[IO,Unit]] = {
+  )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
 
-    def go(s: Stream[IO,userCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
+    def go(s: Stream[IO,UserCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
       s.pull.uncons1 flatMap { case Some((cmd, tl)) =>
         {
           println(s"got a $cmd")
@@ -98,6 +98,6 @@ object staging {
         }
       }
     }
-    in: Stream[IO,userCommand] => go(in).stream
+    in: Stream[IO,UserCommand] => go(in).stream
   }
 }
