@@ -56,6 +56,8 @@ object wallAvoid {
   }
   object Agent {
 
+    val dummy = Agent(Coord(0.0, 0.0), 0.0, 0)
+
     def updateAgent(a: Agent, input: List[Double]): Agent = {
 
       val nextAgent = a.update((input.head, input.tail.head))

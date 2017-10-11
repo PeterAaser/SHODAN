@@ -1,84 +1,10 @@
-* TODO IO
-** DONE Investigate codebase IO and sketch out spec
-   120 min (35 min)
-   
-   Possibly add IO-Control for prettifying the whole http interface?
-   Currently I have large blocks of code in entrypoint doing rather arbitrary stuff.
-   
-   Ideally IO-Control should contain composable imperative blocks that can be strung
-   together using a free monad.
-   
-   All IO blocks should then either observe async, or consume a stream.
-   Possibly the IO block for starting MEAME should return two tokens (one-time use?)
-   that can be used to start a stream from either full channel or selective channel.
-
-   Seemingly we want to always go full channel, even for ANN input. It would be a good
-   idea to run some tests to see if the slowdown experienced was because of sync/async.
-   
-   A set of utils to attach and detach observers etc could be fairly useful.
-   In order to refactor IO a test-suite is getting pretty necessary, rather than
-   always testing manually.
-   Possibly a benchmarking tool should be used as well?
-
-   Decide if we want to go full DSL or not on experiment assembly
-   
-   Entrypoint should still be the staging area for the IO pipes, needing only to import
-   IO-Control
-
-** TODO String all that shit together in a free monad
-   ???
-   read the red book once more
-
-** TODO Add parser from MCS bullshit to SHODAN format
-** TODO Investigate separating database into its own separate entitiy.
-* TODO Add a goddamn test-suite
-** TODO Spec out what I actually want to test
-   30 min
-** TODO Make some reasonable cases
-   30 min
-** TODO explore mocked streaming
-** TODO explore streaming from DB 
-** TODO explore benchmarking
-   
-* TODO general housecleaning
-** TODO GA
-** TODO Consider making SHODAN more library-like
-** TODO remove all instances of the word "meme"
-*** nice meme
-** DONE Refactor pipe assemblies again
-* TODO Investigate signal processing methods
-** Implementation
-*** Native libraries
-*** Matlab -> JVM
-*** Offload to FPGA
-**** Chisel!
-*** Offload to DSP
-
-** Theoretical
-*** Hør med Geir og Martinius
-
-* TODO Better DI
-** TODO Figure out best practice for DI
-*** TODO Try out Free monad, ReaderWriter, or tagless final encoding (ps I have no fucking idea..)
-** DONE SHODAN should be able to select experiment params from either file of conf.
-   CLOSED: [2017-05-18 to. 16:54]
-   Shitty version is in fact done
-
-* DONE Implement throttling streams
-* TODO Visualize spike detection
-* TODO Improve visualizers
-* TODO Rething user interaction
-* TODO Better UX
-** Must be able to start/restart without refreshing webpage
-** MEAME2 must be able to handle all sorts of bullshit from the frontend
-** Robustness must be enforced, clicking two buttons to visualize is unacceptable
-
-* TODO Add testing
-
 * Neste gang
-  Jobbe mot DSP'en.
-  Sjekke recordings visualizer vs
-  live recording.
+**  Se på db stuff
+   Et eller anna får GA til å stoppe
+   
+  Debug all den nye HTTP koden.
+  Debug litt mer på DSP.
+  Se litt på visualizer?
   
 * Database specification
 ** ER
@@ -146,4 +72,3 @@
 *** Visualization is restarted
     Same as first
 *** ???
-    

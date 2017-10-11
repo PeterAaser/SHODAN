@@ -4,6 +4,7 @@ import fs2._
 import fs2.Stream._
 
 import cats.effect.IO
+import fs2.async.mutable.Topic
 import scala.concurrent.ExecutionContext
 
 import utilz._
@@ -25,13 +26,12 @@ object sIO {
   /**
     * For offline playback of data, select experiment id to publish on provided topics
     */
-  def streamFromDatabase(experimentId: Int, topics: DbDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    for {
-      experimentInfo <- databaseIO.dbReaders.getExperimentSampleRate(experimentId) // samplerate, not use atm
-      experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
-    } yield {
-      Assemblers.broadcastDataStream(experimentData, topics)
-    }
+  def streamFromDatabase(experimentId: Int, topics: List[Topic[IO,DataSegment]])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+    // for {
+    //   experimentInfo <- databaseIO.dbReaders.getExperimentSampleRate(experimentId) // samplerate, not use atm
+    // } yield {
+    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
+    Assemblers.broadcastDataStream(experimentData, topics)
   }
 
   /**
@@ -60,4 +60,12 @@ object sIO {
     */
   def stimulusToTCP(stimuli: Stream[IO,String]): Stream[IO, Unit] = ???
 
+
+}
+
+object dIO {
+  def streamFromDatabaseRaw(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
+    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
+    experimentData
+  }
 }

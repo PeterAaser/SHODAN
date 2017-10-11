@@ -1,7 +1,7 @@
 package com.cyborg
 
 import fs2._
-import fs2.async.mutable.Topic
+import fs2.async.mutable.{ Queue, Topic }
 import cats.effect.Effect
 import cats.effect.IO
 import scala.concurrent.ExecutionContext
@@ -30,8 +30,7 @@ object utilz {
       s.pull.unconsChunk flatMap {
         case Some((chunk, tl)) => {
           if(chunk.size % 4 != 0){
-            println("CHUNK MISALIGNMENT IN BYTES TO INTS CONVERTER")
-            println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            println( Console.RED + "CHUNK MISALIGNMENT IN BYTES TO INTS CONVERTER" + Console.RESET )
             assert(false)
           }
           val intBuf = Array.ofDim[Int](chunk.size/4)
@@ -218,9 +217,11 @@ object utilz {
     Creates a list containing num topics of type T
     Requires an initial message init.
     */
+  // TODO dbg
+  // Testes i SAtest
   def createTopics[F[_]: Effect,T](num: Int, init: T)(implicit ec: ExecutionContext): Stream[F,List[Topic[F,T]]] = {
     val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
-    val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F] /: (0 to num)){
+    val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F].repeat /: (0 to num)){
       (acc: Stream[F,Topic[F,T]], _) => {
         Stream.eval(topicTask) ++ acc
       }
@@ -232,14 +233,15 @@ object utilz {
   /**
     Periodically emits "tokens" to a queue. By zipping the output of the queue with a
     stream and then discarding the token the stream will be throttled to the rate of token outputs.
+    TODO: I think this is now a part of the standard fs2 lib
     */
-  def throttle[I](period: FiniteDuration)(implicit s: Effect[IO], t: Scheduler, ec: ExecutionContext): Pipe[IO,I,I] = {
+  def throttle[F[_], I](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Pipe[F,I,I] = {
 
-    val throttler: Stream[IO,Unit] = t.fixedRate(period)
-    val throttleQueueTask = fs2.async.circularBuffer[IO,Unit](10)
+    val throttler: Stream[F,Unit] = t.fixedRate(period)
+    val throttleQueueTask = fs2.async.circularBuffer[F,Unit](10)
 
     // Should now periodically input tokens to the throttle queue
-    val throttleStream: Stream[IO, Unit] =
+    val throttleStream: Stream[F, Unit] =
       Stream.eval(throttleQueueTask) flatMap { queue =>
         val in = throttler.through(queue.enqueue)
         val out = queue.dequeue
@@ -249,6 +251,9 @@ object utilz {
     s => s.zip(throttleStream).map(_._1)
   }
 
+  def throttul(period: FiniteDuration)(implicit s: Effect[IO], t: Scheduler, ec: ExecutionContext): Stream[IO,Unit] = {
+    t.fixedRate(100.millis)
+  }
 
   /**
     Takes a stream of lists of streams and converts it into a single stream
@@ -258,13 +263,15 @@ object utilz {
 
     TODO: By adding queues we would stop blocking while waiting
     */
-  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],Seq[I]] = _.flatMap {
-    streams => {
-      val nilStream = Stream( List[I]() ).covary[F].repeat
-      val zipped = streams.foldLeft(nilStream)((b: Stream[F,List[I]], a: Stream[F,I]) =>
-        b.zipWith(a)((λ, µ) => µ :: λ))
-      zipped
+  def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],List[I]] = _.flatMap(roundRobinL)
+
+
+  def roundRobinL[F[_],I](streams: List[Stream[F,I]]): Stream[F,List[I]] = {
+    def zip2List(a: Stream[F,I], b: Stream[F,List[I]]): Stream[F,List[I]] = {
+      a.zipWith(b)(_::_)
     }
+    val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
+    streams.foldLeft(mpty)((λ,µ) => zip2List(µ,λ))
   }
 
 
@@ -273,7 +280,23 @@ object utilz {
     */
   def synchronize[F[_]]: Pipe[F,List[Stream[F,DataSegment]], List[Stream[F,Vector[Int]]]] = {
 
-    ???
+    /**
+      Takes the first element of each inner stream and checks the tag.
+      Drops the discrepancy between tags from each stream
+      */
+    def synchStreams(streams: Stream[F,List[Stream[F,DataSegment]]]) = {
+      val a: Stream[F, Seq[DataSegment]] = roundRobin(streams)
+      val b = a flatMap (λ =>
+        {
+          val tags = λ.map(_._2)
+          val largest = tags.max
+          val diffs = tags.map(largest - _)
+          streams.map(λ => λ.zip(diffs).map(λ => λ._1.drop(λ._2.toLong).map(λ => λ._1)))
+        })
+      b
+    }
+
+    synchStreams
   }
 
 
@@ -306,4 +329,35 @@ object utilz {
     }
     in => go(in, 0).stream
   }
+
+  def logEveryNth[F[_],I](n: Int): Pipe[F,I,I] = {
+    def go(s: Stream[F,I]): Pull[F,I,Unit] = {
+      s.pull.unconsN(n,false) flatMap {
+        case Some((seg, tl)) => {
+          println(seg.toList.head)
+          Pull.output(seg) >> go(tl)
+        }
+      }
+    }
+    in => go(in).stream
+  }
+
+  def logEveryNth[F[_],I](n: Int, say: I => Unit ): Pipe[F,I,I] = {
+    def go(s: Stream[F,I]): Pull[F,I,Unit] = {
+      s.pull.unconsN(n,false) flatMap {
+        case Some((seg, tl)) => {
+          say(seg.toList.head)
+          Pull.output(seg) >> go(tl)
+        }
+        case None => go(s)
+      }
+    }
+    in => go(in).stream
+  }
+
+  def spamQueueSize[F[_]: Effect, I](name: String, q: Queue[F,I])(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit]= {
+    val meme = Stream.eval(q.size.get).repeat.through(logEveryNth(100000, λ => println(s"Queue with name $name has size $λ")))
+    meme.drain
+  }
 }
+

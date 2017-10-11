@@ -13,6 +13,7 @@ import fs2.io.tcp._
 import cats.effect.IO
 import cats.effect.Effect
 import cats.effect.Sync
+import java.io.IOException
 import scala.concurrent.ExecutionContext
 
 import wallAvoid.Agent
@@ -27,7 +28,7 @@ object staging {
   import params.experiment._
   import params.GA._
   import backendImplicits._
-  import httpCommands._
+  import HttpCommands._
 
 
   def commandPipe(
@@ -46,8 +47,10 @@ object staging {
 
             case StartMEAME =>
               {
-                val huh = Stream.eval(httpClient.startMEAMEserver)
-                huh.through(_.map(println)) ++ sIO.streamFromTCP(meameTopics)
+                println("Streaming the dataz from MEAME")
+                val huh = Stream.eval(HttpClient.startMEAMEserver)
+                huh.run.unsafeRunSync()
+                sIO.streamFromTCP(meameTopics)
               }
 
 
@@ -65,6 +68,7 @@ object staging {
 
             case RunFromDB(id) =>
               {
+                println("running from DB!!")
                 val uhm = sIO.streamFromDatabase(id, meameTopics)
                 uhm
               }
@@ -84,6 +88,14 @@ object staging {
                 // Assemblers.assembleWebsocketVisualizer[IO](meameTopics, pipe.id)
                 val uhm: Stream[IO,Unit] = Stream.empty
                 uhm
+              }
+
+
+            case Shutdown =>
+              {
+                println("shutting down")
+                val ex = new IOException("Johnny number 5 is not alive")
+                throw ex
               }
 
             case _ =>

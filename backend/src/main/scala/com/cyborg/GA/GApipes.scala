@@ -27,7 +27,6 @@ object GApipes {
     */
   def experimentPipe[F[_]: Effect](inStream: Stream[F,ffANNinput], layout: List[Int])(implicit ec: ExecutionContext): Stream[F,Agent] = {
 
-
     println("Creating GA experiment pipe")
     val inputQueueTask = fs2.async.boundedQueue[F,ffANNinput](100000)
     val evaluationQueueTask = fs2.async.boundedQueue[F,Double](12000)
@@ -62,10 +61,8 @@ object GApipes {
 
       val evaluatingAgentPipe: Pipe[F,ffANNinput,Agent] = Pipe.join(evaluatingAgentPipeStream)
 
-
       // We run the input through the consolidated pipe
-      val flow = inputStream.through(evaluatingAgentPipe)
-
+      val flow = (inputStream.through(_.map(Some(_))).take(5000) ++ Stream.emit(None)).unNoneTerminate.through(evaluatingAgentPipe)
 
       // YOLO :--DDDd
       flow ++ loop(pipeStream, inputStream, evalSink)
@@ -81,9 +78,9 @@ object GApipes {
 
             val evalToPipeGeneratorCircuit =
               evalQ.dequeue
-                // .through(_.map( λ => {println(" ~~~~~ deq eval ~~~~~ "); λ} ) )
+                .through(_.map( λ => {println(" ~~~~~ deq eval ~~~~~ "); λ} ) )
                 .through(ffGA.experimentBatchPipe(layout))
-                // .through(_.map( λ => {println(" ~~~~~ deq expBP ~~~~~ "); λ} ) )
+                .through(_.map( λ => {println(" ~~~~~ deq expBP ~~~~~ "); λ} ) )
                 .through(networkQ.enqueue)
 
 

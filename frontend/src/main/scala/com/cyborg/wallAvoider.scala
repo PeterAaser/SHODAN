@@ -12,6 +12,8 @@ case class Point(x: Int, y: Int){
 
 object Visualizer {
 
+  import params.game._
+
   class VisualizerControl(
     canvas: html.Canvas,
     var newestAgent: Agent) {
@@ -72,7 +74,7 @@ object Visualizer {
 
             renderer.translate(30,0)
 
-            if (distance > 3000)
+            if (distance > sightRange)
               renderer.fillStyle = "rgb(0, 255, 255)"
             else {
               val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))

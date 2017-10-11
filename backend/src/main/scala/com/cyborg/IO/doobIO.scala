@@ -4,7 +4,6 @@ import cats.implicits._
 import cats.effect.IO
 
 import doobie.imports._
-import doobie.postgres.imports._
 
 import fs2._
 
@@ -45,12 +44,12 @@ object doobieTasks {
     /**
       For an experiment get a list of channel tags
       */
-    def getChannels(experimentId: Int): ConnectionIO[List[ChannelRecording]] =
+    def getChannelRecordings(experimentId: Int): ConnectionIO[List[ChannelRecording]] =
 
     sql"""
        SELECT experimentId, channelRecordingId, channelNumber
        FROM channelRecording
-       WHERE channelRecordingId = $experimentId
+       WHERE experimentId = $experimentId
      """.query[ChannelRecording].list
 
 
@@ -58,21 +57,24 @@ object doobieTasks {
       From a channel recording tag, get the corresponding data stream
       */
     def getChannelStream(recording: ChannelRecording): Stream[IO,Array[Int]] = {
+
       val huh = sql"""
        SELECT sample
        FROM datapiece
        WHERE channelRecordingId = ${recording.channelRecordingId}
        ORDER BY index
-     """.query[Array[Int]].process
+     """
 
-      huh.transact(xa)
+      import doobie.postgres.implicits._
+
+      huh.query[Array[Int]].process.transact(xa)
     }
 
     /**
       From a list of channel recording ids, get the dataStreams for each channel
       */
-    def selectChannelStreams(recordings: List[ChannelRecording], channels: List[Int]) = {
-      val requested = recordings.filter( recording => !channels.contains(recording.channelNumber.toInt) )
+    def selectChannelStreams(recordings: List[ChannelRecording], channels: List[Int]): List[Stream[IO, Array[Int]]] = {
+      val requested = channels.map(recordings(_))
       requested.map(getChannelStream(_))
     }
 
@@ -83,14 +85,16 @@ object doobieTasks {
     def selectChannelStreams(experimentId: Int, channels: List[Int]): IO[List[Stream[IO,Array[Int]]]] = {
 
       val dbio = for {
-        a <- getChannels(experimentId)
+        a <- getChannelRecordings(experimentId)
       } yield (selectChannelStreams(a, channels))
 
       dbio.transact(xa)
     }
 
-    def getExperimentInfo(experimentId: Int): Stream[IO,ExperimentParams] =
+    def getExperimentInfo(experimentId: Int): Stream[IO,ExperimentParams] = {
+      println("getExperimentInfo Feeding bullshit parameters")
       Stream(ExperimentParams(40000))
+    }
   }
 
 
@@ -98,6 +102,9 @@ object doobieTasks {
 
     // Creates a sink for a channel inserting DATAPIECES
     def channelSink(channel: Int, channelRecordingId: Long): Sink[IO, Int] = {
+
+      import doobie.postgres.imports.unliftedUnboxedIntegerArrayType
+
       def go(s: Stream[IO, Int]): Pull[IO, IO[Int], Unit] = {
         s.pull.unconsN(1024, false) flatMap {
           case Some((segment, tl)) => {
@@ -118,6 +125,7 @@ object doobieTasks {
 
     def insertDataRecord(channelRecordingId: Long, data: Array[Int]): IO[Int] = {
 
+      // TODO: This is probably not necessary with the correct implicits
       val lel = "{" + data.head + ("" /: data.tail.map(λ => "," + λ))(_ + _) + "}"
       val query = sql"""
       INSERT INTO datapiece (channelRecordingId, sample)

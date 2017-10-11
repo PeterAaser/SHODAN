@@ -19,12 +19,12 @@ object networkIO {
   import backendImplicits._
   import params.TCP._
 
-  val allChannelsPort = 12340
-  val selectChannelsPort = 12341
-
   val reuseAddress = true
   val keepAlive = true
   val noDelay = true
+
+  val ip = params.TCP.ip
+  val port = params.TCP.port
 
   val maxQueued = 3
 
@@ -39,11 +39,10 @@ object networkIO {
 
 
   def streamAllChannels[F[_]: Effect](implicit ec: ExecutionContext): Stream[F, Int] = {
-    socketStream[F](allChannelsPort) flatMap { socket =>
+    println(s"streaming from IP: $ip, port: $port")
+    socketStream[F](port) flatMap { socket =>
       socket.reads(1024*1024).through(utilz.bytesToInts)
     }
   }
 
-
-  // def sendStimreqStream[F[_]:Async]: Sink[F,Int] = ???
 }

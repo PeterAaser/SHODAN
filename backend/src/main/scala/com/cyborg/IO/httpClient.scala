@@ -1,23 +1,23 @@
 package com.cyborg
 
+import io.circe.literal._
+import io.circe.generic.auto._
+import io.circe.syntax._
 
-object httpClient {
+import fs2._
+import cats.effect.IO
+import cats.effect._
 
-  import io.circe.literal._
-  import io.circe.generic.auto._
-  import io.circe.syntax._
+import org.http4s._
+import org.http4s.client._
+import org.http4s.dsl._
+import org.http4s.client.blaze._
+import org.http4s.Uri
+import org.http4s.server.blaze.BlazeBuilder
+import org.http4s.circe._
 
-  import fs2._
-  import cats.effect.IO
-  import cats.effect._
 
-  import org.http4s._
-  import org.http4s.client._
-  import org.http4s.dsl._
-  import org.http4s.client.blaze._
-  import org.http4s.Uri
-  import org.http4s.server.blaze.BlazeBuilder
-  import org.http4s.circe._
+object HttpClient {
 
   val httpClient = PooledHttp1Client[IO]()
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
@@ -27,8 +27,9 @@ object httpClient {
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
   case class RegisterList(adresses: List[Int], values: List[Int])
 
+
   def connectDAQrequest(params: DAQparams): IO[String] = {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/connectDAQ"), params.asJson)
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
     httpClient.expect[String](req)
   }
 
@@ -39,7 +40,7 @@ object httpClient {
 
 
   def startDAQrequest: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/startDAQ")))
+    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/start")))
 
   def stopDAQrequest: IO[String] =
     httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/stopDAQ")))
@@ -54,8 +55,9 @@ object httpClient {
     val daqParams = DAQparams(samplerate, segmentLength, List(1,2,3))
     connectDAQrequest(daqParams).attempt flatMap {
       case Left(e) => IO.pure("Something went wrong when connecting to the DAQ")
-      case Right(_) => startDAQrequest flatMap {
-        resp => {
+      case Right(_) => startDAQrequest.attempt flatMap {
+        case Left(e) => IO.pure(s"Something went wrong when connection to the DAQ.\n$e")
+        case Right(resp) => {
           IO.pure(s"Looks like we're good. resp was $resp")
         }
       }

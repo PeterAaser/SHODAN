@@ -2,6 +2,7 @@ package com.cyborg
 
 import com.cyborg.wallAvoid.Agent
 import fs2._
+import fs2.async.mutable.Topic
 import java.io.File
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -13,6 +14,62 @@ object Assemblers {
 
   type ffANNinput = Vector[Double]
   type ffANNoutput = List[Double]
+
+
+  /**
+    Assembles the necessary components to start SHODAN and then starts up the websocket and
+    http server
+    */
+  def startSHODAN(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+    val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
+    val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
+    val topicsS = assembleTopics[IO]
+    val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
+
+    // when your'ste too dumb to use for comprehenshunz
+    val durp = commandQueueS flatMap {
+      commandQueue => {
+        agentQueueS flatMap {
+          agentQueue => {
+            topicsS flatMap {
+              topics: (DbDataTopic[IO], List[Topic[IO,DataSegment]]) => {
+                debugQueueS flatMap {
+                  debugQueue => {
+
+                    val httpServer = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
+                    val webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
+                    val agentSink = agentQueue.enqueue
+                    val meameFeedbackSink: Sink[IO,Byte] = _.drain
+
+                    val commandPipe = staging.commandPipe(topics._1, topics._2, agentSink, meameFeedbackSink)
+
+                    import DebugMessages._
+                    val msg = ChannelTraffic(10, 10)
+
+                    val channelZeroListener = topics._1.head.subscribe(100)
+                      .through(attachDebugChannel(msg, 10, debugQueue.enqueue)).through(_.map(println))
+
+
+                    httpServer flatMap {
+                      server => {
+                        webSocketAgentServer flatMap {
+                          wsServer => {
+                            commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener)
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    durp
+  }
 
 
   /**
@@ -62,13 +119,12 @@ object Assemblers {
               case(segment, topic) => topic.publish1(segment)
             }
 
-            // TODO when fs2 cats integration hits traverse broadcasts and use Pull.eval
-            // Pull.output(Chunk.seq(broadCasts)) >> loop(segmentId + 1, topics)(h)
-            import cats.implicits._
-
             Pull.output(Segment.seq(broadCasts)) >> loop(segmentId + 1, topics, tl)
           }
-          case None => Pull.done
+          case None => {
+            println(Console.RED + "Uh oh, broadcast datastream None pull" + Console.RESET)
+            Pull.done
+          }
         }
       }
       in => loop(0, topics, in).stream.map(Stream.eval).join(totalChannels)
@@ -160,5 +216,38 @@ object Assemblers {
   def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     val theThing = mcsParser.eatDirectory(new File("/home/peteraa/Fuckton_of_MEA_data/hfd5_test").toPath())
     theThing
+  }
+}
+
+object saDebug {
+
+  def broadcastDataStream(
+    source: Stream[IO,Int],
+    topics: List[Topic[IO,Vector[Int]]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+
+    import params.experiment._
+
+    def publishSink(topics: List[Topic[IO,Vector[Int]]]): Sink[IO,Int] = {
+      def loop(topics: List[Topic[IO,Vector[Int]]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
+        s.pull.unconsN(segmentLength*totalChannels.toLong, false) flatMap {
+          case Some((seg, tl)) => {
+            val grouped = seg.toVector.grouped(segmentLength)
+            val broadCasts = grouped.toList.zip(topics).map{
+              case(segment, topic) => topic.publish1(segment)
+            }
+
+            Pull.output(Segment.seq(broadCasts)) >> loop(topics, tl)
+          }
+          case None => {
+            println(Console.RED + "Uh oh, broadcast datastream None pull" + Console.RESET)
+            Pull.done
+          }
+        }
+      }
+      in => loop(topics, in).stream.map(Stream.eval).join(totalChannels)
+    }
+
+    // Should ideally emit a list of topics doing their thing
+    source.through(publishSink(topics))
   }
 }

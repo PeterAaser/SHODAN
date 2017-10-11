@@ -1,31 +1,35 @@
 package com.cyborg
 
-import io.circe.literal._
-import io.circe.generic.auto._
-import io.circe.syntax._
-
-import cats.effect.IO
-import org.http4s.server.Server
-import scala.concurrent.ExecutionContext
-
-import org.http4s._
-import org.http4s.dsl._
-import org.http4s.headers.`Cache-Control`
-import org.http4s.CacheDirective.`no-cache`
-import org.http4s.client.blaze._
-import org.http4s.Uri
-import org.http4s.server.blaze.BlazeBuilder
-
-import fs2._
-
-object httpServer {
+object HttpServer {
+  import fs2._
+  import fs2.async.mutable.{ Queue, Signal }
+  import java.io.IOException
 
   import params.http.SHODANserver._
   import java.net.InetSocketAddress
+  import org.http4s.server.middleware._
+  import org.http4s._
+  import org.http4s.dsl._
+  import org.http4s.headers.`Cache-Control`
+  import org.http4s.CacheDirective.`no-cache`
+  import org.http4s.client.blaze._
+  import org.http4s.Uri
+  import org.http4s.server.blaze.BlazeBuilder
 
-  import httpCommands._
+  import cats.effect.IO
 
-  def SHODANservice(commands: Sink[IO,UserCommand]): HttpService[IO] = {
+  import org.http4s.server.Server
+  import scala.concurrent.ExecutionContext
+
+
+  import HttpCommands._
+  import DebugMessages._
+
+  def SHODANservice(
+    commands: Sink[IO,UserCommand],
+    debugMessageQueue: Queue[IO,DebugMessage]): HttpService[IO] = {
+
+    val debugMessagesAvailable = debugMessageQueue.size
 
     def cmd(command: UserCommand): IO[Unit] =
       Stream.emit(command).covary[IO].through(commands).run
@@ -49,35 +53,69 @@ object httpServer {
         println("stop")
         for {
           emit <- cmd(StartMEAME)
-          resp <- Ok("Stopped")
+          resp <- Ok("start")
         } yield (resp)
       }
+
+      case req @ POST -> Root / "db" => {
+        println("db")
+        for {
+          emit <- cmd(RunFromDB(1))
+          resp <- Ok("start")
+        } yield (resp)
+      }
+
       case req @ POST -> Root / "agent" => {
         println("stop")
         for {
           emit <- cmd(AgentStart)
-          resp <- Ok("Stopped")
+          resp <- Ok("007 at your service")
         } yield (resp)
       }
       case req @ POST -> Root / "wf" => {
         println("waveform")
         for {
           emit <- cmd(AgentStart)
-          resp <- Ok("Stopped")
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
+      case req @ GET -> Root / "info_waiting" => {
+        println("got info waiting")
+        for {
+          available <- debugMessagesAvailable.get
+          _ = println(s"asked for available, got $available")
+          resp <- Ok(s"$available")
+        } yield (resp)
+      }
+
+      case req @ GET -> Root / "info" => {
+        for {
+          message <- debugMessageQueue.dequeue1
+          resp <- message match {
+            case ChannelTraffic(_,a) => Ok(s"some info yo: ${a}")
+            case _ => Ok("ayy lmao")
+          }
+        } yield (resp)
+      }
+
+      case req @ POST -> Root / "fuckoff" => {
+        for {
+          emit <- cmd(Shutdown)
+          resp <- Ok("what the fugg xD")
         } yield (resp)
       }
     }
   }
 
-  def SHODANserver(commands: Sink[IO,UserCommand]): IO[Server[IO]] = {
-    import backendImplicits._
-    val service = SHODANservice(commands)
+  def SHODANserver(commands: Sink[IO,UserCommand], debugMessages: Queue[IO,DebugMessage]): IO[Server[IO]] = {
+    val service = CORS(SHODANservice(commands, debugMessages))
     val builder = BlazeBuilder[IO].bindHttp(8080).mountService(service).start
     builder
   }
 }
 
-object httpCommands {
+object HttpCommands {
 
   trait UserCommand
   case object StartMEAME extends UserCommand
@@ -91,5 +129,48 @@ object httpCommands {
 
   case class RunFromDB(experimentId: Int) extends UserCommand
   case class StoreToDB(comment: String) extends UserCommand
+  case object Shutdown extends UserCommand
 
+}
+
+object DebugMessages {
+  import cats.effect.IO
+  import cats.effect._
+  import org.http4s.dsl._
+  import org.http4s._
+  import org.http4s.client._
+  import org.http4s.dsl._
+  import org.http4s.client.blaze._
+  import org.http4s.Uri
+
+  import scala.concurrent.ExecutionContext
+
+
+  import fs2._
+
+  trait DebugMessage
+  case class ChannelTraffic(name: Int, passed: Int) extends DebugMessage
+
+  def attachDebugChannel[F[_]: Effect,I](
+    msg: DebugMessage,
+    passedPerMessage: Int,
+    debugChannel: Sink[F, DebugMessage])(implicit ec: ExecutionContext): Pipe[F,I,I] = {
+
+    val f = Stream.emit(msg).covary[F].through(debugChannel).run
+
+    def go(s: Stream[F,_], counter: Int): Pull[F,Unit,Unit] = {
+      s.pull.uncons flatMap {
+        case Some((seg, tl)) => {
+          if(seg.toVector.size+ counter > passedPerMessage){
+            Pull.eval(f) >> go(tl, (seg.toVector.length + counter) % passedPerMessage)
+          }
+          else{
+            go(tl, (seg.toVector.size + counter))
+          }
+        }
+      }
+    }
+
+    in:Stream[F,I] => in.observeAsync(1000)(go(_:Stream[F,I], 0).stream)
+  }
 }

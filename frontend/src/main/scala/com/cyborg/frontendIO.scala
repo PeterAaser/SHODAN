@@ -25,6 +25,16 @@ object frontIO {
     frontHTTPclient.startWfServer.unsafeRunAsync(_ => () )
   }
 
+  def stopSHODAN(): Unit = {
+    println("sending stop SHODAN http")
+    frontHTTPclient.crashSHODAN.unsafeRunAsync(_ => () )
+  }
+
+  def startDB(): Unit = {
+    println("sending DB http")
+    frontHTTPclient.runFromDB.unsafeRunAsync(_ => () )
+  }
+
   /**
     Opens a websocket to get the hottest new Agent data
     */

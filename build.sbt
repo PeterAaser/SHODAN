@@ -66,7 +66,7 @@ lazy val backend = project.in(file("backend"))
   .settings(
     libraryDependencies ++= backendDeps.value,
     fork in run := true,
-    crossLibs(Compile),
+    crossLibs(Provided),
 
     watchSources ++= (sourceDirectory in frontend).value.***.get
   )
@@ -80,9 +80,9 @@ lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
   .settings(
     libraryDependencies ++= frontendDeps.value,
     crossLibs(Compile),
+    scalaJSUseMainModuleInitializer := true,
     fork in run := true,
-    jsDependencies ++= frontendJSDeps.value,
-    persistLauncher in Compile := true
+    jsDependencies ++= frontendJSDeps.value
 
   ).settings(workbenchSettings:_*)
   .settings(

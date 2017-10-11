@@ -9,6 +9,9 @@ object params {
     val segmentLength = 100
     val maxSpikesPerSec = 50
 
+    val minFreq = 0.33
+    val maxFreq = 10.0
+
     def printMe(): Unit = {
       println("----[Experiment params]----")
       println(s"samplerate: \t\t$samplerate")
@@ -43,7 +46,7 @@ object params {
 
   object TCP {
     val ip = "129.241.201.110"
-    val port = 8899
+    val port = 12340
     val sendBufSize = 4096        // rather low bandwidth required for stimreqs
     val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
   }
@@ -82,7 +85,7 @@ object params {
       pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)
 
     def evalFunc: Double => Double = x => x
-    val ticksPerEval = 200 // How many ticks should each run last
+    val ticksPerEval = 1000 // How many ticks should each run last
 
     val inputChannels = List(0,1,2)
     val outputChannels = List(3,4,5)
@@ -95,6 +98,9 @@ object params {
     val turnRate = 0.01
     val viewPoints = 4
     val maxTurnRate = 0.01
+
+    val sightRange = 3000.0
+    val deadZone = 200.0
   }
 
 

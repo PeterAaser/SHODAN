@@ -16,21 +16,7 @@ object Dependencies {
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",
-    "org.typelevel" %%% "cats-core" % "1.0.0-MF",
-
-    "io.circe" %%% "circe-core" % circeVersion,
-    "io.circe" %%% "circe-generic" % circeVersion,
-    "io.circe" %%% "circe-parser" % circeVersion,
-
-
-    // Optional for auto-derivation of JSON codecs
-    "io.circe" %%% "circe-generic" % "0.9.0-M1",
-
-    // Optional for string interpolation to JSON model
-    "io.circe" %%% "circe-literal" % "0.9.0-M1"
-
-
-
+    "org.typelevel" %%% "cats-core" % "1.0.0-MF"
   ))
 
   val frontendDeps = Def.setting(Seq[ModuleID](
@@ -48,13 +34,26 @@ object Dependencies {
 
   val backendDeps = Def.setting(Seq[ModuleID](
 
-    "org.http4s" %%% "http4s-circe" % http4sVersion,
+
+    "io.circe" %% "circe-core" % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion,
+    "io.circe" %% "circe-parser" % circeVersion,
+
+    // Optional for auto-derivation of JSON codecs
+    "io.circe" %% "circe-generic" % "0.9.0-M1",
+
+    // Optional for string interpolation to JSON model
+    "io.circe" %% "circe-literal" % "0.9.0-M1",
+
+    "org.http4s" %% "http4s-circe" % http4sVersion,
 
     "com.chuusai" %% "shapeless" % "2.3.2",
 
     "org.http4s" %% "http4s-dsl" % http4sVersion,
     "org.http4s" %% "http4s-blaze-server" % http4sVersion,
     "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-server" % http4sVersion,
+
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
 
@@ -70,6 +69,7 @@ object Dependencies {
     "org.tpolecat" %% "doobie-core"       % doobieVersion,
     "org.tpolecat" %% "doobie-postgres"   % doobieVersion,
     "org.tpolecat" %% "doobie-specs2"     % doobieVersion,
+    "net.postgis" % "postgis-jdbc" % "2.2.1",
 
     "io.spray" %%  "spray-json" % "1.3.3",
     "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
