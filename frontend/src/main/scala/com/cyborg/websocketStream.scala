@@ -18,7 +18,6 @@ object websocketStream {
 
   val wsProtocol = "ws"
   val rawDataWsUri = s"$wsProtocol://127.0.0.1:$dataPort"
-  val textWsUri = s"$wsProtocol://127.0.0.1:$textPort"
   val agentWsUri = s"$wsProtocol://127.0.0.1:$agentPort"
 
 
@@ -37,10 +36,18 @@ object websocketStream {
     ws.binaryType = "arraybuffer"
     ws.onmessage = (event: MessageEvent) => {
       val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
-      val jsData2 = TypedArrayBuffer.wrap(jsData)
-      val bits: BitVector = BitVector(jsData2)
-      val decoded = Codec.decode[Vector[Int]](bits).require
-      controller.dataqueue.enqueue(decoded.value)
+      val byteBuf = TypedArrayBuffer.wrap(jsData)
+      println(byteBuf)
+      val buf: Array[Int] = Array.ofDim(100)
+      for(ii <- 0 until 100){
+        val asInt =
+          ((byteBuf.get((ii*4) + 3)) |
+             (byteBuf.get((ii*4) + 2) << 8) |
+             (byteBuf.get((ii*4) + 1) << 16) |
+             (byteBuf.get((ii*4) + 0) << 24))
+        buf(ii) = asInt
+      }
+      controller.dataqueue.enqueue(buf)
     }
   }
 

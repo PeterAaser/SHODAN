@@ -5,7 +5,9 @@ import fs2.async.mutable.Topic
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import backendImplicits._
 
 import cats.effect._
@@ -24,61 +26,24 @@ object Launcher {
     println("wello")
 
     Assemblers.startSHODAN.run.unsafeRunSync()
-  }
-}
 
+    // val topics = Assemblers.assembleTopics[IO]
 
-object SAtest {
-  def gogo(): Unit = {
-    val stream = Stream(1,2,3).repeat.covary[IO]
-    val topics = utilz.createTopics[IO,Vector[Int]](2, Vector(-1))
+    // TODO: Destroy ↓
+    // A mistake
+    // val memeStream: Stream[IO,Stream[IO,Unit]] = Stream.emits(0 to 60).covary[IO].map { i =>
+    //   val volt_base = -1000 + ((i/60)*2000)
+    //   val fileName = f"${i}%02d"
+    //   val streamLine = Stream.emits(List.fill(1000)(volt_base)).covary[IO].repeat
+    //     .take(1000000)
+    //     .through(_.map(λ => s"$λ,"))
+    //     .intersperse("\n")
+    //     .through(text.utf8Encode[IO])
+    //     .through(io.file.writeAll[IO](Paths.get(s"/home/peteraa/Fuckton_of_MEA_data/Dummy/$fileName.txt")))
 
-    val urp = topics flatMap {
-      topics => {
-        val huh = saDebug.broadcastDataStream(stream, topics)
-        huh.concurrently(topics(0).subscribe(10).through(_.map(println))
-                           .concurrently(topics(1).subscribe(10).through(_.map(println))))
-      }
-    }
+    //   streamLine
+    // }
 
-    urp.run.unsafeRunTimed(5.second)
-  }
-}
-
-object DBtest {
-  def gogo(): Unit = {
-
-    val topics = utilz.createTopics[IO, DataSegment](60, (Vector[Int](), -1))
-    val stream = Stream(1,2,3).repeat.covary[IO]
-
-    val urp = topics flatMap {
-      topics => {
-        val huh = Assemblers.broadcastDataStream(stream, topics)
-        val spem = topics(0).subscribe(10).through(_.map(println))
-        huh.concurrently(spem)
-      }
-    }
-
-    urp.run.unsafeRunTimed(5.second)
-
-  }
-}
-
-object DBtest2 {
-  def gogo(): Unit = {
-
-    val topics = utilz.createTopics[IO, DataSegment](60, (Vector[Int](), -1))
-    val stream = dIO.streamFromDatabaseRaw(1)
-    // val stream = Stream((Vector(1,2,3),0), (Vector(1,2,3),1), (Vector(1,2,3),2)).repeat.covary[IO]
-
-    val urp = topics flatMap {
-      topics => {
-        val huh = Assemblers.broadcastDataStream(stream, topics)
-        val spem = topics(0).subscribe(10).through(_.map(println))
-        huh.concurrently(spem)
-      }
-    }
-
-    urp.run.unsafeRunTimed(50.second)
+    // memeStream.joinUnbounded.run.unsafeRunSync()
   }
 }

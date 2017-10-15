@@ -35,6 +35,16 @@ object frontIO {
     frontHTTPclient.runFromDB.unsafeRunAsync(_ => () )
   }
 
+  def dspTest(): Unit = {
+    println("dsp test")
+    frontHTTPclient.dspTest.unsafeRunAsync(_ => () )
+  }
+
+  def dspSet(): Unit = {
+    println("dsp set")
+    frontHTTPclient.dspSet.unsafeRunAsync(_ => () )
+  }
+
   /**
     Opens a websocket to get the hottest new Agent data
     */

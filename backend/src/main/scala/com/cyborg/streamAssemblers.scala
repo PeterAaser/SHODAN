@@ -4,6 +4,7 @@ import com.cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.Topic
 import java.io.File
+import org.http4s.server.Server
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 import utilz._
@@ -25,49 +26,30 @@ object Assemblers {
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
+    val meameFeedbackSink: Sink[IO,Byte] = _.drain
 
-    // when your'ste too dumb to use for comprehenshunz
-    val durp = commandQueueS flatMap {
-      commandQueue => {
-        agentQueueS flatMap {
-          agentQueue => {
-            topicsS flatMap {
-              topics: (DbDataTopic[IO], List[Topic[IO,DataSegment]]) => {
-                debugQueueS flatMap {
-                  debugQueue => {
+    import DebugMessages._
+    val msg = ChannelTraffic(10, 10)
 
-                    val httpServer = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-                    val webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-                    val agentSink = agentQueue.enqueue
-                    val meameFeedbackSink: Sink[IO,Byte] = _.drain
+    val durp: Stream[IO,Unit] = for {
+      commandQueue <- commandQueueS
+      agentQueue   <- agentQueueS
+      topics       <- topicsS
+      debugQueue   <- debugQueueS
 
-                    val commandPipe = staging.commandPipe(topics._1, topics._2, agentSink, meameFeedbackSink)
+      httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
+      webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
+      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(topics))
+      agentSink               = agentQueue.enqueue
+      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink)
+      channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
 
-                    import DebugMessages._
-                    val msg = ChannelTraffic(10, 10)
+      server    <- httpServer
+      wsServer  <- webSocketAgentServer
+      vizServer <- webSocketVizServer
+      _         <- commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener)
 
-                    val channelZeroListener = topics._1.head.subscribe(100)
-                      .through(attachDebugChannel(msg, 10, debugQueue.enqueue)).through(_.map(println))
-
-
-                    httpServer flatMap {
-                      server => {
-                        webSocketAgentServer flatMap {
-                          wsServer => {
-                            commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener)
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
+    } yield ()
     durp
   }
 
@@ -138,19 +120,12 @@ object Assemblers {
   /**
     Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
     parametrized with the import params thing because db might have more or less channels
+    TODO: Outdatet, slated for removal
     */
-  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,(DbDataTopic[F],MeameDataTopic[F])] = {
+  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,MeameDataTopic[F]] = {
 
     // hardcoded
-    createTopics(60, (Vector.empty[Int],-1)) flatMap {
-      dbTopics => {
-        createTopics(60, (Vector.empty[Int],-1)) map {
-          meameTopics => {
-            (dbTopics, meameTopics)
-          }
-        }
-      }
-    }
+    createTopics(60, (Vector.empty[Int],-1))
   }
 
 
@@ -194,22 +169,39 @@ object Assemblers {
     */
   // TODO where should data filtering really be handled?
   def assembleWebsocketVisualizer(
-    dataSource: List[DataTopic[IO]],
-    dataFilter: Pipe[IO,Int,Int]): Stream[IO, Unit] =
-  {
+    dataSource: List[DataTopic[IO]])(implicit ec: ExecutionContext): IO[Server[IO]] = {
+
+    // val inputSource = assembleWebsocketVisualizerFilter[IO](dataSource)
+
+    val server = webSocketServer.webSocketWaveformServer(assembleWebsocketVisualizerFilter(dataSource))
+    server
+  }
+
+  def assembleWebsocketVisualizerFilter[F[_]: Effect](
+    broadCastSource: List[DataTopic[F]])(implicit ec: ExecutionContext): Stream[F,Array[Int]] = {
+
+
     // TODO: Currently ignores segments etc
     import params.waveformVisualizer.wfMsgSize
-    val mapped: List[Stream[IO,Vector[Int]]] = dataSource
-      .map(_.subscribe(1000))
-      .map(_.map(_._2))
-      .map(_.through(dataFilter))
-      .map(_.through(utilz.vectorize(wfMsgSize)))
+    import params.waveformVisualizer.blockSize
+    import backendImplicits.Sch
 
-    val muxed = Stream.emit(mapped).covary[IO].through(roundRobin).through(chunkify).through(chunkify)
-    val server = webSocketServer.webSocketWaveformServer(muxed)
 
-    // Does this actually work? TODO: Possibly test failure point
-    Stream.eval_(server)
+
+    // val huh = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
+
+    import scala.concurrent.duration._
+    // val channelStreams = broadCastSource.map(_.subscribe(1000))
+    // // val channelStreams = (0 until 60).map(_ => throttul[F](0.002.second).map(_ => (Vector.fill(100)(100), 0))).toList
+    // val mapped = channelStreams
+    //   .map(_.map(_._1))
+    //   .map(_.through(chunkify))
+    //   .map(_.through(simpleDownSample(10)))
+    //   .map(_.through(mapN(100, _.toArray)))
+
+    // roundRobinL(mapped).through(chunkify)
+    val dur = broadCastSource(0).subscribe(100).through(_.map(λ => λ._1)).through(downSamplePipe(2)).through(_.map(_.toArray))
+    dur
   }
 
 
@@ -219,35 +211,3 @@ object Assemblers {
   }
 }
 
-object saDebug {
-
-  def broadcastDataStream(
-    source: Stream[IO,Int],
-    topics: List[Topic[IO,Vector[Int]]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
-
-    import params.experiment._
-
-    def publishSink(topics: List[Topic[IO,Vector[Int]]]): Sink[IO,Int] = {
-      def loop(topics: List[Topic[IO,Vector[Int]]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
-        s.pull.unconsN(segmentLength*totalChannels.toLong, false) flatMap {
-          case Some((seg, tl)) => {
-            val grouped = seg.toVector.grouped(segmentLength)
-            val broadCasts = grouped.toList.zip(topics).map{
-              case(segment, topic) => topic.publish1(segment)
-            }
-
-            Pull.output(Segment.seq(broadCasts)) >> loop(topics, tl)
-          }
-          case None => {
-            println(Console.RED + "Uh oh, broadcast datastream None pull" + Console.RESET)
-            Pull.done
-          }
-        }
-      }
-      in => loop(topics, in).stream.map(Stream.eval).join(totalChannels)
-    }
-
-    // Should ideally emit a list of topics doing their thing
-    source.through(publishSink(topics))
-  }
-}

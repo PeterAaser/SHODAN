@@ -32,7 +32,6 @@ object staging {
 
 
   def commandPipe(
-    dbTopics: List[DataTopic[IO]],
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,Byte]
@@ -84,10 +83,11 @@ object staging {
             case StartWaveformVisualizer =>
               {
                 println("Starting wf assembler")
-                // TODO: identity pipe is missing, but this seems to just be a placeholder anyways
-                // Assemblers.assembleWebsocketVisualizer[IO](meameTopics, pipe.id)
+                println(Console.RED + "NOT IMPLEMENTED" + Console.RESET)
+                // Assemblers.assembleWebsocketVisualizer(meameTopics, utilz.downSamplePipe(100))
                 val uhm: Stream[IO,Unit] = Stream.empty
                 uhm
+                // uhm
               }
 
 
@@ -96,6 +96,15 @@ object staging {
                 println("shutting down")
                 val ex = new IOException("Johnny number 5 is not alive")
                 throw ex
+              }
+
+            case dspTest =>
+              {
+
+                val huh = Stream.eval(HttpClient.dspTest)
+                huh.run.unsafeRunSync()
+                val uhm: Stream[IO,Unit] = Stream.empty
+                uhm
               }
 
             case _ =>

@@ -16,7 +16,6 @@ object utilz {
   type DataSegment = (Vector[Int], Int)
   type DataTopic[F[_]] = Topic[F,DataSegment]
   type MeameDataTopic[F[_]] = List[Topic[F,DataSegment]]
-  type DbDataTopic[F[_]] = List[Topic[F,DataSegment]]
   type Channel = Int
 
 
@@ -96,6 +95,20 @@ object utilz {
           Pull.output1(segment.toVector) >> go(tl)
         }
         case None => Pull.done
+      }
+    }
+    in => go(in).stream
+  }
+
+
+  /**
+    */
+  def mapN[F[_],I,O](length: Int, f: Segment[I,Unit] => O): Pipe[F,I,O] = {
+    def go(s: Stream[F,I]): Pull[F,O,Unit] = {
+      s.pull.unconsN(length.toLong, false).flatMap {
+        case Some((seg, tl)) => {
+          Pull.output1(f(seg)) >> go(tl)
+        }
       }
     }
     in => go(in).stream
@@ -202,6 +215,7 @@ object utilz {
 
 
   // TODO: delete
+  // no can do, has dependency in MEAME utils
   def simpleJsonAssembler(electrodes: List[Int], stimFrequencise: List[Double]): String = {
     val electrodeString = electrodes.mkString("[", ", ", "]")
     val stimString = stimFrequencise.mkString("[", ", ", "]")
@@ -217,8 +231,6 @@ object utilz {
     Creates a list containing num topics of type T
     Requires an initial message init.
     */
-  // TODO dbg
-  // Testes i SAtest
   def createTopics[F[_]: Effect,T](num: Int, init: T)(implicit ec: ExecutionContext): Stream[F,List[Topic[F,T]]] = {
     val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
     val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F].repeat /: (0 to num)){
@@ -238,21 +250,38 @@ object utilz {
   def throttle[F[_], I](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Pipe[F,I,I] = {
 
     val throttler: Stream[F,Unit] = t.fixedRate(period)
-    val throttleQueueTask = fs2.async.circularBuffer[F,Unit](10)
+    val throttleQueueTask = fs2.async.boundedQueue[F,Unit](10)
 
     // Should now periodically input tokens to the throttle queue
     val throttleStream: Stream[F, Unit] =
       Stream.eval(throttleQueueTask) flatMap { queue =>
-        val in = throttler.through(queue.enqueue)
+        println(Console.RED + "I DONT WORK" + Console.RESET)
+        val in = throttler.through(_.map{λ => println(λ);λ}).through(queue.enqueue)
         val out = queue.dequeue
-        in.concurrently(out)
+        val spam = spamQueueSize("throttle q", queue, 1.second)
+        in.concurrently(out.concurrently(spam))
       }
 
-    s => s.zip(throttleStream).map(_._1)
+    s => s.zipWith(throttleStream)((λ,µ) => λ)
   }
 
-  def throttul(period: FiniteDuration)(implicit s: Effect[IO], t: Scheduler, ec: ExecutionContext): Stream[IO,Unit] = {
-    t.fixedRate(100.millis)
+  def throttul2[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+    val throttler: Stream[F,Unit] = t.fixedRate(period)
+    val throttleQueueTask = fs2.async.boundedQueue[F,Unit](10)
+
+    val throttleStream: Stream[F, Unit] =
+      Stream.eval(throttleQueueTask) flatMap { queue =>
+        println(Console.RED + "I DONT WORK" + Console.RESET)
+        val in = throttler.through(queue.enqueue)
+        val out = queue.dequeue
+        val spam = spamQueueSize("throttle q", queue, 1.second)
+        in.concurrently(out.concurrently(spam))
+      }
+    throttleStream
+  }
+
+  def throttul[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+    t.fixedRate(period)
   }
 
   /**
@@ -305,11 +334,14 @@ object utilz {
     The reason for making a more low level implementation is that in many cases
     you downsample for performance reasons, so if you can effectively downsample then
     less optimized pipes downstream won't matter too much.
+    // TODO: Broken!!!
     */
   def downSamplePipe[F[_],I](blockSize: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I], cutoffPoint: Int): Pull[F,I,Unit] = {
       s.pull.unconsChunk flatMap {
         case Some((chunk, tl)) => {
+
+          println(Console.RED + "BROKEN" + Console.RESET)
 
           val sizeAfterCutoff = chunk.size - cutoffPoint
           val numSamples = (sizeAfterCutoff / blockSize) + (if ((sizeAfterCutoff % blockSize) == 0) 0 else 1)
@@ -319,16 +351,42 @@ object utilz {
           val cutoffElements = (chunk.size - cutoffPoint) % blockSize
           val nextCutOffPoint = (blockSize - cutoffElements) % blockSize
 
+          // println("----------------------------------------")
+          // println(s"indicesToSample, $indicesToSample")
+          // println(s"chunk, $chunk")
+          // println(s"chunk size, ${chunk.size}")
+          // println(s"sizeAfterCutoff, $sizeAfterCutoff")
+          // println(s"numSamples, $numSamples")
+          // println(s"nextCutOffPoint, $nextCutOffPoint")
+          // println("----------------------------------------\n\n")
+
           val samples = indicesToSample.map(chunk(_))
-
-
           Pull.output(Chunk.seq(samples)) >> go(tl, nextCutOffPoint)
+
         }
-        case None => Pull.done
+        case None => {
+          println("downsampler done")
+          Pull.done
+        }
       }
     }
     in => go(in, 0).stream
   }
+
+
+  def simpleDownSample[F[_],I](blockSize: Int): Pipe[F,I,I] = {
+    def go(s: Stream[F,I]): Pull[F,I,Unit] = {
+      s.pull.unconsN(blockSize, false) flatMap {
+        case Some((seg, tl)) => {
+          println("hello?")
+          val head = seg.toList(0)
+          Pull.output1(head) >> go(tl)
+        }
+      }
+    }
+    in => go(in).stream
+  }
+
 
   def logEveryNth[F[_],I](n: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
@@ -349,15 +407,19 @@ object utilz {
           say(seg.toList.head)
           Pull.output(seg) >> go(tl)
         }
-        case None => go(s)
+        case None => {
+          println("log every got None")
+          Pull.done
+        }
       }
     }
     in => go(in).stream
   }
 
-  def spamQueueSize[F[_]: Effect, I](name: String, q: Queue[F,I])(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit]= {
-    val meme = Stream.eval(q.size.get).repeat.through(logEveryNth(100000, λ => println(s"Queue with name $name has size $λ")))
-    meme.drain
+  def spamQueueSize[F[_]: Effect, I](name: String, q: Queue[F,I], dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+    throttul(dur).flatMap { _ =>
+      Stream.eval(q.size.get).through(_.map(λ => println(s"Queue with name $name has a size of $λ")))
+    }.repeat
   }
 }
 

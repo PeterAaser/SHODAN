@@ -23,10 +23,7 @@ object Dependencies {
     "org.scala-js" %%% "scalajs-dom" % "0.9.2",
     "com.lihaoyi" %%% "scalatags" % "0.6.5",
 
-
-    "co.fs2" %%% "fs2-core" % fs2Version,
-
-    "fr.hmil" %%% "roshttp" % "2.0.1"
+    "co.fs2" %%% "fs2-core" % fs2Version
   ))
 
   val frontendJSDeps = Def.setting(Seq[org.scalajs.sbtplugin.JSModuleID](

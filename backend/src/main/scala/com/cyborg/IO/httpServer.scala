@@ -50,7 +50,7 @@ object HttpServer {
         } yield (resp)
       }
       case req @ POST -> Root / "start" => {
-        println("stop")
+        println("start")
         for {
           emit <- cmd(StartMEAME)
           resp <- Ok("start")
@@ -66,7 +66,7 @@ object HttpServer {
       }
 
       case req @ POST -> Root / "agent" => {
-        println("stop")
+        println("agent")
         for {
           emit <- cmd(AgentStart)
           resp <- Ok("007 at your service")
@@ -75,7 +75,7 @@ object HttpServer {
       case req @ POST -> Root / "wf" => {
         println("waveform")
         for {
-          emit <- cmd(AgentStart)
+          emit <- cmd(StartWaveformVisualizer)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
@@ -99,9 +99,17 @@ object HttpServer {
         } yield (resp)
       }
 
-      case req @ POST -> Root / "fuckoff" => {
+
+      case req @ POST -> Root / "dsptest" => {
         for {
-          emit <- cmd(Shutdown)
+          emit <- cmd(dspTest)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
+      case req @ POST -> Root / "dspset" => {
+        for {
+          emit <- cmd(dspSet)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
@@ -130,6 +138,9 @@ object HttpCommands {
   case class RunFromDB(experimentId: Int) extends UserCommand
   case class StoreToDB(comment: String) extends UserCommand
   case object Shutdown extends UserCommand
+
+  case object dspTest extends UserCommand
+  case object dspSet extends UserCommand
 
 }
 

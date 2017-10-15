@@ -17,44 +17,49 @@ object testan {
     val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
     val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
+    val visualizeWfButton = button("visualize waveforms").render
+    val glButton = button("gl hf").render
+    val testDebugMessages = button("hurr").render
+    val crash = button("stop_SHODAN").render
+    val startDBButton = button("From DB").render
     val startSHODANButton = button("start SHODAN").render
+    val connectWfButton = button("connect waveforms").render
+    val visualizeAgentButton = button("visualize agent").render
+    val connectAgentButton = button("connect agent").render
+    val DSPbutton = button("DSP thangs").render
+    val DSPbutton2 = button("DSP thangs2").render
+
+
     startSHODANButton.onclick = (_: MouseEvent) => {
       println("SHODAN button clicked")
       frontIO.startSHODAN
     }
 
-    val connectAgentButton = button("connect agent").render
     connectAgentButton.onclick = (_: MouseEvent) => {
       println("connect agent button clicked")
       frontIO.startAgent
     }
-
-    val visualizeAgentButton = button("visualize agent").render
     visualizeAgentButton.onclick = (_: MouseEvent) => {
       println("visualize button clicked")
       frontIO.startAgentStream(agentCanvas)
     }
 
-    val connectWfButton = button("connect waveforms").render
     connectWfButton.onclick = (_: MouseEvent) => {
       println("connect waveform button clicked")
       frontIO.startWF
     }
 
-    val visualizeWfButton = button("visualize waveforms").render
     visualizeWfButton.onclick = (_: MouseEvent) => {
       println("visualize waveform button clicked")
       frontIO.startWaveformStream(visualizerCanvas)
     }
 
-    val glButton = button("gl hf").render
     glButton.onclick = (_: MouseEvent) => {
       println("visualize waveform button clicked")
       val aa = new webgltest.webgltestController(visualizerCanvas)
       aa.test1()
     }
 
-    val testDebugMessages = button("hurr").render
     testDebugMessages.onclick = (_: MouseEvent) => {
       println("the debug msg button clicked")
       val sizeReq = new dom.XMLHttpRequest()
@@ -65,16 +70,24 @@ object testan {
       sizeReq.send()
     }
 
-    val crash = button("stop_SHODAN").render
     crash.onclick = (_: MouseEvent) => {
       println("Stop SHODAN button clicked")
       frontIO.stopSHODAN
     }
 
-    val startDBButton = button("From DB").render
     startDBButton.onclick = (_: MouseEvent) => {
       println("DB button clicked")
       frontIO.startDB
+    }
+
+    DSPbutton.onclick = (_: MouseEvent) => {
+      println("DSP test button clicked")
+      frontIO.dspTest
+    }
+
+    DSPbutton2.onclick = (_: MouseEvent) => {
+      println("DSP test reg button clicked")
+      frontIO.dspTest
     }
 
     document.getElementById("playground").appendChild(startSHODANButton)
@@ -86,6 +99,8 @@ object testan {
     document.getElementById("playground").appendChild(testDebugMessages)
     document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(startDBButton)
+    document.getElementById("playground").appendChild(DSPbutton)
+    document.getElementById("playground").appendChild(DSPbutton2)
 
     document.getElementById("playground").appendChild(agentCanvas)
     document.getElementById("playground").appendChild(visualizerCanvas)

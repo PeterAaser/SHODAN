@@ -47,4 +47,16 @@ object frontHTTPclient {
     req.open("POST", "http://127.0.0.1:8080/fuckoff")
     IO.apply{ req.send() }
   }
+
+  def dspTest: IO[Unit] = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/dsptest")
+    IO.apply{ req.send() }
+  }
+
+  def dspSet: IO[Unit] = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/dspset")
+    IO.apply{ req.send() }
+  }
 }

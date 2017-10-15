@@ -37,7 +37,7 @@ object sIO {
   /**
     * Stream data to a database from a list of topics yada yada
     */
-  def streamToDatabase(topics: DbDataTopic[IO], comment: String)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def streamToDatabase(topics: MeameDataTopic[IO], comment: String)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     for {
       id <- eval(databaseIO.dbWriters.createExperiment(Some(comment)))
       _ <- databaseIO.dbWriters.startRecording(topics, id)

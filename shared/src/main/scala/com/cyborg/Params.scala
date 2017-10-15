@@ -120,8 +120,6 @@ object params {
 
     val vizHeight = 100
     val vizLength = 200
-    val canvasHeight = 8*vizLength
-    val canvasWidth = 8*vizLength
     val pointsPerSec = experiment.samplerate
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
@@ -143,9 +141,5 @@ object params {
       println(s"The web frontend receives ${dataPointsReceivedPerSec} datapoints per sec in total")
       println(s"in the form of ${wfMsgSentPerSecond} messages per sec")
     }
-  }
-  object selectWfVisualizer {
-    val vizHeight = 200
-    val vizLength = 1000
   }
 }

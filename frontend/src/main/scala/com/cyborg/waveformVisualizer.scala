@@ -7,12 +7,12 @@ object waveformVisualizer {
 
   class WFVisualizerControl(
     canvas: html.Canvas,
-    val dataqueue: scala.collection.mutable.Queue[Vector[Int]]) {
+    val dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
 
     import params.waveformVisualizer._
 
-    canvas.width = vizLength*12
-    canvas.height = vizLength*12
+    canvas.width = vizLength*8 + 4
+    canvas.height = vizHeight*8 + 4
 
     var testan = 0
 
@@ -83,35 +83,47 @@ object waveformVisualizer {
       if(dataqueue.size > 500){
         println(dataqueue.size)
       }
-      if(!dataqueue.isEmpty){
-        gogo(dataqueue.dequeue())
+      if(dataqueue.size > 12){
+        val buf: Array[Array[Int]] = Array.ofDim(12)
+        for(i <- 0 until 12){
+          buf(i) = dataqueue.dequeue()
+        }
+
+        gogo(buf.flatten)
+      }
+      else{
+        println(dataqueue.size)
       }
     }
 
-    def gogo(data: Vector[Int]): Unit = {
+    def gogo(data: Array[Int]): Unit = {
+      clear()
       val chopped = data.grouped(groupSize).zipWithIndex
       chopped.foreach(λ => drawToPixelArray(λ._1, λ._2))
-      renderer.fillStyle = "grey"
-      renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
       renderer.fillStyle = "yellow"
       drawPixelArrays()
+      drawGrid()
     }
 
 
     // Takes a new datasegment and appends to the pixelarray
-    def drawToPixelArray(data: Vector[Int], index: Int): Unit = {
+    def drawToPixelArray(data: Array[Int], index: Int): Unit = {
       val (remainder, _) = pixels(index) splitAt(vizLength - reducedSegmentLength)
       pixels(index) = (normalize(data).toArray ++ remainder)
     }
 
 
     // Does what it says on the tin
-    def normalize(data: Vector[Int]): Vector[Int] = {
+    def normalize(data: Array[Int]): Array[Int] = {
       data.map( dataPoint =>
         {
           val normalized = {
-            if((dataPoint > maxVal) || (dataPoint < -maxVal))
-              0
+            if(dataPoint > maxVal){
+              maxVal
+            }
+            else if (dataPoint < -maxVal) {
+              -maxVal
+            }
             else
               dataPoint
           }
@@ -124,13 +136,48 @@ object waveformVisualizer {
     def drawPixelArray(index: Int, idx: Int, idy: Int): Unit = {
 
       for(ii <- 0 until pixels(index).length){
-        renderer.fillRect(ii + (idx*vizLength*2.0), (idy + 2)*vizHeight*2.0, 1, pixels(index)(ii))
+        val x_offset = idx*vizLength
+        val y_offset = idy*vizHeight + vizHeight/2
+        val bar = pixels(index)(ii)
+        if(((bar-1) <= -maxVal/2) || ((bar+1) >= maxVal/2)){
+          renderer.fillStyle = "green"
+        }
+        renderer.fillRect(ii + x_offset, y_offset, 2, pixels(index)(ii))
+        renderer.fillStyle = "yellow"
       }
     }
 
     def drawPixelArrays(): Unit = {
       val windows = channelsWithCoordinates.zipWithIndex
       windows.foreach(window => drawPixelArray(window._2, window._1._1, window._1._2))
+    }
+
+    println(canvas.width)
+    println(canvas.height)
+
+    clear()
+    drawGrid()
+
+    def clear(): Unit = {
+      renderer.fillStyle = "grey"
+      renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
+    }
+
+    def drawGrid(): Unit = {
+
+      renderer.fillStyle = "black"
+      // renderer.fillRect(x, y, w, h)
+      renderer.fillRect(vizLength, 0,           vizLength*6, 4) // ----------
+      renderer.fillRect(vizLength, vizHeight*8, vizLength*6, 4) // ----------
+
+
+      renderer.fillRect(0,           0 + vizHeight, 4, vizHeight*6) // |
+      renderer.fillRect(vizLength*8, 0 + vizHeight, 4, vizHeight*6) //          |
+
+      (1 to 7).foreach{ λ =>
+        renderer.fillRect(0, λ*vizHeight, vizLength*8, 4) // ---
+        renderer.fillRect(λ*vizLength, 0, 4, vizHeight*8) // |||
+      }
     }
   }
 }

@@ -1,10 +1,15 @@
 * Neste gang
+  Noe veldig rart som skjer med downsampling og masse topics. Tom for minne?
+  For mye jobb å lage simple case, la det være inntil videre.
+  
+  Holder på med DSP confing fra SHODAN.
+  
 **  Se på db stuff
-   Et eller anna får GA til å stoppe
+   Lag en recording der hver kanal har kun en verdi, sjekk om det stemmer med visualizer
    
-  Debug all den nye HTTP koden.
-  Debug litt mer på DSP.
-  Se litt på visualizer?
+   Debug all den nye HTTP koden.
+   Debug litt mer på DSP.
+   Se litt på visualizer?
   
 * Database specification
 ** ER
@@ -72,3 +77,194 @@
 *** Visualization is restarted
     Same as first
 *** ???
+
+    
+* how 2 fs2 fra gitter (ikke slett plz)
+Yeah, I do that in too many places
+but soon I've got a working version out, then I'm gonna refactor and write good tests and all that jazz while the stable version automagically outputs research data
+and everyone will be happy
+
+Fabio Labella @SystemFw 15:51
+then you'd need to write the usual recursive function as you do with Pulls in general
+and then recursive(input).stream to get a Pipe
+
+PeterAaser @PeterAaser 15:52
+btw, is there a good place to get an idea of how fs2 works on the inside?
+
+Fabio Labella @SystemFw 15:52
+yes
+the code :stuck_out_tongue:
+
+PeterAaser @PeterAaser 15:52
+Say I want to learn enough about to fs2 to actually contribute
+
+Fabio Labella @SystemFw 15:52
+sorry
+
+PeterAaser @PeterAaser 15:52
+How would you start
+
+Fabio Labella @SystemFw 15:52
+so there's a few layers, so to speak
+
+PeterAaser @PeterAaser 15:52
+I've actually read much of the code, but I tend to not stray into the core parts where scary things lie
+
+Fabio Labella @SystemFw 15:53
+so what I do
+
+PeterAaser @PeterAaser 15:53
+like don't ask me what a FreeC is (Free and coyoneda?)
+
+Fabio Labella @SystemFw 15:53
+no, that's just a Free monad with an extra constructor to take care of exception handling
+cats Free already has coyoneda embedded in it
+so I have a few random suggestions
+first of all, master the Stream api (apart from where concurrency is involved)
+assuming that it works by magic
+but like, try and figure out what each method does, how to combine them, useful patterns and the like
+
+PeterAaser @PeterAaser 15:55
+I'm pretty good at the stream API. My activity in this channel might give a false impression, but that's because I usually only ask when I need to do something stupid :stuck_out_tongue:
+
+Fabio Labella @SystemFw 15:55
+lol I was speaking in general, not your specific knowledge :stuck_out_tongue:
+
+PeterAaser @PeterAaser 15:56
+but it's definitely a good place to keep improving
+
+Fabio Labella @SystemFw 15:56
+then do the same, but learning about the implementations
+which are kinda divided in different categories
+i.e. things that are written in terms of other streams combinators <- these are the best
+concurrency/cats-effect <- I'll tell you about this in a second
+things that are implemented using Pull <- this are the second best
+
+PeterAaser @PeterAaser 15:57
+How about stuff like scopes which aren't really visible to the end user?
+
+Fabio Labella @SystemFw 15:57
+things that are primitives <- last
+
+PeterAaser @PeterAaser 15:57
+unless something that shouldn't explode explodes
+
+Fabio Labella @SystemFw 15:57
+well, you just need to figure out the core interpreter for that
+so Algebra
+it's tricky, not gonna lie
+
+PeterAaser @PeterAaser 15:58
+haha I remember some of the signatures from 0.9
+
+Fabio Labella @SystemFw 15:58
+a good exercise is to dive into the async package, however
+it's kinda standalone
+
+PeterAaser @PeterAaser 15:58
+The algebraF thing
+that's a good tip
+
+Fabio Labella @SystemFw 15:58
+what I did
+is spending a weekend going from the Java memory model (which you need to understand the lock-free queue used in actor)
+then from actor to the implementation of Ref
+than from the semantics of Ref to the concurrent data structures
+and then from there to the concurrent combinators join, start concurrently and so on
+
+PeterAaser @PeterAaser 16:00
+That's for the async part, right?
+
+Fabio Labella @SystemFw 16:00
+yes
+there's kinda two styles of concurrency is fs2 (this is my own informal split, so don't take it for granted)
+
+PeterAaser @PeterAaser 16:00
+Right, that sounds like a good way to go about it
+
+Fabio Labella @SystemFw 16:00
+stuff in async, which I've just mentioned
+and stuff like merge, which ultimately relies on AsyncPull
+but the async package itself is challenging enough as a start, imho
+one extra tip
+you don't have to go all the way down
+for example, there's no need to understand how Actor works
+
+PeterAaser @PeterAaser 16:01
+Yeah, that's a good point
+
+Fabio Labella @SystemFw 16:01
+its semantics are very clear, so you can assume them as primitives
+because understanding actor can be very tricky
+I'm keen on low level concurrency so I did that
+but it's not necessary
+unless you fancy reading about lock-free algorithms in C
+
+PeterAaser @PeterAaser 16:02
+Haha, I'm running the parallel computations coursework at my university
+I try very hard to avoid semaphores and similar unless I absolutely have to
+
+Fabio Labella @SystemFw 16:03
+You should also bear in mind that I'm a maintainer, and I don't know everything about the library yet
+
+PeterAaser @PeterAaser 16:03
+It's just impossible to get them right consistantly
+
+Fabio Labella @SystemFw 16:03
+so you could definitely contribute something while you learn
+well, the fs2 semaphores are quite nice :P
+but yeah, have you ever used haskell STM?
+
+PeterAaser @PeterAaser 16:04
+Thanks a lot, I hope I get some free time soon so I can finally go back to dagobah and finish my jedi training
+No, learning haskell is on my to-do list
+can't be that hard to learn haskell when I write functional scala
+
+Fabio Labella @SystemFw 16:04
+:+1:
+sweetest concurrency model I've used
+actually, you're mostly going to find that a lot of things are easier/less convoluted
+although I really like scala as well
+
+PeterAaser @PeterAaser 16:05
+I really prefer scalas syntax, it's much easier for me to parse
+although I dislike curly braces
+and the type inferenc
+Like how can Nil not be inferred
+aornshdi
+
+Fabio Labella @SystemFw 16:06
+ime, syntax really does depend on habit
+I used to hate scala syntax and its noise
+now I don't mind it at all
+
+PeterAaser @PeterAaser 16:06
+(0 /: List[A[Lot[Of[Stuff]]]]())(_+_)
+
+Fabio Labella @SystemFw 16:06
+lol
+
+PeterAaser @PeterAaser 16:06
+instead of (0 /: Nil)(_+_)
+but apart from that I find scalas type declarations to be very informative and I don't mind them at all
+
+Fabio Labella @SystemFw 16:07
+foldl' 0 (+)
+the kind syntax is atrocious
+
+PeterAaser @PeterAaser 16:08
+I quite like /:
+oh yes
+but bearable with macros luckily
+that's why I bet on scala, because shit like that ends up being fixed
+and not just with boilerplate tools
+lol, friend sent me this
+http://i.4cdn.org/sci/1507818316576.png
+
+proof via interpretive dance
+
+Fabio Labella @SystemFw 16:09
+amazing
+
+PeterAaser @PeterAaser 16:09
+we should totally find out what it is and find a way to incorporate it into the fs2 docs
