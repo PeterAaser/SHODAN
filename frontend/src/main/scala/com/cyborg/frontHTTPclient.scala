@@ -1,13 +1,13 @@
 package com.cyborg
 
-import cats.effect.IO
-
 import org.scalajs._
+import org.scalajs.dom.html
+import wallAvoid._
 
 object frontHTTPclient {
 
   // refactor me
-  def startShodanServer: IO[Unit] = {
+  def startSHODAN: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/connect")
     req.onload = (e: dom.Event) => {
@@ -15,48 +15,72 @@ object frontHTTPclient {
       println("nice meme..")
       println(req.statusText)
     }
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def stopShodanServer: IO[Unit] = {
+  def stopSHODAN: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/stop")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def startAgentServer: IO[Unit] = {
+  def startAgent: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/agent")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def startWfServer: IO[Unit] = {
+  /**
+    Opens a websocket to get the hottest new Agent data
+    */
+  def startAgentStream(cantvas: html.Canvas): Unit = {
+
+    val controller = new Visualizer.VisualizerControl(cantvas, Agent(Coord(.0,.0),0,0))
+    websocketStream.createAgentWsQueue(controller)
+  }
+
+  def startWaveformStream(cantvas: html.Canvas): Unit = {
+
+    val controller = new waveformVisualizer.WFVisualizerControl(cantvas, new scala.collection.mutable.Queue())
+    websocketStream.createWaveformWs(controller)
+  }
+
+  def startWf: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/wf")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def runFromDB: IO[Unit] = {
+  def startDB: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/db")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def crashSHODAN: IO[Unit] = {
+  def crashSHODAN: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/fuckoff")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def dspTest: IO[Unit] = {
+  def dspTest: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/dsptest")
-    IO.apply{ req.send() }
+    req.send()
   }
 
-  def dspSet: IO[Unit] = {
+  def dspSet: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/dspset")
-    IO.apply{ req.send() }
+    req.send()
+  }
+
+  def testDebugMsg: Unit = {
+    val sizeReq = new dom.XMLHttpRequest()
+    sizeReq.open("GET", "http://127.0.0.1:8080/info_waiting")
+    sizeReq.onload = (e: dom.Event) => {
+      println(e)
+    }
+    sizeReq.send()
   }
 }

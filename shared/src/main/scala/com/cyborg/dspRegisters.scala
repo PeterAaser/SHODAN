@@ -176,7 +176,7 @@ object DspRegisters {
   "END_STIM3             " -> (TRIGGER_CTRL_BASE + 0x48),
   "WRITE_START3          " -> (TRIGGER_CTRL_BASE + 0x4c),
   "READ_START3           " -> (TRIGGER_CTRL_BASE + 0x50),
-  "MANUAL_TRIGGER        " -> (TRIGGER_CTRL_BASE + 0x14),
+  "MANUAL_TRIGGER        " -> (TRIGGER_CTRL_BASE + 0x14)
   ).map(_.swap)
 
 }

@@ -30,65 +30,79 @@ object testan {
     val DSPbutton2 = button("DSP thangs2").render
 
 
-    startSHODANButton.onclick = (_: MouseEvent) => {
-      println("SHODAN button clicked")
-      frontIO.startSHODAN
-    }
+    /**
+      Starts SHODAN and connects to MEAME.
+      SHODAN is already running, so not really nescessary
+      */
+    startSHODANButton.onclick = (_: MouseEvent) =>
+      frontHTTPclient.startSHODAN
 
-    connectAgentButton.onclick = (_: MouseEvent) => {
-      println("connect agent button clicked")
-      frontIO.startAgent
-    }
-    visualizeAgentButton.onclick = (_: MouseEvent) => {
-      println("visualize button clicked")
-      frontIO.startAgentStream(agentCanvas)
-    }
 
-    connectWfButton.onclick = (_: MouseEvent) => {
-      println("connect waveform button clicked")
-      frontIO.startWF
-    }
+    /**
+      Creates and initializes an agent. If data is available
+      this agent will start running even though visualization has not yet been started
+      */
+    connectAgentButton.onclick = (_: MouseEvent) =>
+      frontHTTPclient.startAgent
 
-    visualizeWfButton.onclick = (_: MouseEvent) => {
-      println("visualize waveform button clicked")
-      frontIO.startWaveformStream(visualizerCanvas)
-    }
 
+    /**
+      Visualizes data from a currently running agent
+      */
+    visualizeAgentButton.onclick = (_: MouseEvent) =>
+      frontHTTPclient.startAgentStream(agentCanvas)
+
+
+    /**
+      Opens a websocket to get raw data for visualization from SHODAN
+      Can be run both from database and from raw input
+      */
+    visualizeWfButton.onclick = (_: MouseEvent) =>
+      frontHTTPclient.startWaveformStream(visualizerCanvas)
+
+
+    // runs a gl test. fuck gl tbh
     glButton.onclick = (_: MouseEvent) => {
       println("visualize waveform button clicked")
       val aa = new webgltest.webgltestController(visualizerCanvas)
       aa.test1()
     }
 
+
+    /**
+      Does nothing at the moment. It's supposed to start querying for
+      debug messages from scala to display it in a frontend.
+      Possibly useful for things such as visualizing congestion et cetera
+      */
     testDebugMessages.onclick = (_: MouseEvent) => {
-      println("the debug msg button clicked")
-      val sizeReq = new dom.XMLHttpRequest()
-      sizeReq.open("GET", "http://127.0.0.1:8080/info_waiting")
-      sizeReq.onload = (e: dom.Event) => {
-        println(e)
-      }
-      sizeReq.send()
+      frontHTTPclient.testDebugMsg
     }
 
+
+    /**
+      Stops (crashes) SHODAN
+      */
     crash.onclick = (_: MouseEvent) => {
       println("Stop SHODAN button clicked")
-      frontIO.stopSHODAN
+      frontHTTPclient.crashSHODAN
     }
 
+
+    /**
+      Starts running data from SHODANs database
+      */
     startDBButton.onclick = (_: MouseEvent) => {
       println("DB button clicked")
-      frontIO.startDB
+      frontHTTPclient.startDB
     }
 
-    DSPbutton.onclick = (_: MouseEvent) => {
-      println("DSP test button clicked")
-      frontIO.dspTest
-    }
 
-    DSPbutton2.onclick = (_: MouseEvent) => {
-      println("DSP test reg button clicked")
-      frontIO.dspTest
-    }
+    // Self-evident
+    DSPbutton.onclick = (_: MouseEvent) =>
+      frontHTTPclient.dspTest
+
+    DSPbutton2.onclick = (_: MouseEvent) =>
+      frontHTTPclient.dspTest
 
     document.getElementById("playground").appendChild(startSHODANButton)
     document.getElementById("playground").appendChild(connectAgentButton)
