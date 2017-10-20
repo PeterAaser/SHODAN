@@ -14,6 +14,7 @@ object Dependencies {
 
     "co.fs2" %%% "fs2-core" % fs2Version,
 
+
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",
     "org.typelevel" %%% "cats-core" % "1.0.0-MF"
@@ -59,8 +60,6 @@ object Dependencies {
     "co.fs2" %% "fs2-core" % fs2Version,
     "co.fs2" %% "fs2-io"   % fs2Version,
 
-    "org.scalactic" %% "scalactic" % "3.0.0",
-    "org.scalactic" %% "scalactic" % "3.0.0" % "test",
 
 
     "org.tpolecat" %% "doobie-core"       % doobieVersion,

@@ -6,7 +6,7 @@ name := "SHODAN"
 
 version in ThisBuild := "0.1.0-SNAPSHOT"
 scalaVersion in ThisBuild := "2.12.3"
-organization in ThisBuild := "com.cyborg"
+organization in ThisBuild := "cyborg"
 crossPaths in ThisBuild := false
 scalacOptions in ThisBuild ++= Seq(
   "-feature",
@@ -21,6 +21,7 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 resolvers += Resolver.sonatypeRepo("snapshots")
+
 autoCompilerPlugins := true
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
@@ -30,8 +31,11 @@ fork in run := true
 /**
   collect shared dependencies from Dependencies.scala
   */
-def crossLibs(configuration: Configuration) =
+def crossLibs(configuration: Configuration) = {
   libraryDependencies ++= crossDeps.value.map(_ % configuration)
+  libraryDependencies += "org.scalactic" %%% "scalactic" % "3.0.4"
+  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % "test"
+}
 
 
 /**
@@ -43,7 +47,7 @@ lazy val SHODAN = project.in(file("."))
   .settings(
     publishArtifact := false,
     fork in run := true,
-    mainClass in Compile := Some("com.cyborg.Launcher")
+    mainClass in Compile := Some("cyborg.Launcher")
   )
 
 
@@ -86,5 +90,5 @@ lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
 
   ).settings(workbenchSettings:_*)
   .settings(
-    bootSnippet := "com.cyborg.Init().main();"
+    bootSnippet := "cyborg.Init().main();"
   )
