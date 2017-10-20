@@ -1,15 +1,8 @@
 * Neste gang
-  Noe veldig rart som skjer med downsampling og masse topics. Tom for minne?
-  For mye jobb å lage simple case, la det være inntil videre.
-  
-  Holder på med DSP confing fra SHODAN.
-  
-**  Se på db stuff
-   Lag en recording der hver kanal har kun en verdi, sjekk om det stemmer med visualizer
-   
-   Debug all den nye HTTP koden.
-   Debug litt mer på DSP.
-   Se litt på visualizer?
+  Finn en sane måte å konstruere og jobbe med registere!
+  noe som kan benytte seg av piler uten å piggybacke på 
+  styggedommen som er ->(a:A, b:B): ((A,B)) = ((a,b))
+
   
 * Database specification
 ** ER
@@ -32,6 +25,7 @@
 *** A program reads both raw data and a processed stream (spike data)
 *** A program processes spike detection for all recordings in some range of time
 
+
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres 
@@ -53,8 +47,8 @@
 
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
-* QUEUE
-** Read the red book about free monads
+
+* learning queue
 ** Read the red book about scalatest
 
 * TODO Unified source
@@ -68,16 +62,6 @@
 
   This doesn't matter for visualizing, but it's important for ANNs etc.
   
-** Use case:
-*** Source arbitrates a connection, either to DB or to MEAME
-*** User starts visualizing 
-    From the source PoV this is just a bunch of (queue, channel) tuples
-*** User stops visualizing
-    The source must remove the now invalid queues
-*** Visualization is restarted
-    Same as first
-*** ???
-
     
 * how 2 fs2 fra gitter (ikke slett plz)
 Yeah, I do that in too many places
@@ -268,3 +252,7 @@ amazing
 
 PeterAaser @PeterAaser 16:09
 we should totally find out what it is and find a way to incorporate it into the fs2 docs
+
+* Circe
+  Figure out how I can work with Map for working with registers info without having to resort to
+  the clumsy stuff I'm using now.

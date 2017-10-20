@@ -100,9 +100,32 @@ object staging {
 
             case dspTest =>
               {
+                import DspComms._
+                Stream.eval(HttpClient.dspTest).run.unsafeRunSync()
 
-                val huh = Stream.eval(HttpClient.dspTest)
-                huh.run.unsafeRunSync()
+                val tests = for {
+                  - <- clearDebug()
+                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting debug reset")
+                  - <- clearDebug()
+                  - <- getDebug()
+                  _ = println("\n------------\n\n")
+                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting reads")
+                  _ <- readTest()
+                  - <- getDebug()
+                  - <- clearDebug()
+                  _ = println("\n------------\n\n")
+                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting writes")
+                  - <- getDebug()
+                  _ <- writeTest()
+                  - <- getDebug()
+                  - <- clearDebug()
+                  _ = println("\n------------\n\n")
+                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nDone :^)")
+
+                } yield ()
+
+                Stream.eval(tests).run.unsafeRunSync()
+
                 val uhm: Stream[IO,Unit] = Stream.empty
                 uhm
               }

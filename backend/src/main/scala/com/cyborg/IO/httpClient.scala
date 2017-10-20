@@ -20,11 +20,38 @@ object HttpClient {
 
   val httpClient = PooledHttp1Client[IO]()
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
-  implicit val regDecoder = jsonOf[IO, RegisterList]
+  implicit val regSetCodec = jsonOf[IO, RegisterSetList]
+  implicit val regReadCodec = jsonOf[IO, RegisterReadList]
+  implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
 
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
-  case class RegisterList(adresses: List[Int], values: List[Int])
+
+  import DspRegisters._
+  case class RegisterSetList(addresses: List[Int], values: List[Int]){
+    def show(): Unit = {
+      println("Register set list:")
+      for(i <- 0 until addresses.size){ println(f"${regMap.get(addresses(i)).getOrElse("NONE")} at 0x${addresses(i)}%x <- 0x${values(i)}%x") }
+    }
+  }
+  case object RegisterSetList {
+    def apply(r: List[(Int,Int)]): RegisterSetList =
+      RegisterSetList(r.unzip._2, r.unzip._1)
+  }
+
+  case class RegisterReadList(addresses: List[Int]){
+    def show(): Unit = {
+      println("Register read list:")
+      for(i <- 0 until addresses.size){ println(f"${regMap.get(addresses(i)).getOrElse("NONE")} at 0x${addresses(i)}%x") }
+    }
+  }
+
+
+  case class RegisterReadResponse(values: List[Int]){
+    def show(r: RegisterReadList): Unit = {
+      for(i <- 0 until values.size){ println(f"${regMap.get(r.addresses(i)).getOrElse("NONE")} at 0x${r.addresses(i)}%x := 0x${values(i)}%x") } }
+  }
+
 
 
   def connectDAQrequest(params: DAQparams): IO[String] = {
@@ -32,12 +59,18 @@ object HttpClient {
       println(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
     }
     val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
+    val derp = httpClient.expect[String](req)
+    derp
+  }
+
+  def setRegistersRequest(regs: RegisterSetList): IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/setreg"), regs.asJson)
     httpClient.expect[String](req)
   }
 
-  def setRegistersRequest(regs: RegisterList): IO[String] = {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/setreg"), regs.asJson)
-    httpClient.expect[String](req)
+  def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
+    httpClient.expect[RegisterReadResponse](req)
   }
 
 
@@ -52,6 +85,9 @@ object HttpClient {
 
   def dspTest: IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/dsptest")))
+
+  def meameConsoleLog(s: String): IO[String] =
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))
 
   import params.experiment._
 
