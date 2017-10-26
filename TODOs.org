@@ -2,9 +2,14 @@
   Finn en sane måte å konstruere og jobbe med registere!
   noe som kan benytte seg av piler uten å piggybacke på 
   styggedommen som er ->(a:A, b:B): ((A,B)) = ((a,b))
-  
-  Er no galt med js deserialisering. hurr
 
+  Fix the database. Store recordings in flat files!
+  Only metadata in DB!!!
+  
+
+  
+* Java fileIO paths and shit
+  Some words
   
 * Database specification
 ** ER

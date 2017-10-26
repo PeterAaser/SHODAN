@@ -155,4 +155,11 @@ object params {
       println(Console.RESET)
     }
   }
+
+  object StorageParams {
+
+    val storageType = "CSV"
+    val toplevelPath = "/home/peteraa/MEAdata"
+
+  }
 }

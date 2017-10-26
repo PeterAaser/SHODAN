@@ -8,8 +8,9 @@ import doobie.imports._
 import fs2._
 
 import com.github.nscala_time.time.Imports._
+import java.nio.file.{ Path, Paths }
 
-object doobieTasks {
+object doobIO {
 
   // haha nice meme dude!
   val superdupersecretPassword = "meme"
@@ -21,157 +22,85 @@ object doobieTasks {
     s"$superdupersecretPassword"
   )
 
-  case class ChannelRecording(experimentId: Long, channelRecordingId: Long, channelNumber: Long)
   case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
-  case class ExperimentParams(sampleRate: Int)
-
-  object doobieQueries {
-
-    def getChannels(experimentId: Long): Stream[IO,ChannelRecording] = {
-      val huh = sql"""
-       SELECT experimentId, channelRecordingId, channelNumber
-       FROM channelRecording
-       WHERE experimentId = $experimentId
-     """.query[ChannelRecording].process
-
-      huh.transact(xa)
-    }
-
+  case class DataRecording(resourcePath: Path, resourceType: FileEncoding)
+  case object DataRecording {
+    def apply(rpath: String, rtype: String): DataRecording = DataRecording(Paths.get(rpath), parseResourceType(rtype))
   }
 
-  object doobieReaders {
+  // TODO lets not use Int for duration
+  case class ExperimentParams(sampleRate: Int, segmentLength: Int, duration: Option[Int])
 
-    /**
-      For an experiment get a list of channel tags
-      */
-    def getChannelRecordings(experimentId: Int): ConnectionIO[List[ChannelRecording]] =
 
+  sealed trait FileEncoding
+  case object CSV extends FileEncoding
+  case object GZIP extends FileEncoding
+
+  def parseResourceType(s: String): FileEncoding = s match {
+    case "CSV" => CSV
+    case "gzip" => GZIP
+    case _ => {
+      // cba with Option here...
+      println("uh oh, you fucking dunce")
+      GZIP
+    }
+  }
+
+
+  def getExperimentParams(experimentId: Long): IO[ExperimentParams] = {
     sql"""
-       SELECT experimentId, channelRecordingId, channelNumber
-       FROM channelRecording
-       WHERE experimentId = $experimentId
-     """.query[ChannelRecording].list
-
-
-    /**
-      From a channel recording tag, get the corresponding data stream
-      */
-    def getChannelStream(recording: ChannelRecording): Stream[IO,Array[Int]] = {
-
-      val huh = sql"""
-       SELECT sample
-       FROM datapiece
-       WHERE channelRecordingId = ${recording.channelRecordingId}
-       ORDER BY index
-     """
-
-      import doobie.postgres.implicits._
-
-      huh.query[Array[Int]].process.transact(xa)
-    }
-
-    /**
-      From a list of channel recording ids, get the dataStreams for each channel
-      */
-    def selectChannelStreams(recordings: List[ChannelRecording], channels: List[Int]): List[Stream[IO, Array[Int]]] = {
-      val requested = channels.map(recordings(_))
-      requested.map(getChannelStream(_))
-    }
-
-
-    /**
-      Returns a list of streams from a list of requested channel numbers
-     */
-    def selectChannelStreams(experimentId: Int, channels: List[Int]): IO[List[Stream[IO,Array[Int]]]] = {
-
-      val dbio = for {
-        a <- getChannelRecordings(experimentId)
-      } yield (selectChannelStreams(a, channels))
-
-      dbio.transact(xa)
-    }
-
-    def getExperimentInfo(experimentId: Int): Stream[IO,ExperimentParams] = {
-      println("getExperimentInfo Feeding bullshit parameters")
-      Stream(ExperimentParams(40000))
-    }
+        SELECT sampleRate, segmentLength
+        FROM experimentParams
+        WHERE experimentId = $experimentId
+      """.query[ExperimentParams].unique.transact(xa)
   }
 
 
-  object doobieWriters {
-
-    // Creates a sink for a channel inserting DATAPIECES
-    def channelSink(channel: Int, channelRecordingId: Long): Sink[IO, Int] = {
-
-      import doobie.postgres.imports.unliftedUnboxedIntegerArrayType
-
-      def go(s: Stream[IO, Int]): Pull[IO, IO[Int], Unit] = {
-        s.pull.unconsN(1024, false) flatMap {
-          case Some((segment, tl)) => {
-            val folded = segment.toArray
-            val insert: IO[Int] = {
-              sql"""
-              INSERT INTO datapiece (channelRecordingId, sample)
-              VALUES ($channelRecordingId, $folded)
-            """.update.run.transact(xa)
-            }
-            Pull.output1(insert) >> go(tl)
-          }
-          case None => Pull.done
-        }
-      }
-      in => go(in).stream.drain
-    }
-
-    def insertDataRecord(channelRecordingId: Long, data: Array[Int]): IO[Int] = {
-
-      // TODO: This is probably not necessary with the correct implicits
-      val lel = "{" + data.head + ("" /: data.tail.map(λ => "," + λ))(_ + _) + "}"
-      val query = sql"""
-      INSERT INTO datapiece (channelRecordingId, sample)
-      VALUES ($channelRecordingId, $lel::int4[])
-    """
-      // println(query)
-
-
-      query.update.run.transact(xa)
-    }
-
-    def insertOldExperiment(comment: Option[String], timestamp: DateTime): IO[Long] = {
-      val comment_ = comment.getOrElse("no comment")
-      val fmt = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss")
-      val timeString = timestamp.toString(fmt)
-
-      println(s"inserting old experiment with comment $comment_, date: $timeString::timestamp")
-
-      val op = for {
-        _ <- sql"set datestyle = dmy".update.run
-        _ <- sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment_, $timeString::timestamp)".update.run
-        id <- sql"select lastval()".query[Long].unique
-      } yield (id)
-      op.transact(xa)
-    }
-
-
-    def insertNewExperiment(comment: Option[String]): IO[Long] = {
-      val comment_ = comment.getOrElse("no comment")
-      (for {
-        _ <- sql"INSERT INTO experimentInfo (comment) VALUES ($comment_)".update.run
-        id <- sql"select lastval()".query[Long].unique
-      } yield (id)).transact(xa)
-    }
-
-    def insertChannel(experimentId: Long, channel: Int): ConnectionIO[Long] = {
-      for {
-        _ <- sql"INSERT INTO channelRecording (experimentId, channelNumber) VALUES ($experimentId, $channel)".update.run
-        id <- sql"select lastval()".query[Long].unique
-      } yield (id)
-    }
-
-    // Inserts a bunch of channels to an experiment
-    def insertChannels(experimentId: Long): IO[List[Long]] = {
-      val insertionTasks: List[ConnectionIO[Long]] = Range(0, 60).toList.map( i => insertChannel(experimentId, i) )
-      insertionTasks.sequence.transact(xa)
-    }
+  // probably explodes lol
+  def getExperimentDataURI(experimentId: Long): IO[DataRecording] = {
+    val hurr = sql"SELECT resourcePath, resourceType FROM experimentInfo WHERE experimentId = $experimentId"
+      .query[(String, String)].unique.transact(xa)
+    hurr.map{ case(λ, µ) => DataRecording(λ, µ) }
   }
+
+
+  def insertNewExperiment(path: Path, comment: String="No comment atm"): IO[Long] = {
+
+    val insertExperiment = sql"INSERT INTO experimentInfo comment VALUES $comment".update.run.transact(xa)
+
+    insertExperiment flatMap { id =>
+      insertDataRecording(id, path.toString()) flatMap { _ =>
+        insertParams(id).map(_ => id)
+      }}
+  }
+
+
+  def insertDataRecording(id: Long, path: String): IO[Int] = {
+    import params.StorageParams._
+    sql"INSERT INTO dataRecording (experimentId, resourcePath, resourceType) VALUES ($id, $path, $storageType)".update.run.transact(xa)
+  }
+
+  def insertParams(id: Long): IO[Int] = {
+    import params.experiment._
+    sql"INSERT INTO experimentParams (sampleRate, segmentLength) VALUES ($samplerate, $segmentLength)".update.run.transact(xa)
+  }
+
+  def getExperimentsByMEA(MEAid: Int): Stream[IO, String] = ???
+
+
+  def insertOldExperiment(comment: Option[String], timestamp: DateTime): IO[Long] = {
+    val comment_ = comment.getOrElse("no comment")
+    val fmt = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss")
+    val timeString = timestamp.toString(fmt)
+
+    println(s"inserting old experiment with comment $comment_, date: $timeString::timestamp")
+
+    val op = for {
+      _ <- sql"set datestyle = dmy".update.run
+      _ <- sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment_, $timeString::timestamp)".update.run
+      id <- sql"select lastval()".query[Long].unique
+    } yield (id)
+    op.transact(xa)
+  }
+
 }

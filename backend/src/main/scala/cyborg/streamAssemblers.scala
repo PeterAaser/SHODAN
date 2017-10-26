@@ -25,6 +25,7 @@ object Assemblers {
     val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
+    val rawDataTopicS = Stream.eval(fs2.async.topic[IO,Int](0))
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
     val meameFeedbackSink: Sink[IO,Byte] = _.drain
@@ -37,13 +38,13 @@ object Assemblers {
       agentQueue   <- agentQueueS
       topics       <- topicsS
       debugQueue   <- debugQueueS
-      rawQueue     <- rawDataQueueS
+      rawDataTopic <- rawDataTopicS
 
       httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
       webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawQueue.dequeue))
+      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataTopic.subscribe(10000)))
       agentSink               = agentQueue.enqueue
-      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawQueue.enqueue)
+      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataTopic.publish)
       channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
 
       server    <- httpServer
@@ -74,6 +75,7 @@ object Assemblers {
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
     // this discrepancy will never be resolved and one stream will be permanently ahead
+    // TODO there should be a util for this
     val spikeChannels = channelStreams
       .map(_.map(_._1))
       .map(_.through(chunkify))
@@ -90,9 +92,10 @@ object Assemblers {
   def broadcastDataStream(
     source: Stream[IO,Int],
     topics: List[DataTopic[IO]],
-    rawSink: Sink[IO,Int])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+    rawSink: Sink[IO,Int],
+    segmentLength: Int)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
-    import params.experiment._
+    import params.experiment.totalChannels
 
     def publishSink(topics: List[DataTopic[IO]]): Sink[IO,Int] = {
       def loop(segmentId: Int, topics: List[DataTopic[IO]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
@@ -112,6 +115,7 @@ object Assemblers {
           }
         }
       }
+      // TODO add observeAsync, and move it out of arg position where it doesn't really belong
       in => loop(0, topics, in.observe(rawSink)).stream.map(Stream.eval).join(totalChannels)
     }
 
@@ -210,7 +214,7 @@ object Assemblers {
 
 
   def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    val theThing = mcsParser.eatDirectory(new File("/home/peteraa/Fuckton_of_MEA_data/hfd5_test").toPath())
+    val theThing = mcsParser.eatDirectory(new File("/home/peteraa/Fuckton_of_MEA_data/Dummy").toPath())
     theThing
   }
 }

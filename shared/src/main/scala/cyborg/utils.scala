@@ -224,6 +224,8 @@ object utilz {
     */
   def createTopics[F[_]: Effect,T](num: Int, init: T)(implicit ec: ExecutionContext): Stream[F,List[Topic[F,T]]] = {
     val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
+    // TODO should be until, not to??
+    // TODO wrong number of params??
     val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F].repeat /: (0 to num)){
       (acc: Stream[F,Topic[F,T]], _) => {
         Stream.eval(topicTask) ++ acc

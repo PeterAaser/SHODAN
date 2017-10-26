@@ -27,8 +27,8 @@ object sIO {
     * For offline playback of data, select experiment id to publish on provided topics
     */
   def streamFromDatabase(experimentId: Int, topics: List[Topic[IO,DataSegment]], rawDataSink: Sink[IO,Int])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    // val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
-    val experimentData = dIO.channelIdStream
+    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
+    // val experimentData = dIO.channelIdStream
     Assemblers.broadcastDataStream(experimentData, topics, rawDataSink)
   }
 
@@ -71,6 +71,7 @@ object dIO {
     experimentData
   }
 
+  // Creates different sine waves for each channel.
   def channelIdStream: Stream[IO,Int] = {
     utilz.sineWave[IO](60, params.experiment.segmentLength)
   }

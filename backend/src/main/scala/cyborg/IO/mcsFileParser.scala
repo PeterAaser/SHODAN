@@ -10,7 +10,6 @@ import scala.concurrent.ExecutionContext
 // import java.io.File
 import java.nio.file.Paths
 import fs2._
-import doobieTasks._
 
 
 /**

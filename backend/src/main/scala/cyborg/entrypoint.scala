@@ -54,8 +54,8 @@ object staging {
             case AgentStart =>
                 Assemblers.assembleGA(meameTopics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
 
-            case RunFromDB(id) =>
-              sIO.streamFromDatabase(id, meameTopics, rawDataSink)
+            case RunFromDB(id) => // TODO id hardcoded atm
+              sIO.streamFromDatabase(2, meameTopics, rawDataSink)
 
             case StoreToDB(comment) =>
               sIO.streamToDatabase(meameTopics, comment)

@@ -1,8 +1,25 @@
 CREATE TABLE IF NOT EXISTS experimentInfo (
     id serial NOT NULL,
     experimentTimeStamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    comment varchar
+    comment varchar NOT NULL,
 );
+
+
+-- How to ensure duration is stored? allow NULL and then
+-- have a separate script to calculate?
+CREATE TABLE IF NOT EXISTS experimentParams (
+    experimentId NOT NULL,
+    sampleRate integer NOT NULL,
+    segmentLength integer NOT NULL,
+    duration integer
+);
+
+
+CREATE TABLE IF NOT EXISTS dataRecording (
+    experimentId NOT NULL,
+    resourcePath varchar,    -- a filepath
+    resourceType varchar     -- CSV, zipped, tarred etc
+)
 
 -- wouldn't be a database without this one I guess
 CREATE TABLE IF NOT EXISTS person (
@@ -12,15 +29,18 @@ CREATE TABLE IF NOT EXISTS person (
     phoneNo integer
 );
 
+
 CREATE TABLE IF NOT EXISTS experimentPerformedBy (
     experimentId integer NOT NULL,
     experimentStaffId integer NOT NULL
 );
 
+
 CREATE TABLE IF NOT EXISTS experimentSubject (
     experimentId integer NOT NULL,
     MEAId integer NOT NULL
 );
+
 
 CREATE TABLE IF NOT EXISTS MEA (
     id integer NOT NULL,
@@ -28,19 +48,6 @@ CREATE TABLE IF NOT EXISTS MEA (
     info varchar NOT NULL -- Placeholder for all sorts of exciting information about Neural cultures
 );
 
--- Not too fond of this one, but in case I want to use a file URI or similar it's useful to have
--- a layer of indirection between experiment -> data
-CREATE TABLE IF NOT EXISTS channelRecording (
-    experimentId integer NOT NULL,
-    channelRecordingId serial NOT NULL UNIQUE,
-    channelNumber integer NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS datapiece (
-    channelRecordingId int NOT NULL,
-    index serial NOT NULL,
-    sample integer[] NOT NULL -- should be 1024 pieces, not statically (or dynamically) checked
-);
 
 ALTER TABLE experimentInfo
     ADD CONSTRAINT experimentInfo_pkey PRIMARY KEY (id)
@@ -67,8 +74,4 @@ ALTER TABLE experimentSubject
 
 ALTER TABLE channelRecording
     ADD CONSTRAINT experimentInfoRecording_fkey FOREIGN KEY (experimentId) REFERENCES experimentInfo(id)
-;
-
-ALTER TABLE datapiece
-    ADD CONSTRAINT channelRecordingPiece_fkey FOREIGN KEY (channelRecordingId) REFERENCES channelRecording(channelRecordingId)
 ;

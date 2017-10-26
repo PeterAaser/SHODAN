@@ -27,33 +27,9 @@ object Launcher {
 
     params.printParams()
 
-    Assemblers.startSHODAN.run.unsafeRunSync()
+    // Assemblers.startSHODAN.run.unsafeRunSync()
+    val meme = databaseIO.dbReaders.dbChannelStream(2).take(10000).runLog.unsafeRunSync()
+    println(meme)
 
-    import params.experiment._
-    // val dur = utilz.sineWave[IO](60, segmentLength).take(60*segmentLength*2).runLog.unsafeRunSync()
-    // val uno = dur.drop(segmentLength).take(segmentLength)
-    // val doz = dur.drop(segmentLength*60).drop(segmentLength).take(segmentLength)
-
-    // println(uno)
-    // println(doz)
-
-    // val topics = Assemblers.assembleTopics[IO]
-
-    // TODO: Destroy ↓
-    // A mistake
-    // val memeStream: Stream[IO,Stream[IO,Unit]] = Stream.emits(0 to 60).covary[IO].map { i =>
-    //   val volt_base = -1000 + ((i/60)*2000)
-    //   val fileName = f"${i}%02d"
-    //   val streamLine = Stream.emits(List.fill(1000)(volt_base)).covary[IO].repeat
-    //     .take(1000000)
-    //     .through(_.map(λ => s"$λ,"))
-    //     .intersperse("\n")
-    //     .through(text.utf8Encode[IO])
-    //     .through(io.file.writeAll[IO](Paths.get(s"/home/peteraa/Fuckton_of_MEA_data/Dummy/$fileName.txt")))
-
-    //   streamLine
-    // }
-
-    // memeStream.joinUnbounded.run.unsafeRunSync()
   }
 }
