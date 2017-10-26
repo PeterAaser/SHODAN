@@ -113,6 +113,13 @@ object HttpServer {
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
+
+      case req @ POST -> Root / "fuckoff" => {
+        for {
+          emit <- cmd(Shutdown)
+          resp <- Ok("shutting down")
+        } yield (resp)
+      }
     }
   }
 

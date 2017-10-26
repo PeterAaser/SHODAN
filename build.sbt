@@ -33,8 +33,8 @@ fork in run := true
   */
 def crossLibs(configuration: Configuration) = {
   libraryDependencies ++= crossDeps.value.map(_ % configuration)
-  libraryDependencies += "org.scalactic" %%% "scalactic" % "3.0.4"
-  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % "test"
+  // libraryDependencies += "org.scalactic" %%% "scalactic" % "3.0.4"
+  // libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % "test"
 }
 
 

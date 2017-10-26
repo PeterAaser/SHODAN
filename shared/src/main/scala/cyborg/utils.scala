@@ -327,15 +327,15 @@ object utilz {
     The reason for making a more low level implementation is that in many cases
     you downsample for performance reasons, so if you can effectively downsample then
     less optimized pipes downstream won't matter too much.
-    // TODO: Broken!!!
-    // or is it?
+    TODO: Broken!!!
+    BREAKS ON SMALL INPUT CHUNK SIZE
     */
   def downSamplePipe[F[_],I](blockSize: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I], cutoffPoint: Int): Pull[F,I,Unit] = {
       s.pull.unconsChunk flatMap {
         case Some((chunk, tl)) => {
 
-          println(Console.RED + "BROKEN" + Console.RESET)
+          println(Console.RED + "BROKEN FOR SMALL INPUT CHUNK SIZES, USE WITH VERY CAUTION AND FRIGHTEN" + Console.RESET)
 
           val sizeAfterCutoff = chunk.size - cutoffPoint
           val numSamples = (sizeAfterCutoff / blockSize) + (if ((sizeAfterCutoff % blockSize) == 0) 0 else 1)
@@ -352,6 +352,11 @@ object utilz {
           // println(s"sizeAfterCutoff, $sizeAfterCutoff")
           // println(s"numSamples, $numSamples")
           // println(s"nextCutOffPoint, $nextCutOffPoint")
+          // println("----------------------------------------\n\n")
+
+          // println("----------------------------------------")
+          // println(samples)
+          // println(samples.size)
           // println("----------------------------------------\n\n")
 
           val samples = indicesToSample.map(chunk(_))
@@ -414,6 +419,25 @@ object utilz {
     throttul(dur).flatMap { _ =>
       Stream.eval(q.size.get).through(_.map(λ => println(s"Queue with name $name has a size of $λ")))
     }.repeat
+  }
+
+  def sineWave[F[_]](channels: Int, segmentLength: Int): Stream[F,Int] = {
+    val empty: List[Int] = Nil
+    val hurr: Stream[F,List[Int]] = Stream.iterate(0)(_+1).map{ iter =>
+      val channel = iter % channels
+      val offset = iter*segmentLength/channels
+      // val α = ((channel + 1) % 6).toFloat/100.0
+      val naughtyList = (0 until segmentLength).map(_ + offset).map{ idx => // get it?
+        val sinVal = math.sin(idx*((channel % 6) + 1).toFloat/100.0)
+        sinVal*400.0
+      }
+      val out = naughtyList.map(_.toInt).toList
+      if(iter % 60 == 0){
+        println(out.zipWithIndex.filter(_._2 % 5 == 0).map(_._1))
+      }
+      out
+    }
+    hurr.through(chunkify)
   }
 }
 

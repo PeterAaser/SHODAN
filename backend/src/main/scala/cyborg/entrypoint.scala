@@ -34,7 +34,8 @@ object staging {
   def commandPipe(
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
-    meameFeedbackSink: Sink[IO,Byte]
+    meameFeedbackSink: Sink[IO,Byte],
+    rawDataSink: Sink[IO,Int]
   )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
 
     def go(s: Stream[IO,UserCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
@@ -47,14 +48,14 @@ object staging {
             case StartMEAME =>
               {
                 Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
-                sIO.streamFromTCP(meameTopics)
+                sIO.streamFromTCP(meameTopics, rawDataSink)
               }
 
             case AgentStart =>
                 Assemblers.assembleGA(meameTopics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
 
             case RunFromDB(id) =>
-              sIO.streamFromDatabase(id, meameTopics)
+              sIO.streamFromDatabase(id, meameTopics, rawDataSink)
 
             case StoreToDB(comment) =>
               sIO.streamToDatabase(meameTopics, comment)

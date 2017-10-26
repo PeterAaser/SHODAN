@@ -25,7 +25,17 @@ object Launcher {
 
     println("wello")
 
+    params.printParams()
+
     Assemblers.startSHODAN.run.unsafeRunSync()
+
+    import params.experiment._
+    // val dur = utilz.sineWave[IO](60, segmentLength).take(60*segmentLength*2).runLog.unsafeRunSync()
+    // val uno = dur.drop(segmentLength).take(segmentLength)
+    // val doz = dur.drop(segmentLength*60).drop(segmentLength).take(segmentLength)
+
+    // println(uno)
+    // println(doz)
 
     // val topics = Assemblers.assembleTopics[IO]
 

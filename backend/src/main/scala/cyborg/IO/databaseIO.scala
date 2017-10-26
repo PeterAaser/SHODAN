@@ -36,7 +36,7 @@ object databaseIO {
       def unload(dudes: List[Array[Int]], tl: Stream[F,Array[Int]]): Pull[F,Int,Unit] = {
         dudes match {
           case head :: t => {
-            // println("arrayBreaker unloaded head")
+            println(head.size)
             Pull.output(Chunk.seq(head)) >> unload(t, tl)
           }
           case _ => {

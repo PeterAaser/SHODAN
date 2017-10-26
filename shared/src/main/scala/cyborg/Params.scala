@@ -3,6 +3,12 @@ package cyborg
 
 object params {
 
+  def printParams(): Unit = {
+    experiment.printMe()
+    filtering.printMe()
+    waveformVisualizer.printMe()
+  }
+
   object experiment {
     val totalChannels = 60
     val samplerate = 1000
@@ -13,11 +19,13 @@ object params {
     val maxFreq = 10.0
 
     def printMe(): Unit = {
-      println("----[Experiment params]----")
-      println(s"samplerate: \t\t$samplerate")
-      println(s"segment length: \t\t$segmentLength")
-      println(s"max spikes per second: \t\t$maxSpikesPerSec")
-      println(s"refactory period for spike detector pipe: ${samplerate/maxSpikesPerSec}")
+      println(Console.YELLOW + "----[Experiment params]----")
+      println(Console.YELLOW + s"samplerate: \t\t" + Console.RED + s"$samplerate")
+      println(Console.YELLOW + s"segment length: \t\t" + Console.RED + s"$segmentLength")
+      println(Console.YELLOW + s"max spikes per second: \t" + Console.RED + s"$maxSpikesPerSec")
+      println(Console.YELLOW + "refactory period for spike detector pipe: " + Console.RED + s"${samplerate/maxSpikesPerSec}")
+      println("\n\n")
+      println(Console.RESET)
     }
   }
 
@@ -62,17 +70,19 @@ object params {
 
 
     def printNetworkLayout(): Unit = {
-      layout.foreach { λ => print(s"[$λ]") }
+      layout.foreach { λ => print(Console.CYAN + s"[$λ]") }
       println()
     }
 
     def printMe(): Unit = {
-      println("----[Filtering params]----")
-      println(s"Spike thresholding value is set to $MAGIC_THRESHOLD")
-      println(s"The current neural network layout is: ")
+      println(Console.CYAN + "----[Filtering params]----")
+      println(Console.CYAN + s"Spike thresholding value is set to " + Console.RED + s"$MAGIC_THRESHOLD")
+      println(Console.CYAN + s"The current neural network layout is: ")
       printNetworkLayout()
-      println(s"The input of to the neural network is the moving average of the last $movingAverageRetention spikes")
-      println(s"the 'cooldown' in samples between each possible spike is $spikeCooldown")
+      println(Console.CYAN + s"The input of to the neural network is the moving average of the last " + Console.RED + s"$movingAverageRetention spikes")
+      println(Console.CYAN + s"the 'cooldown' in samples between each possible spike is" + Console.RED + s" $spikeCooldown")
+      println(Console.CYAN + "\n\n")
+      println(Console.RESET)
     }
 
   }
@@ -125,21 +135,24 @@ object params {
     val reducedSegmentLength = experiment.segmentLength/blockSize
     val maxVal = 600
     val wfMsgSize = 1200
-    val sixtyFPSrefreshRate = 17
-    val thirtyFPSrefreshRate = 33
+    val sixtyFPSrefreshRate = 17  //every 17 ms
+    val thirtyFPSrefreshRate = 33 //every 33 ms
     val dataPointsReceivedPerSec = 60*(pointsPerSec/blockSize)
     val wfMsgSentPerSecond = dataPointsReceivedPerSec/wfMsgSize
 
     def printMe(): Unit = {
-      println("----[Wafeform stream parameters]----")
-      println(s"vizualizer height in pixels: $vizHeight")
-      println(s"vizualizer length in pixels: $vizLength")
-      println(s"\nIn order to fill one seconds worth of data in $vizLength pixels with a samplerate of $pointsPerSec")
-      println(s"One out $blockSize datapoints are needed\n")
-      println("By reducing the samplerate the segment length is reduced accordingly")
-      println(s"The reduced segment length is $reducedSegmentLength")
-      println(s"The web frontend receives ${dataPointsReceivedPerSec} datapoints per sec in total")
-      println(s"in the form of ${wfMsgSentPerSecond} messages per sec")
+      println(Console.MAGENTA)
+      println(Console.MAGENTA + "----[Wafeform stream parameters]----")
+      println(Console.MAGENTA + s"vizualizer height in pixels: " + Console.RED + s"$vizHeight")
+      println(Console.MAGENTA + s"vizualizer length in pixels: " + Console.RED + s"$vizLength\n")
+      println(Console.MAGENTA + s"In order to fill one seconds worth of data in " + Console.RED + s"$vizLength " + Console.MAGENTA + "pixels with a samplerate of " + Console.RED + s"$pointsPerSec")
+      println(Console.MAGENTA + s"One out " + Console.RED + s"$blockSize " + Console.MAGENTA + "datapoints are needed\n")
+      println(Console.MAGENTA + s"By reducing the samplerate the segment length is reduced accordingly")
+      println(Console.MAGENTA + s"The reduced segment length is " + Console.RED + s"$reducedSegmentLength")
+      println(Console.MAGENTA + s"The web frontend receives " + Console.RED + s"${dataPointsReceivedPerSec} " + Console.MAGENTA + "datapoints per sec in total")
+      println(Console.MAGENTA + s"in the form of " + Console.RED + s"${wfMsgSentPerSecond} " + Console.MAGENTA + "messages per sec")
+      println("\n\n")
+      println(Console.RESET)
     }
   }
 }

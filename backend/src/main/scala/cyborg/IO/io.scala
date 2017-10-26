@@ -26,12 +26,10 @@ object sIO {
   /**
     * For offline playback of data, select experiment id to publish on provided topics
     */
-  def streamFromDatabase(experimentId: Int, topics: List[Topic[IO,DataSegment]])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    // for {
-    //   experimentInfo <- databaseIO.dbReaders.getExperimentSampleRate(experimentId) // samplerate, not use atm
-    // } yield {
-    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
-    Assemblers.broadcastDataStream(experimentData, topics)
+  def streamFromDatabase(experimentId: Int, topics: List[Topic[IO,DataSegment]], rawDataSink: Sink[IO,Int])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+    // val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
+    val experimentData = dIO.channelIdStream
+    Assemblers.broadcastDataStream(experimentData, topics, rawDataSink)
   }
 
   /**
@@ -49,23 +47,31 @@ object sIO {
     * Open a TCP connection to stream data from other computer
     * Data is broadcasted to provided topics
     */
-  def streamFromTCP(topics: MeameDataTopic[IO])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def streamFromTCP(topics: MeameDataTopic[IO], rawDataSink: Sink[IO, Int])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     val experimentData = networkIO.streamAllChannels[IO]
-    Assemblers.broadcastDataStream(experimentData, topics)
+    Assemblers.broadcastDataStream(experimentData, topics, rawDataSink)
   }
 
 
   /**
     * Open a TCP connection to stream stimuli requests to MEAME
     */
+  // TODO: Should be done with http POST, not as a TCP stream
   def stimulusToTCP(stimuli: Stream[IO,String]): Stream[IO, Unit] = ???
-
 
 }
 
+
+/**
+  TODO Move this to a real testing backend, fucks sake...
+  */
 object dIO {
   def streamFromDatabaseRaw(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
     val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
     experimentData
+  }
+
+  def channelIdStream: Stream[IO,Int] = {
+    utilz.sineWave[IO](60, params.experiment.segmentLength)
   }
 }

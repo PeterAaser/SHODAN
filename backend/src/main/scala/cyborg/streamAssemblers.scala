@@ -26,6 +26,7 @@ object Assemblers {
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
+    val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
     val meameFeedbackSink: Sink[IO,Byte] = _.drain
 
     import DebugMessages._
@@ -36,12 +37,13 @@ object Assemblers {
       agentQueue   <- agentQueueS
       topics       <- topicsS
       debugQueue   <- debugQueueS
+      rawQueue     <- rawDataQueueS
 
       httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
       webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(topics))
+      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawQueue.dequeue))
       agentSink               = agentQueue.enqueue
-      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink)
+      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawQueue.enqueue)
       channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
 
       server    <- httpServer
@@ -87,7 +89,8 @@ object Assemblers {
     */
   def broadcastDataStream(
     source: Stream[IO,Int],
-    topics: List[DataTopic[IO]])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+    topics: List[DataTopic[IO]],
+    rawSink: Sink[IO,Int])(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
     import params.experiment._
 
@@ -109,7 +112,7 @@ object Assemblers {
           }
         }
       }
-      in => loop(0, topics, in).stream.map(Stream.eval).join(totalChannels)
+      in => loop(0, topics, in.observe(rawSink)).stream.map(Stream.eval).join(totalChannels)
     }
 
     // Should ideally emit a list of topics doing their thing
@@ -164,16 +167,17 @@ object Assemblers {
 
 
   /**
-    Takes data from the DataTopic list, filters the data, vectorizes it to fit message size
-    before demuxing it to a single stream which is sent to the visualizer
+    Takes in the raw dataStream before separating to topics for perf reasons
     */
-  // TODO where should data filtering really be handled?
-  def assembleWebsocketVisualizer(
-    dataSource: List[DataTopic[IO]])(implicit ec: ExecutionContext): IO[Server[IO]] = {
+  def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int])(implicit ec: ExecutionContext): IO[Server[IO]] = {
 
-    // val inputSource = assembleWebsocketVisualizerFilter[IO](dataSource)
+    val filtered = rawInputStream
+      .through(vectorize(1000))
+      .through(chunkify)
+      .through(downSamplePipe(params.waveformVisualizer.blockSize))
+      .through(mapN(params.waveformVisualizer.wfMsgSize, _.toArray))
 
-    val server = webSocketServer.webSocketWaveformServer(assembleWebsocketVisualizerFilter(dataSource))
+    val server = webSocketServer.webSocketWaveformServer(filtered)
     server
   }
 

@@ -46,6 +46,15 @@ object waveformVisualizer {
       # # # # # # # #
         # # # # # #
 
+         0  1  2  3  4  5
+      12 18 #  #  #  #  #  #
+      13 #  #  #  #  #  #  #
+      #  #  #  #  #  #  #  #
+      #  21 #  #  #  #  #  #
+      #  #  #  #  #  #  #  #
+      #  #  #  #  #  #  #  #
+         6  7  8  9  10 11
+
 
         _ _ o o _ _
       _ x _ o o _ x _
@@ -78,27 +87,26 @@ object waveformVisualizer {
 
 
     val groupSize = wfMsgSize/60
+    var running = false
 
     scalajs.js.timers.setInterval(70) {
-      if(dataqueue.size > 500){
-        println(dataqueue.size)
-      }
-      if(dataqueue.size > 12){
-        val buf: Array[Array[Int]] = Array.ofDim(12)
-        for(i <- 0 until 12){
-          buf(i) = dataqueue.dequeue()
+      if(!running){
+        running = true
+        if(dataqueue.size > 500){
+          println(dataqueue.size)
         }
-
-        gogo(buf.flatten)
-      }
-      else{
-        println(dataqueue.size)
+        if(dataqueue.size > 0){
+          gogo(dataqueue.dequeue)
+        }
+        running = false
       }
     }
 
     def gogo(data: Array[Int]): Unit = {
       clear()
-      val chopped = data.grouped(groupSize).zipWithIndex
+      val chopped = data.grouped(groupSize).zipWithIndex.toList
+      println(chopped(0)._2)
+      println(chopped(0)._1.toList)
       chopped.foreach(λ => drawToPixelArray(λ._1, λ._2))
       renderer.fillStyle = "yellow"
       drawPixelArrays()
@@ -109,7 +117,12 @@ object waveformVisualizer {
     // Takes a new datasegment and appends to the pixelarray
     def drawToPixelArray(data: Array[Int], index: Int): Unit = {
       val (remainder, _) = pixels(index) splitAt(vizLength - reducedSegmentLength)
-      pixels(index) = (normalize(data).toArray ++ remainder)
+      if(index == 0){
+        println(normalize(data).toArray.toList)
+        println(remainder.toList)
+        println("\n\n")
+      }
+      pixels(index) = (normalize(data).reverse.toArray ++ remainder)
     }
 
 

@@ -1,6 +1,6 @@
 package cyborg
 
-import scala.scalajs.js.typedarray.TypedArrayBuffer
+import scala.scalajs.js.typedarray.{ DataView, TypedArrayBuffer }
 import scodec._
 import scodec.bits._
 
@@ -28,6 +28,7 @@ object websocketStream {
     println(s"created $ws")
     println(s"ws url was ${ws.url}")
 
+    var counter = 0
 
     ws.onopen = (event: Event) => {
       println("opening waveform WebSocket. YOLO")
@@ -36,17 +37,13 @@ object websocketStream {
     ws.binaryType = "arraybuffer"
     ws.onmessage = (event: MessageEvent) => {
       val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
-      val byteBuf = TypedArrayBuffer.wrap(jsData)
-      println(byteBuf)
-      val buf: Array[Int] = Array.ofDim(100)
-      for(ii <- 0 until 100){
-        val asInt =
-          ((byteBuf.get((ii*4) + 3)) |
-             (byteBuf.get((ii*4) + 2) << 8) |
-             (byteBuf.get((ii*4) + 1) << 16) |
-             (byteBuf.get((ii*4) + 0) << 24))
-        buf(ii) = asInt
-      }
+      val memelord = new DataView(jsData)
+      println(memelord.getInt32(0))
+      println(memelord.getInt32(0, true))
+      val buf: Array[Int] = Array.ofDim(1200)
+      for(ii <- 0 until 1200)
+        buf(ii) = memelord.getInt32(ii*4)
+
       controller.dataqueue.enqueue(buf)
     }
   }
