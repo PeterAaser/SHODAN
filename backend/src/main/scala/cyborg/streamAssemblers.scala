@@ -2,7 +2,6 @@ package cyborg
 
 import cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.Topic
 import java.io.File
 import org.http4s.server.Server
 import scala.concurrent.ExecutionContext
@@ -38,13 +37,13 @@ object Assemblers {
       agentQueue   <- agentQueueS
       topics       <- topicsS
       debugQueue   <- debugQueueS
-      rawDataTopic <- rawDataTopicS
+      rawDataQueue <- rawDataQueueS
 
       httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
       webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataTopic.subscribe(10000)))
+      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataQueue.dequeue))
       agentSink               = agentQueue.enqueue
-      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataTopic.publish)
+      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataQueue)
       channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
 
       server    <- httpServer
@@ -190,15 +189,11 @@ object Assemblers {
 
 
     // TODO: Currently ignores segments etc
-    import params.waveformVisualizer.wfMsgSize
-    import params.waveformVisualizer.blockSize
-    import backendImplicits.Sch
 
 
 
     // val huh = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
 
-    import scala.concurrent.duration._
     // val channelStreams = broadCastSource.map(_.subscribe(1000))
     // // val channelStreams = (0 until 60).map(_ => throttul[F](0.002.second).map(_ => (Vector.fill(100)(100), 0))).toList
     // val mapped = channelStreams

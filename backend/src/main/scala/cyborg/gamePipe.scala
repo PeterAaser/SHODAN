@@ -1,8 +1,6 @@
 package cyborg
 
 import cats.effect.Effect
-import cyborg.Assemblers.ffANNinput
-import cyborg.Filters.FeedForward
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 

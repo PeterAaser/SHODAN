@@ -1,6 +1,5 @@
 package cyborg
 
-import cats.implicits._
 import cats.effect.IO
 
 import doobie.imports._

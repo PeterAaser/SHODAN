@@ -23,24 +23,25 @@ object sIO {
   type FeedbackStream[F[_]]      = Stream[F,Byte]
 
 
+
   /**
     * For offline playback of data, select experiment id to publish on provided topics
     */
   def streamFromDatabase(experimentId: Int, topics: List[Topic[IO,DataSegment]], rawDataSink: Sink[IO,Int])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
-    // val experimentData = dIO.channelIdStream
-    Assemblers.broadcastDataStream(experimentData, topics, rawDataSink)
+    val (experimentParams, experimentData) = databaseIO.dbChannelStream(experimentId)
+    Stream.eval(experimentParams) flatMap ( segmentLength =>
+      Assemblers.broadcastDataStream(experimentData, topics, rawDataSink, segmentLength))
   }
+
+
 
   /**
     * Stream data to a database from a list of topics yada yada
     */
-  def streamToDatabase(topics: MeameDataTopic[IO], comment: String)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    for {
-      id <- eval(databaseIO.dbWriters.createExperiment(Some(comment)))
-      _ <- databaseIO.dbWriters.startRecording(topics, id)
-    } yield ()
-  }
+  def streamToDatabase(rawDataStream: Stream[IO,Int], comment: String): Stream[IO, Unit] =
+    Stream.eval(databaseIO.createRecordingSink(comment)) flatMap ( sink =>
+      rawDataStream.through(sink))
+
 
 
   /**
@@ -49,7 +50,7 @@ object sIO {
     */
   def streamFromTCP(topics: MeameDataTopic[IO], rawDataSink: Sink[IO, Int])(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     val experimentData = networkIO.streamAllChannels[IO]
-    Assemblers.broadcastDataStream(experimentData, topics, rawDataSink)
+    Assemblers.broadcastDataStream(experimentData, topics, rawDataSink, params.experiment.segmentLength)
   }
 
 
@@ -66,10 +67,6 @@ object sIO {
   TODO Move this to a real testing backend, fucks sake...
   */
 object dIO {
-  def streamFromDatabaseRaw(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
-    val experimentData = databaseIO.dbReaders.dbChannelStream(experimentId)
-    experimentData
-  }
 
   // Creates different sine waves for each channel.
   def channelIdStream: Stream[IO,Int] = {

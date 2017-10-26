@@ -3,15 +3,12 @@ package cyborg
 import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
 import cats.effect._
-import cats.effect.Sync
-import cats.effect.implicits._
 import cats.effect.IO
 import fs2._
 
 import java.io.File
 import java.nio.file.{ Path, Paths }
 
-import backendImplicits._
 import scala.concurrent.ExecutionContext
 /**
   Now in use, yay!

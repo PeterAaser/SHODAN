@@ -1,6 +1,5 @@
 package cyborg
 
-import fs2._
 
 
 import scala.math._

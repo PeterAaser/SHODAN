@@ -3,7 +3,6 @@ package cyborg
 import fs2._
 import fs2.async.mutable.{ Queue, Topic }
 import cats.effect.Effect
-import cats.effect.IO
 import scala.concurrent.ExecutionContext
 
 import scala.concurrent.duration._

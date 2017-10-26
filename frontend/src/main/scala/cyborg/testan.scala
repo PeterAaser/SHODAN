@@ -1,12 +1,9 @@
 package cyborg
 
 import org.scalajs.dom.html
-import scalajs.js
 import scalatags.JsDom.all._
 import org.scalajs.dom.raw.MouseEvent
 
-import org.scalajs._
-import scala.scalajs.js
 import org.scalajs.dom.document
 
 

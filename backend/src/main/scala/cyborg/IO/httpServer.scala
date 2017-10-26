@@ -2,24 +2,16 @@ package cyborg
 
 object HttpServer {
   import fs2._
-  import fs2.async.mutable.{ Queue, Signal }
-  import java.io.IOException
+  import fs2.async.mutable.Queue
 
-  import params.http.SHODANserver._
-  import java.net.InetSocketAddress
   import org.http4s.server.middleware._
   import org.http4s._
   import org.http4s.dsl._
-  import org.http4s.headers.`Cache-Control`
-  import org.http4s.CacheDirective.`no-cache`
-  import org.http4s.client.blaze._
-  import org.http4s.Uri
   import org.http4s.server.blaze.BlazeBuilder
 
   import cats.effect.IO
 
   import org.http4s.server.Server
-  import scala.concurrent.ExecutionContext
 
 
   import HttpCommands._
@@ -152,14 +144,7 @@ object HttpCommands {
 }
 
 object DebugMessages {
-  import cats.effect.IO
   import cats.effect._
-  import org.http4s.dsl._
-  import org.http4s._
-  import org.http4s.client._
-  import org.http4s.dsl._
-  import org.http4s.client.blaze._
-  import org.http4s.Uri
 
   import scala.concurrent.ExecutionContext
 

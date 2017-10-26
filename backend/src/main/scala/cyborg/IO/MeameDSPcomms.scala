@@ -1,20 +1,10 @@
 package cyborg
 
 
-import io.circe.literal._
-import io.circe.generic.auto._
-import io.circe.syntax._
 
-import fs2._
 import cats.effect.IO
 import cats.effect._
 
-import org.http4s._
-import org.http4s.client._
-import org.http4s.dsl._
-import org.http4s.client.blaze._
-import org.http4s.Uri
-import org.http4s.circe._
 
 import HttpClient._
 import DspRegisters._

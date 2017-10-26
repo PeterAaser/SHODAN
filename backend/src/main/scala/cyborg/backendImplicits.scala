@@ -4,9 +4,10 @@ import fs2.internal.NonFatal
 import java.nio.channels.AsynchronousChannelGroup
 import scala.concurrent.ExecutionContext
 
+// TODO: Unfuckulate this giant mess
+
 object backendImplicits {
   import fs2._
-  import scala.concurrent.ExecutionContext.Implicits.global
   import java.util.concurrent.Executors
 
   implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")

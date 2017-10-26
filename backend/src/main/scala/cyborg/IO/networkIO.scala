@@ -11,7 +11,6 @@ import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext
 
 import scala.language.higherKinds
-import com.typesafe.config._
 
 
 object networkIO {

@@ -1,33 +1,25 @@
 package cyborg
 
 import cyborg.wallAvoid.Agent
-import com.typesafe.config.ConfigFactory
 import fs2._
-import MEAMEutilz._
 
 
 import fs2.Stream._
 import fs2.async.mutable.Queue
-import fs2.io.tcp._
 
 import cats.effect.IO
-import cats.effect.Effect
-import cats.effect.Sync
 import java.io.IOException
 import scala.concurrent.ExecutionContext
 
 import wallAvoid.Agent
 import utilz._
 
-import scala.language.higherKinds
 
 object staging {
 
   type agentFitnessFunction = Agent => Double
 
-  import params.experiment._
   import params.GA._
-  import backendImplicits._
   import HttpCommands._
 
 
@@ -35,7 +27,7 @@ object staging {
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,Byte],
-    rawDataSink: Sink[IO,Int]
+    rawDataQueue: Queue[IO,Int]
   )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
 
     def go(s: Stream[IO,UserCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
@@ -48,17 +40,17 @@ object staging {
             case StartMEAME =>
               {
                 Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
-                sIO.streamFromTCP(meameTopics, rawDataSink)
+                sIO.streamFromTCP(meameTopics, rawDataQueue.enqueue)
               }
 
             case AgentStart =>
                 Assemblers.assembleGA(meameTopics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
 
             case RunFromDB(id) => // TODO id hardcoded atm
-              sIO.streamFromDatabase(2, meameTopics, rawDataSink)
+              sIO.streamFromDatabase(2, meameTopics, rawDataQueue.enqueue)
 
             case StoreToDB(comment) =>
-              sIO.streamToDatabase(meameTopics, comment)
+              sIO.streamToDatabase(rawDataQueue.dequeue, comment)
 
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")

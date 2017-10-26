@@ -9,7 +9,6 @@ import org.http4s.websocket.WebsocketBits._
 import org.http4s.server.websocket._
 import scodec.Codec
 
-import utilz._
 
 import fs2._
 import fs2.Stream._

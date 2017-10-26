@@ -1,14 +1,12 @@
 package cyborg
 
 import cats.effect.IO
-import java.io.File
 import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
 import java.nio.file.Path
 import scala.concurrent.ExecutionContext
 
 // import java.io.File
-import java.nio.file.Paths
 import fs2._
 
 
@@ -67,40 +65,42 @@ object mcsParser {
     val dataFiles = files.filter(file => !("info.txt".equals(file.getName))).sortBy(_.getName)
     val date = parseFolderDate(folderPath)
 
-    infoStream flatMap{
-      info => {
-        Stream.eval(databaseIO.dbWriters.createOldExperiment(info.makeString, date)) flatMap {
-          experimentId => {
+    // TODO: Unfuckulate
+    // infoStream flatMap{
+    //   info => {
+    //     Stream.eval(databaseIO.dbWriters.createOldExperiment(info.makeString, date)) flatMap {
+    //       experimentId => {
 
-            // channel recording id's for channel 0 - 59
-            val channelRecordings = doobieTasks.doobieQueries.getChannels(experimentId)
+    //         // channel recording id's for channel 0 - 59
+    //         val channelRecordings = doobieTasks.doobieQueries.getChannels(experimentId)
 
-            def pairToSink(channelRecording: ChannelRecording,  channel: Long): Sink[IO,Int] = {
-              import databaseIO.dbWriters._
-              createChannelSink(channel.toInt, channelRecording.channelRecordingId)
-            }
+    //         def pairToSink(channelRecording: ChannelRecording,  channel: Long): Sink[IO,Int] = {
+    //           import databaseIO.dbWriters._
+    //           createChannelSink(channel.toInt, channelRecording.channelRecordingId)
+    //         }
 
-            // One sink for each chonnel
-            val channelRecordingSinks: Stream[IO,Sink[IO,Int]] = channelRecordings
-              .zipWithIndex
-              .through(_.map((pairToSink _).tupled))
+    //         // One sink for each chonnel
+    //         val channelRecordingSinks: Stream[IO,Sink[IO,Int]] = channelRecordings
+    //           .zipWithIndex
+    //           .through(_.map((pairToSink _).tupled))
 
-            val dataFileStreamsList = dataFiles.map(λ => fileIO.streamChannelData(λ.getPath))
+    //         val dataFileStreamsList = dataFiles.map(λ => fileIO.streamChannelData(λ.getPath))
 
-            // A stream of streams, one for each file input
-            val dataFileStreams = Stream.emits(dataFileStreamsList).covary[IO]
+    //         // A stream of streams, one for each file input
+    //         val dataFileStreams = Stream.emits(dataFileStreamsList).covary[IO]
 
-            // a stream of streams where each inner stream inserts a file
-            // dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
-            val hurr = dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
+    //         // a stream of streams where each inner stream inserts a file
+    //         // dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
+    //         val hurr = dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
 
-            val durr = hurr.join(10)
+    //         val durr = hurr.join(10)
 
-            durr
-          }
-        }
-      }
-    }
+    //         durr
+    //       }
+    //     }
+    //   }
+    // }
+    ???
   }
 
   def isRecordingDirectory(dir: Path): Boolean = {
