@@ -72,6 +72,6 @@ ALTER TABLE experimentSubject
 ;
 
 
-ALTER TABLE channelRecording
+ALTER TABLE dataRecording
     ADD CONSTRAINT experimentInfoRecording_fkey FOREIGN KEY (experimentId) REFERENCES experimentInfo(id)
 ;

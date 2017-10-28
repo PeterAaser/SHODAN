@@ -52,15 +52,12 @@ object Dependencies {
     "org.http4s" %% "http4s-blaze-client" % http4sVersion,
     "org.http4s" %% "http4s-server" % http4sVersion,
 
-
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",
 
     "org.typelevel" %% "cats-effect" % "0.4",
 
     "co.fs2" %% "fs2-core" % fs2Version,
     "co.fs2" %% "fs2-io"   % fs2Version,
-
-
 
     "org.tpolecat" %% "doobie-core"       % doobieVersion,
     "org.tpolecat" %% "doobie-postgres"   % doobieVersion,

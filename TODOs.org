@@ -1,11 +1,17 @@
 * Neste gang
-  Finn en sane måte å konstruere og jobbe med registere!
-  noe som kan benytte seg av piler uten å piggybacke på 
-  styggedommen som er ->(a:A, b:B): ((A,B)) = ((a,b))
+  Se på unfuckeren. 
+  Kanskje fikse python skriptet på nytt.
+  Sjekke path names.
+  Fikse ny DB.
+  Og atter, sjekke at det flyter
+  
 
   Fix the database. Store recordings in flat files!
   Only metadata in DB!!!
   
+  Finn en sane måte å konstruere og jobbe med registere!
+  noe som kan benytte seg av piler uten å piggybacke på 
+  styggedommen som er ->(a:A, b:B): ((A,B)) = ((a,b))
 
   
 * Java fileIO paths and shit

@@ -152,4 +152,28 @@ object DspComms {
       println("debug registers cleared")
     }
   }
+
+
+  def stimuliRequest(vision: List[Double]): IO[Unit] = {
+
+    import MEAMEutilz._
+    def toStimFrequency(transform: Double => Double, distance: Double): Double = {
+      setDomain(transform)(distance)
+    }
+
+    val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
+
+    val regWrite = RegisterSetList(List(DEBUG1),List(0x0), desc)
+
+    for {
+      write <- setRegistersRequest(regWrite)
+    } yield {
+      println("sent stim req")
+    }
+  }
+
+  import fs2._
+  def stimuliRequestSink(throttle: Int = 10): Sink[IO,List[Double]] =
+    _.evalMap(stimuliRequest)
+
 }

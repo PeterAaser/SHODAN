@@ -6,7 +6,6 @@ import com.github.nscala_time.time.Implicits._
 import java.nio.file.Path
 import scala.concurrent.ExecutionContext
 
-// import java.io.File
 import fs2._
 
 
@@ -20,7 +19,9 @@ object mcsParser {
   }
 
 
-  // It's ugly as sin. Too bad
+  /**
+    Attempts to parse information from folder-names etc
+    */
   def getInfo(infoPath: Path): Stream[IO,recordingInfo] = {
 
     val s: Stream[IO,String] = fs2.io.file.readAll[IO](infoPath, 4096)

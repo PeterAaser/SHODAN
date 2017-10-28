@@ -73,9 +73,4 @@ object MEAMEutilz {
   def setDomain(f: Double => Double): SafeHzTransform = d =>
     if (d < minDistance) maxFreq else ( if (d > maxDistance) 0 else f(d))
 
-
-  def toStimFrequency(electrodes: List[Int], transform: SafeHzTransform): List[Double] => String = {
-    val t = setDomain(transform)
-    distances => utilz.simpleJsonAssembler(electrodes, distances.map(t))
-  }
 }

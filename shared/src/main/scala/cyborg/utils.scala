@@ -173,7 +173,6 @@ object utilz {
       }
       case None => Pull.done
     }.stream
-
   }
 
 
@@ -201,19 +200,6 @@ object utilz {
       }
       case None => Pull.done
     }.stream
-  }
-
-
-  // TODO: delete
-  // no can do, has dependency in MEAME utils
-  def simpleJsonAssembler(electrodes: List[Int], stimFrequencise: List[Double]): String = {
-    val electrodeString = electrodes.mkString("[", ", ", "]")
-    val stimString = stimFrequencise.mkString("[", ", ", "]")
-
-    // Apparently scala cannot escape quotes in string interpolation.
-    // This will eventually be assembled with a real JSON handler. TODO
-    val jsonString = "{ \"electrodes\" : " + s"${electrodeString}, " + "\"stimFreqs\" : " + s"${stimString} }\n"
-    jsonString
   }
 
 

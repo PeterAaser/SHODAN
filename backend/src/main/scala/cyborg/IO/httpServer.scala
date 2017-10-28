@@ -94,14 +94,14 @@ object HttpServer {
 
       case req @ POST -> Root / "dsptest" => {
         for {
-          emit <- cmd(dspTest)
+          emit <- cmd(DspTest)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
 
       case req @ POST -> Root / "dspset" => {
         for {
-          emit <- cmd(dspSet)
+          emit <- cmd(DspSet)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
@@ -124,7 +124,7 @@ object HttpServer {
 
 object HttpCommands {
 
-  trait UserCommand
+  sealed trait UserCommand
   case object StartMEAME extends UserCommand
   case object StopMEAME extends UserCommand
 
@@ -138,10 +138,10 @@ object HttpCommands {
   case class StoreToDB(comment: String) extends UserCommand
   case object Shutdown extends UserCommand
 
-  case object dspTest extends UserCommand
-  case object dspSet extends UserCommand
-
+  case object DspTest extends UserCommand
+  case object DspSet extends UserCommand
 }
+
 
 object DebugMessages {
   import cats.effect._

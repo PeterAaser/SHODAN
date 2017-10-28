@@ -98,7 +98,7 @@ object params {
     val ticksPerEval = 1000 // How many ticks should each run last
 
     val inputChannels = List(0,1,2)
-    val outputChannels = List(3,4,5)
+    val outputChannels = List(3,4,5,6)
   }
 
   object game {

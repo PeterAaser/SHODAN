@@ -19,15 +19,15 @@ object Assemblers {
   /**
     Assembles the necessary components to start SHODAN and then starts up the websocket and
     http server
+    TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
     */
   def startSHODAN(implicit ec: ExecutionContext): Stream[IO, Unit] = {
     val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
-    val rawDataTopicS = Stream.eval(fs2.async.topic[IO,Int](0))
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
-    val meameFeedbackSink: Sink[IO,Byte] = _.drain
+    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(10)
 
     import DebugMessages._
     val msg = ChannelTraffic(10, 10)
@@ -74,7 +74,7 @@ object Assemblers {
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
     // this discrepancy will never be resolved and one stream will be permanently ahead
-    // TODO there should be a util for this
+    // TODO there should be a pipe for this in utilz I think
     val spikeChannels = channelStreams
       .map(_.map(_._1))
       .map(_.through(chunkify))
@@ -92,7 +92,8 @@ object Assemblers {
     source: Stream[IO,Int],
     topics: List[DataTopic[IO]],
     rawSink: Sink[IO,Int],
-    segmentLength: Int)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+    segmentLength: Int
+  )(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
     import params.experiment.totalChannels
 
@@ -143,7 +144,7 @@ object Assemblers {
     inputChannels: List[Channel],
     outputChannels: List[Channel],
     frontendAgentObserver: Sink[F,Agent],
-    feedbackSink: Sink[F,Byte])(implicit ec: ExecutionContext): Stream[F,Unit] =
+    feedbackSink: Sink[F,List[Double]])(implicit ec: ExecutionContext): Stream[F,Unit] =
   {
 
     import params.experiment._
@@ -153,18 +154,11 @@ object Assemblers {
 
     def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
 
-    val toStimFrequencyTransform: List[Double] => String = {
-      val logScaler = MEAMEutilz.logScaleBuilder(scala.math.E)
-      MEAMEutilz.toStimFrequency(outputChannels, logScaler)
-    }
-
     val experimentPipe = GApipes.experimentPipe(inputSpikes, params.filtering.layout)
 
     experimentPipe
       .observeAsync(10000)(frontendAgentObserver)
       .through(_.map((λ: Agent) => {λ.distances}))
-      .through(_.map(toStimFrequencyTransform))
-      .through(text.utf8Encode)
       .through(feedbackSink)
   }
 
@@ -172,7 +166,7 @@ object Assemblers {
   /**
     Takes in the raw dataStream before separating to topics for perf reasons
     */
-  def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int])(implicit ec: ExecutionContext): IO[Server[IO]] = {
+  def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
 
     val filtered = rawInputStream
       .through(vectorize(1000))
@@ -182,29 +176,6 @@ object Assemblers {
 
     val server = webSocketServer.webSocketWaveformServer(filtered)
     server
-  }
-
-  def assembleWebsocketVisualizerFilter[F[_]: Effect](
-    broadCastSource: List[DataTopic[F]])(implicit ec: ExecutionContext): Stream[F,Array[Int]] = {
-
-
-    // TODO: Currently ignores segments etc
-
-
-
-    // val huh = Stream.emit(mapped).covary[F].through(roundRobin).through(chunkify)
-
-    // val channelStreams = broadCastSource.map(_.subscribe(1000))
-    // // val channelStreams = (0 until 60).map(_ => throttul[F](0.002.second).map(_ => (Vector.fill(100)(100), 0))).toList
-    // val mapped = channelStreams
-    //   .map(_.map(_._1))
-    //   .map(_.through(chunkify))
-    //   .map(_.through(simpleDownSample(10)))
-    //   .map(_.through(mapN(100, _.toArray)))
-
-    // roundRobinL(mapped).through(chunkify)
-    val dur = broadCastSource(0).subscribe(100).through(_.map(λ => λ._1)).through(downSamplePipe(2)).through(_.map(_.toArray))
-    dur
   }
 
 

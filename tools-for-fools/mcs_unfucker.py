@@ -108,12 +108,37 @@ def parsedir(directory, dir_info):
             f.write(dir_info)
 
 
-        channelData = infile["Data"]["Recording_0"]["AnalogStream"]["Stream_0"]["ChannelData"]
-        for channelNo in range (0, 60):
-            with open((dirname + "/" + str(channelNo).zfill(2) + ".txt"), "w") as f:
-                writer = csv.writer(f)
-                writer.writerows(numpy.array_split(channelData[channelNo], 10000))
+        segLength = 1000
 
+        channelData = infile["Data"]["Recording_0"]["AnalogStream"]["Stream_0"]["ChannelData"]
+        with open((dirname + "/data.txt"), "w") as f:
+            writer = csv.writer(f)
+
+            print "len is {0}".format(len(channelData[0]))
+            print "we need {0} iters ".format(len(channelData[0])/segLength)
+
+            elemsPerRow = segLength
+            myArray = numpy.zeros(len(channelData[0])*60)
+            rowsNeeded = len(myArray)/elemsPerRow
+
+            print "we have {0} elements".format(len(channelData[0])*60)
+            print "we want {1} elements per equating {0} rows".format(rowsNeeded, elemsPerRow)
+
+            for channelNo in range (0, 60):
+                print "adding channel no {0}".format(channelNo)
+                seg = channelData[channelNo]
+                for segment in range (0, (len(channelData[0])/segLength) - 1):
+                    for i in range (0, segLength):
+                        myArray[i + (60*segment + channelNo)] = seg[i + segment*segLength]
+
+            asRows = numpy.array_split(myArray, rowsNeeded)
+            print(len(asRows))
+            print(len(asRows[0]))
+
+            print "here we go yolo"
+            writer.writerows(asRows)
+
+            exit(0)
 
 def main():
     files = process_directories("/home/peteraa/Fuckton_of_MEA_data/hdf5_15", "")

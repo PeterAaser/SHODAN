@@ -3,7 +3,6 @@ package cyborg
 import cyborg.wallAvoid.Agent
 import fs2._
 
-
 import fs2.Stream._
 import fs2.async.mutable.Queue
 
@@ -13,7 +12,6 @@ import scala.concurrent.ExecutionContext
 
 import wallAvoid.Agent
 import utilz._
-
 
 object staging {
 
@@ -26,7 +24,7 @@ object staging {
   def commandPipe(
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],
-    meameFeedbackSink: Sink[IO,Byte],
+    meameFeedbackSink: Sink[IO,List[Double]],
     rawDataQueue: Queue[IO,Int]
   )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
 
@@ -55,7 +53,7 @@ object staging {
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")
 
-            case dspTest =>
+            case DspTest =>
               {
                 import DspComms._
                 Stream.eval(HttpClient.dspTest).run.unsafeRunSync()
