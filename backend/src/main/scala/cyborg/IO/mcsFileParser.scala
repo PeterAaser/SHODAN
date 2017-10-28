@@ -3,6 +3,7 @@ package cyborg
 import cats.effect.IO
 import com.github.nscala_time.time.Imports._
 import com.github.nscala_time.time.Implicits._
+import java.io.File
 import java.nio.file.Path
 import scala.concurrent.ExecutionContext
 
@@ -14,15 +15,21 @@ import fs2._
   */
 object mcsParser {
 
-  case class recordingInfo(comment: String, MEA: Int){
+  case class recordingInfo(comment: String, MEA: Int, timestamp: DateTime){
     def makeString = Some("Info string generated from recordingInfo")
   }
 
 
   /**
-    Attempts to parse information from folder-names etc
+    Attempts to parse information in the metadata which is collected
+    from the folder paths etc by the mcs_unfucker.py job
     */
   def getInfo(infoPath: Path): Stream[IO,recordingInfo] = {
+
+    def parseFolderDate(folderPath: Path): DateTime = {
+      val pyFormat = DateTimeFormat.forPattern("YYYY-MM-DD_HH-mm-ss")
+      DateTime.parse(folderPath.getFileName.toString().dropRight(4), pyFormat)
+    }
 
     val s: Stream[IO,String] = fs2.io.file.readAll[IO](infoPath, 4096)
       .through(text.utf8Decode)
@@ -44,7 +51,9 @@ object mcsParser {
               comment = info(0)
             }
 
-            Pull.output1(recordingInfo(comment, MEA))
+            val timestamp = parseFolderDate(infoPath)
+            println(Console.RED + "UNIMPLEMENTED METHOD. DATE IS WRONG")
+            Pull.output1(recordingInfo(comment, MEA, timestamp))
           }
           case None => {
             println("WEEEE WOOO WEEEE WOOO SOMETHING IS WRONG!!")
@@ -58,81 +67,43 @@ object mcsParser {
   }
 
 
-  def processRecording(folderPath: Path)(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+  /**
+    Adds a record to the database
+    */
+  def processRecordings(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
-    val files = fileIO.getListOfFiles(folderPath)
-    val infoFile = files.filter(file => "test.txt".equals(file.getName)).head
-    val infoStream = getInfo(infoFile.toPath())
-    val dataFiles = files.filter(file => !("info.txt".equals(file.getName))).sortBy(_.getName)
-    val date = parseFolderDate(folderPath)
+    // Query for all URIs currently in the database
+    val dbUris = databaseIO.getAllExperimentUris.map(_.toSet)
 
-    // TODO: Unfuckulate
-    // infoStream flatMap{
-    //   info => {
-    //     Stream.eval(databaseIO.dbWriters.createOldExperiment(info.makeString, date)) flatMap {
-    //       experimentId => {
+    // Get list of recordings in the data folder
+    val fileUris: Set[Path] = (
+      fileIO.getListOfFiles("/home/peteraa/MEAdata") ++
+      fileIO.getListOfFiles("/home/peteraa/MEAdata/mcs_data")
+    ).map(_.toPath()).toSet
 
-    //         // channel recording id's for channel 0 - 59
-    //         val channelRecordings = doobieTasks.doobieQueries.getChannels(experimentId)
 
-    //         def pairToSink(channelRecording: ChannelRecording,  channel: Long): Sink[IO,Int] = {
-    //           import databaseIO.dbWriters._
-    //           createChannelSink(channel.toInt, channelRecording.channelRecordingId)
-    //         }
+    // Find all uris not inserted and pair them with their metadata
+    val uninserted = dbUris.map( dbUris => fileUris -- dbUris).map{ uris =>
+      uris.map { uri =>
 
-    //         // One sink for each chonnel
-    //         val channelRecordingSinks: Stream[IO,Sink[IO,Int]] = channelRecordings
-    //           .zipWithIndex
-    //           .through(_.map((pairToSink _).tupled))
+        val metaData = fileIO.getListOfFiles("/home/peteraa/MEAdata/mcs_data/metadata")
+          .filterNot(λ => λ.getName.eq(uri.getFileName))
+          .head.toPath() // #YOLO
 
-    //         val dataFileStreamsList = dataFiles.map(λ => fileIO.streamChannelData(λ.getPath))
-
-    //         // A stream of streams, one for each file input
-    //         val dataFileStreams = Stream.emits(dataFileStreamsList).covary[IO]
-
-    //         // a stream of streams where each inner stream inserts a file
-    //         // dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
-    //         val hurr = dataFileStreams zip channelRecordingSinks map(λ => λ._1.through(λ._2))
-
-    //         val durr = hurr.join(10)
-
-    //         durr
-    //       }
-    //     }
-    //   }
-    // }
-    ???
-  }
-
-  def isRecordingDirectory(dir: Path): Boolean = {
-    val files = fileIO.getListOfFiles(dir)
-    val folders = fileIO.getListOfFolders(dir)
-
-    // No subdirs, an info file and the channel files. Bery gud encod :DDD
-    val filesValid = files.size == 61
-    val foldersValid = folders.size == 0
-    filesValid && foldersValid
-  }
-
- def eatDirectory(dir: Path)(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-   println(s"Eating directiory $dir")
-    if(isRecordingDirectory(dir)){
-      println(s"\tProcessing folder")
-      processRecording(dir)
+        (uri, metaData)
+      }.toList
     }
-    else {
-      println("\tprocessing subdirs")
-      val subFolders = fileIO.getListOfFolders(dir)
-      val subStreams = subFolders.map(λ => eatDirectory(λ.toPath()))
-      Stream.emits(subStreams).covary[IO].flatMap(identity)
-    }
-  }
 
-  def parseFolderDate(folderPath: Path): DateTime = {
-    val pyFormat = DateTimeFormat.forPattern("YYYY-MM-DD_HH-mm-ss")
-    println(folderPath)
-    println(folderPath.getFileName)
-    println(folderPath.getFileName.toString())
-    DateTime.parse(folderPath.getFileName.toString(), pyFormat)
+
+    // For the records not added, create metadata in database
+    Stream.eval(uninserted) flatMap { uris =>
+      val insertions = uris.map {
+        case(uri, metadata) =>
+          getInfo(metadata) flatMap { info =>
+            Stream.eval(databaseIO.insertOldExperiment(info.comment, info.timestamp, uri.toString()))
+          }
+      }
+      Stream.emits(insertions).joinUnbounded
+    }
   }
 }

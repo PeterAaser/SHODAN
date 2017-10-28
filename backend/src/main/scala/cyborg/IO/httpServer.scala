@@ -148,7 +148,6 @@ object DebugMessages {
 
   import scala.concurrent.ExecutionContext
 
-
   import fs2._
 
   trait DebugMessage

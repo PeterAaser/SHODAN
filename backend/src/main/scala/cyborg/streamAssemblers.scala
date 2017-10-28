@@ -179,9 +179,7 @@ object Assemblers {
   }
 
 
-  def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] = {
-    val theThing = mcsParser.eatDirectory(new File("/home/peteraa/Fuckton_of_MEA_data/Dummy").toPath())
-    theThing
-  }
+  def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] =
+    mcsParser.processRecordings
 }
 

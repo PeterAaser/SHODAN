@@ -1,7 +1,6 @@
 package cyborg
 
 import cats.effect.IO
-
 import doobie.imports._
 
 import fs2._
@@ -11,15 +10,6 @@ import java.nio.file.{ Path, Paths }
 
 object doobIO {
 
-  // haha nice meme dude!
-  val superdupersecretPassword = "meme"
-
-  val xa = Transactor.fromDriverManager[IO](
-    "org.postgresql.Driver",
-    "jdbc:postgresql:memestorage",
-    "postgres",
-    s"$superdupersecretPassword"
-  )
 
   case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
   case class DataRecording(resourcePath: Path, resourceType: FileEncoding)
@@ -46,26 +36,25 @@ object doobIO {
   }
 
 
-  def getExperimentParams(experimentId: Long): IO[ExperimentParams] = {
+  def getExperimentParams(experimentId: Long): ConnectionIO[ExperimentParams] = {
     sql"""
         SELECT sampleRate, segmentLength
         FROM experimentParams
         WHERE experimentId = $experimentId
-      """.query[ExperimentParams].unique.transact(xa)
+      """.query[ExperimentParams].unique
   }
 
 
   // probably explodes lol
-  def getExperimentDataURI(experimentId: Long): IO[DataRecording] = {
-    val hurr = sql"SELECT resourcePath, resourceType FROM experimentInfo WHERE experimentId = $experimentId"
-      .query[(String, String)].unique.transact(xa)
-    hurr.map{ case(λ, µ) => DataRecording(λ, µ) }
-  }
+  def getExperimentDataURI(experimentId: Long): ConnectionIO[DataRecording] =
+    sql"SELECT resourcePath, resourceType FROM experimentInfo WHERE experimentId = $experimentId"
+      .query[(String, String)].unique
+      .map{ case(λ, µ) => DataRecording(λ, µ) }
 
 
-  def insertNewExperiment(path: Path, comment: String="No comment atm"): IO[Long] = {
+  def insertNewExperiment(path: Path, comment: String = "No comment atm"): ConnectionIO[Long] = {
 
-    val insertExperiment = sql"INSERT INTO experimentInfo comment VALUES $comment".update.run.transact(xa)
+    val insertExperiment = sql"INSERT INTO experimentInfo comment VALUES $comment".update.run
 
     insertExperiment flatMap { id =>
       insertDataRecording(id, path.toString()) flatMap { _ =>
@@ -73,33 +62,49 @@ object doobIO {
       }}
   }
 
+  import params.experiment._
+  import params.StorageParams._
 
-  def insertDataRecording(id: Long, path: String): IO[Int] = {
-    import params.StorageParams._
-    sql"INSERT INTO dataRecording (experimentId, resourcePath, resourceType) VALUES ($id, $path, $storageType)".update.run.transact(xa)
-  }
-
-  def insertParams(id: Long): IO[Int] = {
-    import params.experiment._
-    sql"INSERT INTO experimentParams (sampleRate, segmentLength) VALUES ($samplerate, $segmentLength)".update.run.transact(xa)
-  }
-
-  def getExperimentsByMEA(MEAid: Int): Stream[IO, String] = ???
+  def insertDataRecording(id: Long, path: String): ConnectionIO[Int] =
+    sql"""
+      INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
+      VALUES ($id, $path, $storageType)
+    """.update.run
 
 
-  def insertOldExperiment(comment: Option[String], timestamp: DateTime): IO[Long] = {
-    val comment_ = comment.getOrElse("no comment")
+  def insertParams(id: Long): ConnectionIO[Int] =
+    sql"""
+      INSERT INTO experimentParams (sampleRate, segmentLength)
+      VALUES ($samplerate, $segmentLength)
+    """.update.run
+
+
+  def getExperimentsByMEA(MEAid: Int): Stream[IO, Long] = ???
+
+
+  // TODO: Test properly
+  def insertOldExperiment(comment: String, timestamp: DateTime, uri: String): ConnectionIO[Unit] = {
     val fmt = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss")
     val timeString = timestamp.toString(fmt)
 
-    println(s"inserting old experiment with comment $comment_, date: $timeString::timestamp")
+    println(s"inserting old experiment with comment $comment, date: $timeString::timestamp")
+    val insertInfo = sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment, $timeString::timestamp)"
 
-    val op = for {
-      _ <- sql"set datestyle = dmy".update.run
-      _ <- sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment_, $timeString::timestamp)".update.run
-      id <- sql"select lastval()".query[Long].unique
-    } yield (id)
-    op.transact(xa)
+    for {
+      _  <- sql"set datestyle = dmy".update.run
+      id <- insertInfo.update.run
+      _  <- insertDataRecording(id, uri)
+    } yield ()
   }
 
+
+  def getAllExperiments(): ConnectionIO[List[Long]] =
+    sql"SELECT id FROM experimentInfo"
+      .query[Long].list
+
+
+  def getAllExperimentUris(): ConnectionIO[List[Path]] =
+    sql"SELECT resourcePath from dataRecording"
+      .query[String].list
+      .map(_.map(Paths.get(_)))
 }

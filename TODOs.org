@@ -16,29 +16,8 @@
   
 * Java fileIO paths and shit
   Some words
+  WOW thanks that was really helpful!
   
-* Database specification
-** ER
-   For each experiment
-*** Metadata
-   Experiment parameters
-   Date (start, finish)
-   Culture name
-   Textual description
-
-*** Experiment data
-   Raw data chunks?
-
-   On experiment start: if data recording: create an experimentInfo field and a set of channelRecordings.
-   Each channelRecording should get its own sink for storing data.
-** Use cases
-*** Query for all recordings in some timespan
-*** Query for all recordings with length over 4 minutes
-*** Reading the experiment the runner decides to retry from some timestamp with a different filter
-*** A program reads both raw data and a processed stream (spike data)
-*** A program processes spike detection for all recordings in some range of time
-
-
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres 

@@ -82,7 +82,7 @@ def parsedir(directory, dir_info):
 
         # Get date info
         try:
-            m = moment.date(datestring, '%Y-%m-%dT%H-%M-%S')
+            m = moment.date(datestring, '%Y-%m-%d_%H-%M-%S')
             # print m.weekday
             # print m.format('YYYY-M-D_H-m')
             try:
@@ -101,7 +101,7 @@ def parsedir(directory, dir_info):
 
         # write the info file
         info_string = get_info(fileinfo)
-        with open((dirname + "/test.txt"), "w") as f:
+        with open(("/home/peteraa/MEAdata/metadata/" + datestring + ".txt"), "w") as f:
             print "writing info " + info_string
             f.write(info_string)
             print "writing dir " + info_string
@@ -111,7 +111,7 @@ def parsedir(directory, dir_info):
         segLength = 1000
 
         channelData = infile["Data"]["Recording_0"]["AnalogStream"]["Stream_0"]["ChannelData"]
-        with open((dirname + "/data.txt"), "w") as f:
+        with open(("/home/peteraa/MEAdata/" + datestring + ".txt"), "w") as f:
             writer = csv.writer(f)
 
             print "len is {0}".format(len(channelData[0]))

@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS experimentInfo (
     id serial NOT NULL,
     experimentTimeStamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    comment varchar NOT NULL,
+    comment varchar NOT NULL
 );
 
 
 -- How to ensure duration is stored? allow NULL and then
 -- have a separate script to calculate?
 CREATE TABLE IF NOT EXISTS experimentParams (
-    experimentId NOT NULL,
+    experimentId integer NOT NULL,
     sampleRate integer NOT NULL,
     segmentLength integer NOT NULL,
     duration integer
@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS experimentParams (
 
 
 CREATE TABLE IF NOT EXISTS dataRecording (
-    experimentId NOT NULL,
+    experimentId integer NOT NULL,
     resourcePath varchar,    -- a filepath
     resourceType varchar     -- CSV, zipped, tarred etc
-)
+);
 
 -- wouldn't be a database without this one I guess
 CREATE TABLE IF NOT EXISTS person (
