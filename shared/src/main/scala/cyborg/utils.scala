@@ -55,7 +55,7 @@ object utilz {
         case None => Pull.done
       }
     }
-    in => go(in).stream
+    in => go(in.buffer(4096)).stream
   }
 
 
@@ -310,71 +310,6 @@ object utilz {
     }
 
     synchStreams
-  }
-
-
-  /**
-    Normally a pipe like this would be implemented in a much simpler fashion.
-    The reason for making a more low level implementation is that in many cases
-    you downsample for performance reasons, so if you can effectively downsample then
-    less optimized pipes downstream won't matter too much.
-    TODO: Broken!!!
-    BREAKS ON SMALL INPUT CHUNK SIZE
-    */
-  def downSamplePipe[F[_],I](blockSize: Int): Pipe[F,I,I] = {
-    def go(s: Stream[F,I], cutoffPoint: Int): Pull[F,I,Unit] = {
-      s.pull.unconsChunk flatMap {
-        case Some((chunk, tl)) => {
-
-          println(Console.RED + "BROKEN FOR SMALL INPUT CHUNK SIZES, USE WITH VERY CAUTION AND FRIGHTEN" + Console.RESET)
-
-          val sizeAfterCutoff = chunk.size - cutoffPoint
-          val numSamples = (sizeAfterCutoff / blockSize) + (if ((sizeAfterCutoff % blockSize) == 0) 0 else 1)
-          val indicesToSample = List.tabulate(numSamples)(λ => (λ*blockSize) + cutoffPoint)
-
-          // Calculates how many elements to drop from next chunk
-          val cutoffElements = (chunk.size - cutoffPoint) % blockSize
-          val nextCutOffPoint = (blockSize - cutoffElements) % blockSize
-
-          // println("----------------------------------------")
-          // println(s"indicesToSample, $indicesToSample")
-          // println(s"chunk, $chunk")
-          // println(s"chunk size, ${chunk.size}")
-          // println(s"sizeAfterCutoff, $sizeAfterCutoff")
-          // println(s"numSamples, $numSamples")
-          // println(s"nextCutOffPoint, $nextCutOffPoint")
-          // println("----------------------------------------\n\n")
-
-          // println("----------------------------------------")
-          // println(samples)
-          // println(samples.size)
-          // println("----------------------------------------\n\n")
-
-          val samples = indicesToSample.map(chunk(_))
-          Pull.output(Chunk.seq(samples)) >> go(tl, nextCutOffPoint)
-
-        }
-        case None => {
-          println("downsampler done")
-          Pull.done
-        }
-      }
-    }
-    in => go(in, 0).stream
-  }
-
-
-  def simpleDownSample[F[_],I](blockSize: Int): Pipe[F,I,I] = {
-    def go(s: Stream[F,I]): Pull[F,I,Unit] = {
-      s.pull.unconsN(blockSize, false) flatMap {
-        case Some((seg, tl)) => {
-          println("hello?")
-          val head = seg.toList(0)
-          Pull.output1(head) >> go(tl)
-        }
-      }
-    }
-    in => go(in).stream
   }
 
 

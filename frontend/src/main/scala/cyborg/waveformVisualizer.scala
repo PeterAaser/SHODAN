@@ -46,16 +46,6 @@ object waveformVisualizer {
       # # # # # # # #
         # # # # # #
 
-         0  1  2  3  4  5
-      12 18 #  #  #  #  #  #
-      13 #  #  #  #  #  #  #
-      #  #  #  #  #  #  #  #
-      #  21 #  #  #  #  #  #
-      #  #  #  #  #  #  #  #
-      #  #  #  #  #  #  #  #
-         6  7  8  9  10 11
-
-
         _ _ o o _ _
       _ x _ o o _ x _
       _ _ _ o o _ _ _
@@ -79,11 +69,11 @@ object waveformVisualizer {
       .map( row => row zip (0 to 7) ).toList.transpose
       .map( column => column zip (1 to 6) )
       .map(_.map(λ => (λ._1._2, λ._2)))
+      .transpose
       .flatten
 
-
     val channelsWithCoordinates: List[(Int,Int)] =
-      topRowWithCoords ::: botRowWithCoords ::: middleRowsWithCoords
+      topRowWithCoords ::: middleRowsWithCoords ::: botRowWithCoords
 
 
     val groupSize = wfMsgSize/60
@@ -93,6 +83,7 @@ object waveformVisualizer {
       if(!running){
         running = true
         if(dataqueue.size > 500){
+          println("UH OH DATA QUEUE OVERFLOWING")
           println(dataqueue.size)
         }
         if(dataqueue.size > 0){
@@ -105,23 +96,17 @@ object waveformVisualizer {
     def gogo(data: Array[Int]): Unit = {
       clear()
       val chopped = data.grouped(groupSize).zipWithIndex.toList
-      println(chopped(0)._2)
-      println(chopped(0)._1.toList)
       chopped.foreach(λ => drawToPixelArray(λ._1, λ._2))
       renderer.fillStyle = "yellow"
       drawPixelArrays()
       drawGrid()
+      drawChannelInfo()
     }
 
 
     // Takes a new datasegment and appends to the pixelarray
     def drawToPixelArray(data: Array[Int], index: Int): Unit = {
       val (remainder, _) = pixels(index) splitAt(vizLength - reducedSegmentLength)
-      if(index == 0){
-        println(normalize(data).toArray.toList)
-        println(remainder.toList)
-        println("\n\n")
-      }
       pixels(index) = (normalize(data).reverse.toArray ++ remainder)
     }
 
@@ -170,10 +155,14 @@ object waveformVisualizer {
 
     clear()
     drawGrid()
+    drawChannelInfo()
 
     def clear(): Unit = {
-      renderer.fillStyle = "grey"
+      renderer.fillStyle = "rgb(211, 211, 211)"
       renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
+      renderer.fillStyle = "grey"
+      renderer.fillRect(vizLength, 0, canvas.width.toDouble - vizLength*2, canvas.height.toDouble)
+      renderer.fillRect(0, vizHeight, canvas.width.toDouble, canvas.height.toDouble - vizHeight*2)
     }
 
     def drawGrid(): Unit = {
@@ -190,6 +179,23 @@ object waveformVisualizer {
       (1 to 7).foreach{ λ =>
         renderer.fillRect(0, λ*vizHeight, vizLength*8, 4) // ---
         renderer.fillRect(λ*vizLength, 0, 4, vizHeight*8) // |||
+      }
+    }
+
+    def drawChannelInfo(): Unit = {
+      channelsWithCoordinates.foreach{ case(x, y) =>
+        val channelNo =
+          if (y == 0)
+            x
+          else if (y == 7)
+            6 + 6*8 + x
+          else
+            6 + (y-1)*8 + x
+
+        val channelString = s"[%02d]".format(channelNo - 1)
+        renderer.fillStyle = "black"
+        renderer.font = "24px Arial"
+        renderer.fillText(channelString, x*vizLength + 26, y*vizHeight + 20)
       }
     }
   }

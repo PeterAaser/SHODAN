@@ -1,23 +1,4 @@
 * Neste gang
-  Se på unfuckeren. 
-  Kanskje fikse python skriptet på nytt.
-  Sjekke path names.
-  Fikse ny DB.
-  Og atter, sjekke at det flyter
-  
-
-  Fix the database. Store recordings in flat files!
-  Only metadata in DB!!!
-  
-  Finn en sane måte å konstruere og jobbe med registere!
-  noe som kan benytte seg av piler uten å piggybacke på 
-  styggedommen som er ->(a:A, b:B): ((A,B)) = ((a,b))
-
-  
-* Java fileIO paths and shit
-  Some words
-  WOW thanks that was really helpful!
-  
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres 
@@ -31,7 +12,6 @@
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
    
-   
 * About neurons
 ** Filtering
    None of these assumptions have any sort of neurological basis, they're just assumed
@@ -39,22 +19,18 @@
 
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
-
-* learning queue
-** Read the red book about scalatest
-
-* TODO Unified source
-  Should gather up an entire segment. 
-  Inbetween each segment new queues may be added to the send queue.
-  
-  If the topic solution is used then each segment must have an identifier
-  in order to assure synchronization between topics. 
-  if I sub to topic 4, 5 and 9 with segments 445, 445 and 446 then I must
-  discard a segment from topic 4 and 5.
-
-  This doesn't matter for visualizing, but it's important for ANNs etc.
-  
     
+* Better handling of parameters   
+* Less unescessary restarts for both SHODAN and MEAME
+* Add TCP listening for other users, possibly on specific channels
+  
+* Settings accessible on the frontend
+* Beautify the frontend  
+  
+  
+* DONE Add sine wave generator on MEAME for debugging
+  Ended up being sawtooth, no difference really
+  
 * how 2 fs2 fra gitter (ikke slett plz)
 Yeah, I do that in too many places
 but soon I've got a working version out, then I'm gonna refactor and write good tests and all that jazz while the stable version automagically outputs research data

@@ -27,7 +27,7 @@ object Assemblers {
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
-    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(10)
+    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(1000)
 
     import DebugMessages._
     val msg = ChannelTraffic(10, 10)
@@ -116,7 +116,7 @@ object Assemblers {
         }
       }
       // TODO add observeAsync, and move it out of arg position where it doesn't really belong
-      in => loop(0, topics, in.observe(rawSink)).stream.map(Stream.eval).join(totalChannels)
+      in => loop(0, topics, in.observeAsync(100000)(rawSink)).stream.map(Stream.eval).join(totalChannels)
     }
 
     // Should ideally emit a list of topics doing their thing
@@ -169,9 +169,7 @@ object Assemblers {
   def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
 
     val filtered = rawInputStream
-      .through(vectorize(1000))
-      .through(chunkify)
-      .through(downSamplePipe(params.waveformVisualizer.blockSize))
+      .through(mapN(params.waveformVisualizer.blockSize, _.toArray.head)) // downsample
       .through(mapN(params.waveformVisualizer.wfMsgSize, _.toArray))
 
     val server = webSocketServer.webSocketWaveformServer(filtered)

@@ -31,7 +31,10 @@ object databaseIO {
     Gets a resource URI from the database and reads said info
     */
   def dbChannelStream(experimentId: Int)(implicit ec: ExecutionContext): (IO[Int], Stream[IO, Int]) = {
+    println(s"making stream for experiment $experimentId")
+
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
+      println(s"got data $data")
       val reader = data.resourceType match {
         case CSV => fileIO.readCSV[IO](data.resourcePath)
         case GZIP => fileIO.readGZIP[IO](data.resourcePath)

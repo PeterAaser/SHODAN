@@ -28,13 +28,12 @@ addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.fu
 
 fork in run := true
 
+
 /**
   collect shared dependencies from Dependencies.scala
   */
 def crossLibs(configuration: Configuration) = {
   libraryDependencies ++= crossDeps.value.map(_ % configuration)
-  // libraryDependencies += "org.scalactic" %%% "scalactic" % "3.0.4"
-  // libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % "test"
 }
 
 

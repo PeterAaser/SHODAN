@@ -10,6 +10,9 @@ import java.nio.file.{ Path, Paths }
 
 object doobIO {
 
+  val YOLO = databaseIO.xa.yolo
+  import doobie._, doobie.implicits._
+  import YOLO._
 
   case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
   case class DataRecording(resourcePath: Path, resourceType: FileEncoding)
@@ -18,7 +21,7 @@ object doobIO {
   }
 
   // TODO lets not use Int for duration
-  case class ExperimentParams(sampleRate: Int, segmentLength: Int, duration: Option[Int])
+  case class ExperimentParams(id: Long, sampleRate: Int, segmentLength: Int, duration: Int)
 
 
   sealed trait FileEncoding
@@ -37,8 +40,16 @@ object doobIO {
 
 
   def getExperimentParams(experimentId: Long): ConnectionIO[ExperimentParams] = {
+
     sql"""
-        SELECT sampleRate, segmentLength
+        SELECT *
+        FROM experimentParams
+        WHERE experimentId = $experimentId
+      """.query[ExperimentParams].check.unsafeRunSync()
+
+
+    sql"""
+        SELECT *
         FROM experimentParams
         WHERE experimentId = $experimentId
       """.query[ExperimentParams].unique
@@ -46,10 +57,24 @@ object doobIO {
 
 
   // probably explodes lol
-  def getExperimentDataURI(experimentId: Long): ConnectionIO[DataRecording] =
-    sql"SELECT resourcePath, resourceType FROM experimentInfo WHERE experimentId = $experimentId"
-      .query[(String, String)].unique
-      .map{ case(λ, µ) => DataRecording(λ, µ) }
+  def getExperimentDataURI(experimentId: Long): ConnectionIO[DataRecording] = {
+    println("get exp uri")
+
+
+    sql"""
+      SELECT *
+      FROM dataRecording
+      WHERE experimentId = $experimentId
+    """.query[(Long, String, String)].check.unsafeRunSync()
+
+
+    sql"""
+      SELECT *
+      FROM dataRecording
+      WHERE experimentId = $experimentId
+    """.query[(Long, String, String)].unique
+      .map{ case(_, λ, µ) => DataRecording(λ, µ) }
+  }
 
 
   def insertNewExperiment(path: Path, comment: String = "No comment atm"): ConnectionIO[Long] = {
@@ -88,11 +113,20 @@ object doobIO {
     val timeString = timestamp.toString(fmt)
 
     println(s"inserting old experiment with comment $comment, date: $timeString::timestamp")
-    val insertInfo = sql"INSERT INTO experimentInfo (comment, experimentTimeStamp) VALUES ($comment, $timeString::timestamp)"
+    val insertInfo = sql"""
+      INSERT INTO experimentInfo (comment, experimentTimeStamp)
+      VALUES ($comment, $timeString::timestamp)
+    """
+
+    def insertPlaceholderParams(id: Int) = sql"""
+      INSERT INTO experimentparams (experimentId, sampleRate, segmentLength, duration)
+      VALUES ($id, 10000, 1000, -1)
+    """
 
     for {
       _  <- sql"set datestyle = dmy".update.run
       id <- insertInfo.update.run
+      _  <- insertPlaceholderParams(id).update.run
       _  <- insertDataRecording(id, uri)
     } yield ()
   }

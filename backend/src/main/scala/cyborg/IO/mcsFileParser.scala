@@ -2,8 +2,6 @@ package cyborg
 
 import cats.effect.IO
 import com.github.nscala_time.time.Imports._
-import com.github.nscala_time.time.Implicits._
-import java.io.File
 import java.nio.file.Path
 import scala.concurrent.ExecutionContext
 
@@ -23,6 +21,10 @@ object mcsParser {
   /**
     Attempts to parse information in the metadata which is collected
     from the folder paths etc by the mcs_unfucker.py job
+
+    The code is all sorts of fucking awful and brittle, don't alter or
+    use anything here unless you're aware of the limitations and awful
+    hacks.
     */
   def getInfo(infoPath: Path): Stream[IO,recordingInfo] = {
 
@@ -52,7 +54,6 @@ object mcsParser {
             }
 
             val timestamp = parseFolderDate(infoPath)
-            println(Console.RED + "UNIMPLEMENTED METHOD. DATE IS WRONG")
             Pull.output1(recordingInfo(comment, MEA, timestamp))
           }
           case None => {

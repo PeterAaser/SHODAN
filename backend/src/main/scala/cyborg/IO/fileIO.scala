@@ -50,10 +50,10 @@ object fileIO {
 
   // TODO might be perf loss to go from Array to List and all that
   def readCSV[F[_]: Effect](filePath: Path): Stream[F,Int] = {
-    val reader = io.file.readAll[F](filePath, 4096)
+    val reader = io.file.readAll[F](filePath, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
-      .through(_.map{ csvLine => csvLine.split(",").map(_.toInt).toList})
+      .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
       .through(utilz.chunkify)
 
     reader

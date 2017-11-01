@@ -7,9 +7,9 @@ object Launcher {
 
     println("wello")
 
-    // params.printParams()
-    // Assemblers.startSHODAN.run.unsafeRunSync()
-    Assemblers.assembleMcsFileReader.run.unsafeRunSync()
+    params.printParams()
+    Assemblers.startSHODAN.run.unsafeRunSync()
+    // Assemblers.assembleMcsFileReader.run.unsafeRunSync()
 
   }
 }

@@ -55,6 +55,7 @@ object params {
   object TCP {
     val ip = "129.241.201.110"
     val port = 12340
+    val sawtooth = 12341
     val sendBufSize = 4096        // rather low bandwidth required for stimreqs
     val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
   }
@@ -133,7 +134,8 @@ object params {
     val pointsPerSec = experiment.samplerate
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
-    val maxVal = 600
+    // val maxVal = 600
+    val maxVal = 1800
     val wfMsgSize = 1200
     val sixtyFPSrefreshRate = 17  //every 17 ms
     val thirtyFPSrefreshRate = 33 //every 33 ms

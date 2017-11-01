@@ -14,6 +14,7 @@ object Dependencies {
 
     "co.fs2" %%% "fs2-core" % fs2Version,
 
+    "com.lihaoyi" % "ammonite" % "1.0.3" cross CrossVersion.full,
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",

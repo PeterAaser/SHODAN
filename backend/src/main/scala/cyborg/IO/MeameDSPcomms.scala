@@ -173,7 +173,7 @@ object DspComms {
   }
 
   import fs2._
-  def stimuliRequestSink(throttle: Int = 10): Sink[IO,List[Double]] =
-    _.evalMap(stimuliRequest)
+  def stimuliRequestSink(throttle: Int = 1000): Sink[IO,List[Double]] =
+    _.through(utilz.mapN(throttle, _.toArray.head)).evalMap(stimuliRequest)
 
 }

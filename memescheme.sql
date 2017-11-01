@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS experimentParams (
 
 CREATE TABLE IF NOT EXISTS dataRecording (
     experimentId integer NOT NULL,
-    resourcePath varchar,    -- a filepath
-    resourceType varchar     -- CSV, zipped, tarred etc
+    resourcePath varchar NOT NULL, -- a filepath
+    resourceType varchar NOT NULL  -- CSV, zipped, tarred etc
 );
 
 -- wouldn't be a database without this one I guess
