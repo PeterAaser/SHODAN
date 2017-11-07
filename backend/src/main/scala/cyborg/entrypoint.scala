@@ -21,6 +21,8 @@ object staging {
   import HttpCommands._
 
 
+  val testInt: Int = 3
+
   def commandPipe(
     meameTopics: List[DataTopic[IO]],
     frontendAgentSink: Sink[IO,Agent],

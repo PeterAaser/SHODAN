@@ -20,6 +20,7 @@
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
     
+* Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
 * Better handling of parameters   
 * Less unescessary restarts for both SHODAN and MEAME
 * Add TCP listening for other users, possibly on specific channels

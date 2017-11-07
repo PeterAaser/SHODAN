@@ -27,7 +27,7 @@ object Assemblers {
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
-    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(1000)
+    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
 
     import DebugMessages._
     val msg = ChannelTraffic(10, 10)

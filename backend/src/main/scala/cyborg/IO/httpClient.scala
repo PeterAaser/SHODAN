@@ -23,9 +23,12 @@ object HttpClient {
   implicit val regSetCodec = jsonOf[IO, RegisterSetList]
   implicit val regReadCodec = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
+  implicit val simpleStimCodec = jsonOf[IO, SimpleStimReq]
 
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
+  case class SimpleStimReq(period: Int)
+
 
   import DspRegisters._
   case class RegisterSetList(addresses: List[Int], values: List[Int], desc: String = ""){
@@ -74,6 +77,11 @@ object HttpClient {
   def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req)
+  }
+
+  def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
+    httpClient.expect[String](req)
   }
 
 

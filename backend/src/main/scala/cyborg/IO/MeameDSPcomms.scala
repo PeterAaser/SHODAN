@@ -12,6 +12,11 @@ import scala.util.Random
 
 object DspComms {
 
+  implicit class regSetInfix(val reg: Int){ def :=(that: Int): (Int,Int) = (this.reg, that) }
+
+  val hurr = DEBUG1 := 0x1234
+  val durr = hurr._1
+
   def pingTest(): IO[Unit] = {
     val rnd = new Random()
     val addressList = List(DEBUG1,DEBUG2,DEBUG3,DEBUG4)
@@ -133,15 +138,6 @@ object DspComms {
   def clearDebug(): IO[Unit] = {
 
     val regWrite_ = List(
-      // 0 -> DEBUG1,
-      // 0 -> DEBUG2,
-      // 0 -> DEBUG3,
-      // 0 -> DEBUG4,
-      // 0 -> DEBUG5,
-      // 0 -> DEBUG6,
-      // 0 -> DEBUG7,
-      // 0 -> DEBUG8,
-      // 0 -> DEBUG9,
       0 -> CLEAR)
 
     val regWrite = RegisterSetList(regWrite_)
@@ -150,6 +146,7 @@ object DspComms {
       read  <- setRegistersRequest(regWrite)
     } yield {
       println("debug registers cleared")
+      println("WARNING: CURRENTLY DISABLED ON MEAME")
     }
   }
 
@@ -162,13 +159,14 @@ object DspComms {
     }
 
     val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
+    val desc2 = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).foldLeft(0.0)(_+_)
 
-    val regWrite = RegisterSetList(List(DEBUG1),List(0x0), desc)
+    val period = if(desc2 > 0) 10000 else 100000
 
     for {
-      write <- setRegistersRequest(regWrite)
+      write <- simpleStimRequest(SimpleStimReq(period))
     } yield {
-      println("sent stim req")
+      println(s"sent stim req $period")
     }
   }
 
