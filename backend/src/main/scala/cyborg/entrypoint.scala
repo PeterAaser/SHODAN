@@ -2,8 +2,7 @@ package cyborg
 
 import cyborg.wallAvoid.Agent
 import fs2._
-
-import fs2.Stream._
+import fs2.async.mutable.{ Queue, Topic }
 import fs2.async.mutable.Queue
 
 import cats.effect.IO
@@ -12,6 +11,7 @@ import scala.concurrent.ExecutionContext
 
 import wallAvoid.Agent
 import utilz._
+import utilz.TaggedSegment
 
 object staging {
 
@@ -20,14 +20,11 @@ object staging {
   import params.GA._
   import HttpCommands._
 
-
-  val testInt: Int = 3
-
   def commandPipe(
-    meameTopics: List[DataTopic[IO]],
+    topics: List[Topic[IO,TaggedSegment]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,List[Double]],
-    rawDataQueue: Queue[IO,Int]
+    rawDataQueue: Queue[IO,TaggedSegment]
   )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
 
     def go(s: Stream[IO,UserCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
@@ -40,14 +37,19 @@ object staging {
             case StartMEAME =>
               {
                 Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
-                sIO.streamFromTCP(meameTopics, rawDataQueue.enqueue)
+                val tcpStream = sIO.streamFromTCP(params.experiment.segmentLength)
+                Assemblers.broadcastDataStream(tcpStream, topics, rawDataQueue.enqueue)
               }
 
             case AgentStart =>
-                Assemblers.assembleGA(meameTopics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
+                Assemblers.assembleGA(topics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
 
-            case RunFromDB(id) => // TODO id hardcoded atm
-              sIO.streamFromDatabase(1, meameTopics, rawDataQueue.enqueue)
+            // TODO id hardcoded atm
+            case RunFromDB(id) =>
+              {
+                val dbStream = sIO.streamFromDatabase(1)
+                Assemblers.broadcastDataStream(dbStream, topics, rawDataQueue.enqueue)
+              }
 
             case StoreToDB(comment) =>
               sIO.streamToDatabase(rawDataQueue.dequeue, comment)
@@ -57,32 +59,7 @@ object staging {
 
             case DspTest =>
               {
-                import DspComms._
-                Stream.eval(HttpClient.dspTest).run.unsafeRunSync()
-
-                val tests = for {
-                  - <- clearDebug()
-                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting debug reset")
-                  - <- clearDebug()
-                  - <- getDebug()
-                  _ = println("\n------------\n\n")
-                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting reads")
-                  _ <- readTest()
-                  - <- getDebug()
-                  - <- clearDebug()
-                  _ = println("\n------------\n\n")
-                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nTesting writes")
-                  - <- getDebug()
-                  _ <- writeTest()
-                  - <- getDebug()
-                  - <- clearDebug()
-                  _ = println("\n------------\n\n")
-                  _ <- HttpClient.meameConsoleLog("\n///////////////\n///////////////\nDone :^)")
-
-                } yield ()
-
-                Stream.eval(tests).run.unsafeRunSync()
-
+                println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)
                 val uhm: Stream[IO,Unit] = Stream.empty
                 uhm
               }
@@ -96,6 +73,10 @@ object staging {
           }
 
           Pull.output1(action) >> go(tl)
+        }
+        case None => {
+          println("commandpipe none pull")
+          Pull.done
         }
       }
     }

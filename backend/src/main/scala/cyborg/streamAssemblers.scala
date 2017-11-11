@@ -2,7 +2,7 @@ package cyborg
 
 import cyborg.wallAvoid.Agent
 import fs2._
-import java.io.File
+import fs2.async.mutable.Topic
 import org.http4s.server.Server
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -10,11 +10,12 @@ import utilz._
 import cats.effect.IO
 import cats.effect.Effect
 
+import scala.concurrent.duration._
+
 object Assemblers {
 
   type ffANNinput = Vector[Double]
   type ffANNoutput = List[Double]
-
 
   /**
     Assembles the necessary components to start SHODAN and then starts up the websocket and
@@ -26,33 +27,66 @@ object Assemblers {
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
-    val rawDataQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Int])
-    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
+    val taggedSegQueueS = Stream.eval(fs2.async.unboundedQueue[IO,TaggedSegment])
+
+    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(throttle = 100)
 
     import DebugMessages._
-    val msg = ChannelTraffic(10, 10)
+    import backendImplicits._
 
-    val durp: Stream[IO,Unit] = for {
-      commandQueue <- commandQueueS
-      agentQueue   <- agentQueueS
-      topics       <- topicsS
-      debugQueue   <- debugQueueS
-      rawDataQueue <- rawDataQueueS
+    commandQueueS flatMap {           commandQueue =>
+      agentQueueS flatMap {           agentQueue =>
+        topicsS flatMap {             topics =>
+          debugQueueS flatMap {       debugQueue =>
+            taggedSegQueueS flatMap { taggedSeqQueue =>
 
-      httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-      webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataQueue.dequeue))
-      agentSink               = agentQueue.enqueue
-      commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataQueue)
-      channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
+              val httpServer            = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
+              val webSocketAgentServer  = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
+              val webSocketVizServer    = Stream.eval(assembleWebsocketVisualizer(taggedSeqQueue.dequeue.through(_.map(_.data._2)).through(chunkify)))
 
-      server    <- httpServer
-      wsServer  <- webSocketAgentServer
-      vizServer <- webSocketVizServer
-      _         <- commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener)
+              val agentSink               = agentQueue.enqueue
+              val commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqQueue)
 
-    } yield ()
-    durp
+
+              httpServer flatMap {               server =>
+                webSocketAgentServer flatMap {   wsAgentServer =>
+                  webSocketVizServer flatMap {   wsVizServer =>
+
+                    commandQueue.dequeue.through(commandPipe).join(100)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // val msg = ChannelTraffic(10, 10)
+
+    // val durp: Stream[IO,Unit] = for {
+    //   commandQueue   <- commandQueueS
+    //   agentQueue     <- agentQueueS
+    //   topics         <- topicsS
+    //   debugQueue     <- debugQueueS
+    //   taggedSegQueue <- taggedSegQueueS
+
+    //   httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
+    //   webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
+    //   webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataQueueV.dequeue.through(chunkify)))
+
+    //   agentSink               = agentQueue.enqueue
+    //   commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataQueueV)
+    //   channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
+    //   channelSpammer          = spamQueueSize("raw data from vector", rawDataQueueV, 1.second)
+
+    //   server    <- httpServer
+    //   wsServer  <- webSocketAgentServer
+    //   vizServer <- webSocketVizServer
+    //   _         <- commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener).concurrently(channelSpammer)
+
+    // } yield ()
+    // durp
   }
 
 
@@ -62,7 +96,7 @@ object Assemblers {
     */
   // TODO rename to spike detector something?
   def assembleInputFilter[F[_]: Effect](
-    broadcastSource: List[DataTopic[F]],
+    broadcastSource: List[Topic[F,TaggedSegment]],
     channels: List[Channel],
     spikeDetector: Pipe[F,Int,Double]
   ): Stream[F,ffANNinput] = {
@@ -76,7 +110,7 @@ object Assemblers {
     // this discrepancy will never be resolved and one stream will be permanently ahead
     // TODO there should be a pipe for this in utilz I think
     val spikeChannels = channelStreams
-      .map(_.map(_._1))
+      .map(_.map(_.data._2))
       .map(_.through(chunkify))
       .map(_.through(spikeDetector))
 
@@ -89,50 +123,40 @@ object Assemblers {
     Demultiplexes the data and publishes data to all channel topics.
     */
   def broadcastDataStream(
-    source: Stream[IO,Int],
-    topics: List[DataTopic[IO]],
-    rawSink: Sink[IO,Int],
-    segmentLength: Int
+    source: Stream[IO,TaggedSegment],
+    topics: List[Topic[IO,TaggedSegment]],
+    rawSink: Sink[IO,TaggedSegment]
   )(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
     import params.experiment.totalChannels
 
-    def publishSink(topics: List[DataTopic[IO]]): Sink[IO,Int] = {
-      def loop(segmentId: Int, topics: List[DataTopic[IO]], s: Stream[IO,Int]): Pull[IO,IO[Unit],Unit] = {
-        s.pull.unconsN(segmentLength*totalChannels.toLong, false) flatMap {
-          case Some((seg, tl)) => {
-            val grouped = seg.toVector.grouped(segmentLength)
-            val stamped = grouped.map((_,segmentId)).toList
-            val broadCasts = stamped.zip(topics).map{
-              case(segment, topic) => topic.publish1(segment)
-            }
-
-            Pull.output(Segment.seq(broadCasts)) >> loop(segmentId + 1, topics, tl)
-          }
-          case None => {
-            println(Console.RED + "Uh oh, broadcast datastream None pull" + Console.RESET)
-            Pull.done
+    def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
+      val topicsV = topics.toVector
+      def go(s: Stream[IO,TaggedSegment]): Pull[IO,IO[Unit],Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((taggedSeg, tl)) => {
+            val idx = taggedSeg.data._1
+            Pull.output1(topicsV(idx).publish1(taggedSeg)) >> go(tl)
           }
         }
       }
-      // TODO add observeAsync, and move it out of arg position where it doesn't really belong
-      in => loop(0, topics, in.observeAsync(100000)(rawSink)).stream.map(Stream.eval).join(totalChannels)
+
+      in => go(in).stream.map(Stream.eval).join(totalChannels)
     }
 
-    // Should ideally emit a list of topics doing their thing
-    source.through(publishSink(topics))
+    source.observe(rawSink).through(publishSink(topics))
   }
 
 
   /**
     Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
     parametrized with the import params thing because db might have more or less channels
-    TODO: Outdatet, slated for removal
+    TODO: Outdated, slated for removal
     */
-  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,MeameDataTopic[F]] = {
+  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,List[Topic[F,TaggedSegment]]] = {
 
     // hardcoded
-    createTopics(60, (Vector.empty[Int],-1))
+    createTopics[F,TaggedSegment](60, TaggedSegment((-1,Vector[Int]())))
   }
 
 
@@ -140,7 +164,7 @@ object Assemblers {
     Assembles a GA run from an input topic and returns a byte stream to MEAME
     */
   def assembleGA[F[_]: Effect](
-    dataSource: List[DataTopic[F]],
+    dataSource: List[Topic[F,TaggedSegment]],
     inputChannels: List[Channel],
     outputChannels: List[Channel],
     frontendAgentObserver: Sink[F,Agent],
@@ -180,4 +204,3 @@ object Assemblers {
   def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] =
     mcsParser.processRecordings
 }
-

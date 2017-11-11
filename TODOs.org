@@ -1,4 +1,13 @@
 * Neste gang
+** Se på visualisering
+   Legge til bedre filtere? Altså voltage etc?
+   Sette det til 2 sek vindu
+** Mer om stimuli
+   Få det til å funke på fler kanaler.
+   Fikse notater med MCS folka
+** Snakke med Neshat om å hente data?
+*** Vurdere en egen modul for å snakke med roboter?
+
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres 
@@ -20,15 +29,41 @@
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
     
-* Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
-* Better handling of parameters   
-* Less unescessary restarts for both SHODAN and MEAME
-* Add TCP listening for other users, possibly on specific channels
-  
-* Settings accessible on the frontend
-* Beautify the frontend  
-  
-  
+* DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
+  Turns out it was queue segment size being 1
+** DONE Try to create a send only program
+** DONE Figure out the deal with queue sizes
+   dequeueAvailable or dequeueBatch achieves what we're after
+   
+* TODO Chunk all data from TCP for easier restarts etc
+  As it is, the datastream from MEAME and the DB does not identify which segment is running.
+  By adding tags we can make it easier to restart etc.
+  Should topics get the same treatment?
+
+* TODO Better handling of parameters   
+* TODO Less unescessary restarts for both SHODAN and MEAME
+** DONE MEAME
+** TODO SHODAN
+   see: [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]] 
+   also: UI
+   
+* TODO Add TCP listening for other users, possibly on specific channels
+* TODO Improve the frontend  
+** TODO Settings accessible on the frontend
+** TODO Make a spec before randomly writing a lot of code
+** TODO Redo basic UI  
+   Added react, now to learn using it. Ish
+
+** TODO Add functionality for making a recording
+*** TODO UI elements
+*** TODO Backend support
+    
+** TODO Functionality for stim protocols?
+   Oh fuck me
+*** TODO UI elements
+*** TODO MEAME support?
+*** TODO DSP support
+
 * DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really
   
@@ -221,6 +256,77 @@ amazing
 
 PeterAaser @PeterAaser 16:09
 we should totally find out what it is and find a way to incorporate it into the fs2 docs
+
+* React
+  < is for tags and tag attributes (<.div and <div looks similar)
+  ^ is for attributes since it's concise
+  
+  underscore seemingly indicates we don't want to care about renderscope
+
+  render_P: ((String) => VDomElement)                                  => Step4
+  renderP:  ((RenderScope[String, Unit, Unit], String) => VDomElement) => Step4
+  
+  the renderScope is typically passed as $ (which is a legal identifier in scala, who knew)
+  
+  props: basically function argument for a UI component
+  state: stuff that changes which a component may or may not react to (?)
+  
+* React Code scala vs js
+#+begin_src js
+  class ProductCategoryRow extends React.Component {
+    render() {
+      return (
+        <tr>
+          <td style={{fontWeight: 'bold'}}>{this.props.category}</td>
+        </tr>
+      );
+    }
+  }
+#+end_src
+  
+  translates to
+
+#+begin_src scala
+  val ProductCategoryRow_ = ScalaComponent.builder[String]("ProductCategoryRow")
+    .render_P(category => <.tr(<.th(^.colSpan := 2, category)))
+    .build
+#+end_src
+
+  The takeaway is that the render_P expects a string from a prop which the js version
+  does more explicitly
+  Also the scala version is very terse with the < and ^ notation, maybe we can afford
+  more linebreaks, keeping in mind that the js version also has to close...
+
+** More
+#+begin_src js
+class Timer extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      secondsElapsed: 0
+    };
+    this.tick = this.tick.bind(this);
+  }
+
+  tick() {
+    this.setState({secondsElapsed: this.state.secondsElapsed + 1});
+  }
+
+  componentDidMount() {
+    this.interval = setInterval(this.tick, 1000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.interval);
+  }
+
+  render() {
+    return React.createElement("div", null, "Seconds Elapsed: ", this.state.secondsElapsed);
+  }
+}
+
+ReactDOM.render(React.createElement(Timer), mountNode);
+#+end_src
 
 * Circe
   Figure out how I can work with Map for working with registers info without having to resort to

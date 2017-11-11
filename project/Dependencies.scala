@@ -21,18 +21,43 @@ object Dependencies {
     "org.typelevel" %%% "cats-core" % "1.0.0-MF"
   ))
 
+
   val frontendDeps = Def.setting(Seq[ModuleID](
     "org.scala-js" %%% "scalajs-dom" % "0.9.2",
     "com.lihaoyi" %%% "scalatags" % "0.6.5",
 
-    "co.fs2" %%% "fs2-core" % fs2Version
+    "com.github.japgolly.scalajs-react" %%% "core" % "1.1.0",
+    "com.github.japgolly.scalajs-react" %%% "extra" % "1.1.0",
+    "com.olvind" %%% "scalajs-react-components" % "0.8.0"
   ))
+
 
   val frontendJSDeps = Def.setting(Seq[org.scalajs.sbtplugin.JSModuleID](
+    "org.webjars.bower" % "react" % "15.6.1"
+      /        "react-with-addons.js"
+      minified "react-with-addons.min.js"
+      commonJSName "React",
+
+    "org.webjars.bower" % "react" % "15.6.1"
+      /         "react-dom.js"
+      minified  "react-dom.min.js"
+      dependsOn "react-with-addons.js"
+      commonJSName "ReactDOM",
+
+    "org.webjars.bower" % "react" % "15.6.1"
+      /         "react-dom-server.js"
+      minified  "react-dom-server.min.js"
+      dependsOn "react-dom.js"
+      commonJSName "ReactDOMServer"
+
+    // "org.webjars.npm" % "material-ui" % "0.15.2"
+    //   /         "material-ui.js"
+    //   minified  "material-ui.min.js"
+    //   commonJSName "materialUi"
   ))
 
-  val backendDeps = Def.setting(Seq[ModuleID](
 
+  val backendDeps = Def.setting(Seq[ModuleID](
 
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,

@@ -1,5 +1,4 @@
 import com.lihaoyi.workbench._
-// import UdashBuild._
 import Dependencies._
 
 name := "SHODAN"
@@ -78,14 +77,19 @@ lazy val backend = project.in(file("backend"))
 /**
   Same as above. I dunno man
   */
-lazy val frontend = project.in(file("frontend")).enablePlugins(ScalaJSPlugin)
+lazy val frontend = project.in(file("frontend"))
+  .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(ScalaJSBundlerPlugin)
   .dependsOn(sharedJS)
   .settings(
     libraryDependencies ++= frontendDeps.value,
     crossLibs(Compile),
+    npmDependencies in Compile ++= Seq(
+      "react" -> "15.6.1",
+      "react-dom" -> "15.6.1",
+      "material-ui" -> "0.15.2"),
     scalaJSUseMainModuleInitializer := true,
-    fork in run := true,
-    jsDependencies ++= frontendJSDeps.value
+    fork in run := true
 
   ).settings(workbenchSettings:_*)
   .settings(

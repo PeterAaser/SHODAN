@@ -11,12 +11,9 @@ import scala.language.higherKinds
 
 object utilz {
 
-  type DataSegment = (Vector[Int], Int)
-  type DataTopic[F[_]] = Topic[F,DataSegment]
-  type MeameDataTopic[F[_]] = List[Topic[F,DataSegment]]
   type Channel = Int
-
-  case class TaggedSegment(data: (Int, Vector[Int])) extends AnyVal
+  case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
+  type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
 
 
   /**
@@ -293,31 +290,31 @@ object utilz {
   /**
     Synchronizes a list of streams, discarding segment ID
     */
-  def synchronize[F[_]]: Pipe[F,List[Stream[F,DataSegment]], List[Stream[F,Vector[Int]]]] = {
+  def synchronize[F[_]]: Pipe[F,List[Stream[F,TaggedSegment]], List[Stream[F,Vector[Int]]]] = {
 
     /**
       Takes the first element of each inner stream and checks the tag.
       Drops the discrepancy between tags from each stream
       */
-    def synchStreams(streams: Stream[F,List[Stream[F,DataSegment]]]) = {
-      val a: Stream[F, Seq[DataSegment]] = roundRobin(streams)
+    def synchStreams(streams: Stream[F,List[Stream[F,TaggedSegment]]]) = {
+      val a: Stream[F, Seq[TaggedSegment]] = roundRobin(streams)
       val b = a flatMap (λ =>
         {
-          val tags = λ.map(_._2)
+          val tags = λ.map(_.data._1)
           val largest = tags.max
           val diffs = tags.map(largest - _)
-          streams.map(λ => λ.zip(diffs).map(λ => λ._1.drop(λ._2.toLong).map(λ => λ._1)))
+          streams.map(λ => λ.zip(diffs).map(λ => λ._1.drop(λ._2.toLong).map(λ => λ.data._2)))
         })
       b
     }
-
+    println("synchronize called. Might behave weirdly, not tested (lol)")
     synchStreams
   }
 
 
   def logEveryNth[F[_],I](n: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
-      s.pull.unconsN(n,false) flatMap {
+      s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
           println(seg.toList.head)
           Pull.output(seg) >> go(tl)
@@ -334,7 +331,7 @@ object utilz {
 
   def logEveryNth[F[_],I](n: Int, say: I => Unit ): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
-      s.pull.unconsN(n,false) flatMap {
+      s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
           say(seg.toList.head)
           Pull.output(seg) >> go(tl)
@@ -365,34 +362,14 @@ object utilz {
 
   // TODO: rewrite with idiomatic ops
   def tagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
-    def go(n: Int, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
-      s.pull.unconsN(segmentLength, false) flatMap {
+    def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
+      s.pull.unconsN(segmentLength.toLong, false) flatMap {
         case Some((seg, tl)) => {
           Pull.output1(TaggedSegment(n, seg.toVector)) >> go(n%60, tl)
         }
+        case None => Pull.done
       }
     }
     in => go(0, in).stream
   }
-
-
-  // // TODO: Either parametrize of kill
-  // def sineWave[F[_]](channels: Int, segmentLength: Int): Stream[F,Int] = {
-  //   // val empty: List[Int] = Nil
-  //   val hurr: Stream[F,List[Int]] = Stream.iterate(0)(_+1).map{ iter =>
-  //     val channel = iter % channels
-  //     val offset = iter*segmentLength/channels
-  //     // val α = ((channel + 1) % 6).toFloat/100.0
-  //     val naughtyList = (0 until segmentLength).map(_ + offset).map{ idx => // get it?
-  //       val sinVal = math.sin(idx*((channel % 6) + 1).toFloat/100.0)
-  //       sinVal*400.0
-  //     }
-  //     val out = naughtyList.map(_.toInt).toList
-  //     if(iter % 60 == 0){
-  //       println(out.zipWithIndex.filter(_._2 % 5 == 0).map(_._1))
-  //     }
-  //     out
-  //   }
-  //   hurr.through(chunkify)
-  // }
 }
