@@ -40,12 +40,12 @@ object Assemblers {
           debugQueueS flatMap {       debugQueue =>
             taggedSegQueueS flatMap { taggedSeqQueue =>
 
-              val httpServer            = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-              val webSocketAgentServer  = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-              val webSocketVizServer    = Stream.eval(assembleWebsocketVisualizer(taggedSeqQueue.dequeue.through(_.map(_.data._2)).through(chunkify)))
+              val httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
+              val webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
+              val webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqQueue.dequeue.through(_.map(_.data._2)).through(chunkify)))
 
-              val agentSink               = agentQueue.enqueue
-              val commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqQueue)
+              val agentSink            = agentQueue.enqueue
+              val commandPipe          = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqQueue)
 
 
               httpServer flatMap {               server =>
@@ -61,32 +61,6 @@ object Assemblers {
         }
       }
     }
-
-    // val msg = ChannelTraffic(10, 10)
-
-    // val durp: Stream[IO,Unit] = for {
-    //   commandQueue   <- commandQueueS
-    //   agentQueue     <- agentQueueS
-    //   topics         <- topicsS
-    //   debugQueue     <- debugQueueS
-    //   taggedSegQueue <- taggedSegQueueS
-
-    //   httpServer              = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-    //   webSocketAgentServer    = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-    //   webSocketVizServer      = Stream.eval(assembleWebsocketVisualizer(rawDataQueueV.dequeue.through(chunkify)))
-
-    //   agentSink               = agentQueue.enqueue
-    //   commandPipe             = staging.commandPipe(topics, agentSink, meameFeedbackSink, rawDataQueueV)
-    //   channelZeroListener     = topics.head.subscribe(100).through(attachDebugChannel(msg, 10, debugQueue.enqueue)).drain
-    //   channelSpammer          = spamQueueSize("raw data from vector", rawDataQueueV, 1.second)
-
-    //   server    <- httpServer
-    //   wsServer  <- webSocketAgentServer
-    //   vizServer <- webSocketVizServer
-    //   _         <- commandQueue.dequeue.through(commandPipe).join(100).concurrently(channelZeroListener).concurrently(channelSpammer)
-
-    // } yield ()
-    // durp
   }
 
 
@@ -108,7 +82,6 @@ object Assemblers {
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
     // this discrepancy will never be resolved and one stream will be permanently ahead
-    // TODO there should be a pipe for this in utilz I think
     val spikeChannels = channelStreams
       .map(_.map(_.data._2))
       .map(_.through(chunkify))
@@ -121,6 +94,7 @@ object Assemblers {
   /**
     Takes a multiplexed dataSource and a list of topics.
     Demultiplexes the data and publishes data to all channel topics.
+    TODO: Should synchronize (e.g at start it should drop until it gets channel 0)
     */
   def broadcastDataStream(
     source: Stream[IO,TaggedSegment],
