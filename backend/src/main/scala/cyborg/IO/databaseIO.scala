@@ -30,7 +30,7 @@ object databaseIO {
   /**
     Gets a resource URI from the database and reads said info
     */
-  def dbChannelStream(experimentId: Int)(implicit ec: ExecutionContext): (IO[Int], Stream[IO, Int]) = {
+  def dbChannelStream(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
     println(s"making stream for experiment $experimentId")
 
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
@@ -42,11 +42,17 @@ object databaseIO {
       reader
     }
 
+
+    data
+  }
+
+
+  def dbGetParams(experimentId: Int)(implicit ec: ExecutionContext): IO[Int] = {
     val params = doobIO.getExperimentParams(experimentId)
       .transact(xa)
       .map(_.segmentLength)
 
-    (params, data)
+    params
   }
 
 

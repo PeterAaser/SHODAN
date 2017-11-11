@@ -7,7 +7,6 @@ import scala.concurrent.ExecutionContext
 
 import scala.concurrent.duration._
 
-
 import scala.language.higherKinds
 
 object utilz {
@@ -16,6 +15,8 @@ object utilz {
   type DataTopic[F[_]] = Topic[F,DataSegment]
   type MeameDataTopic[F[_]] = List[Topic[F,DataSegment]]
   type Channel = Int
+
+  case class TaggedSegment(data: (Int, Vector[Int])) extends AnyVal
 
 
   /**
@@ -107,6 +108,7 @@ object utilz {
         case Some((seg, tl)) => {
           Pull.output1(f(seg)) >> go(tl)
         }
+        case None => Pull.done
       }
     }
     in => go(in).stream
@@ -320,10 +322,15 @@ object utilz {
           println(seg.toList.head)
           Pull.output(seg) >> go(tl)
         }
+        case None => {
+          println("log every nth got None")
+          Pull.done
+        }
       }
     }
     in => go(in).stream
   }
+
 
   def logEveryNth[F[_],I](n: Int, say: I => Unit ): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
@@ -333,7 +340,7 @@ object utilz {
           Pull.output(seg) >> go(tl)
         }
         case None => {
-          println("log every got None")
+          println("log every nth got None")
           Pull.done
         }
       }
@@ -341,29 +348,51 @@ object utilz {
     in => go(in).stream
   }
 
-  def spamQueueSize[F[_]: Effect, I](name: String, q: Queue[F,I], dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+
+  /**
+    Should print the size of a queue at regular intervals
+    */
+  def spamQueueSize[F[_]: Effect, I](
+    name: String,
+    q: Queue[F,I],
+    dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+
     throttul(dur).flatMap { _ =>
       Stream.eval(q.size.get).through(_.map(λ => println(s"Queue with name $name has a size of $λ")))
     }.repeat
   }
 
-  def sineWave[F[_]](channels: Int, segmentLength: Int): Stream[F,Int] = {
-    val empty: List[Int] = Nil
-    val hurr: Stream[F,List[Int]] = Stream.iterate(0)(_+1).map{ iter =>
-      val channel = iter % channels
-      val offset = iter*segmentLength/channels
-      // val α = ((channel + 1) % 6).toFloat/100.0
-      val naughtyList = (0 until segmentLength).map(_ + offset).map{ idx => // get it?
-        val sinVal = math.sin(idx*((channel % 6) + 1).toFloat/100.0)
-        sinVal*400.0
-      }
-      val out = naughtyList.map(_.toInt).toList
-      if(iter % 60 == 0){
-        println(out.zipWithIndex.filter(_._2 % 5 == 0).map(_._1))
-      }
-      out
-    }
-    hurr.through(chunkify)
-  }
-}
 
+  // TODO: rewrite with idiomatic ops
+  def tagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
+    def go(n: Int, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
+      s.pull.unconsN(segmentLength, false) flatMap {
+        case Some((seg, tl)) => {
+          Pull.output1(TaggedSegment(n, seg.toVector)) >> go(n%60, tl)
+        }
+      }
+    }
+    in => go(0, in).stream
+  }
+
+
+  // // TODO: Either parametrize of kill
+  // def sineWave[F[_]](channels: Int, segmentLength: Int): Stream[F,Int] = {
+  //   // val empty: List[Int] = Nil
+  //   val hurr: Stream[F,List[Int]] = Stream.iterate(0)(_+1).map{ iter =>
+  //     val channel = iter % channels
+  //     val offset = iter*segmentLength/channels
+  //     // val α = ((channel + 1) % 6).toFloat/100.0
+  //     val naughtyList = (0 until segmentLength).map(_ + offset).map{ idx => // get it?
+  //       val sinVal = math.sin(idx*((channel % 6) + 1).toFloat/100.0)
+  //       sinVal*400.0
+  //     }
+  //     val out = naughtyList.map(_.toInt).toList
+  //     if(iter % 60 == 0){
+  //       println(out.zipWithIndex.filter(_._2 % 5 == 0).map(_._1))
+  //     }
+  //     out
+  //   }
+  //   hurr.through(chunkify)
+  // }
+}
