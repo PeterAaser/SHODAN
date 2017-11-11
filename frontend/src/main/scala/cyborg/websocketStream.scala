@@ -38,11 +38,18 @@ object websocketStream {
     ws.onmessage = (event: MessageEvent) => {
       val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
       val memelord = new DataView(jsData)
-      println(memelord.getInt32(0))
-      println(memelord.getInt32(0, true))
       val buf: Array[Int] = Array.ofDim(1200)
-      for(ii <- 0 until 1200)
+      for(ii <- 0 until 1200) {
         buf(ii) = memelord.getInt32(ii*4)
+      }
+
+      println(counter)
+      counter = counter + 1
+      if(counter == 100){
+        counter = 0
+        println("frontend wf received")
+        println(s"frontend dataqueue buffered size is ${controller.dataqueue.size}")
+      }
 
       controller.dataqueue.enqueue(buf)
     }

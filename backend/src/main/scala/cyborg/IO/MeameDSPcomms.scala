@@ -1,7 +1,6 @@
 package cyborg
 
 
-
 import cats.effect.IO
 import cats.effect._
 
@@ -158,7 +157,7 @@ object DspComms {
       setDomain(transform)(distance)
     }
 
-    val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
+    // val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
     val desc2 = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).foldLeft(0.0)(_+_)
 
     val period = if(desc2 > 0) 10000 else 100000

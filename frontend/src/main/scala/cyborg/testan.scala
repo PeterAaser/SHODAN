@@ -1,15 +1,30 @@
 package cyborg
 
 import org.scalajs.dom.html
+import scala.scalajs.js.annotation.JSExport
 import scalatags.JsDom.all._
 import org.scalajs.dom.raw.MouseEvent
+import org.scalajs.dom
+
+import org.scalajs.dom.document
+import japgolly.scalajs.react._
+import japgolly.scalajs.react.ReactDOM
+import japgolly.scalajs.react.vdom.html_<^._
 
 import org.scalajs.dom.document
 
+import chandu0101.scalajs.react.components.WithAsyncScript
+import chandu0101.scalajs.react.components.materialui._
 
-object testan {
+import japgolly.scalajs.react._
+import japgolly.scalajs.react.extra.router.RouterCtl
+import japgolly.scalajs.react.vdom.html_<^._
+
+object hurr {
 
   def main(args: Array[String]): Unit = {
+
+    timerTest.Timer().renderIntoDOM(document.getElementById("playground"))
 
     val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
     val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
@@ -83,42 +98,5 @@ object testan {
 
     document.getElementById("playground").appendChild(agentCanvas)
     document.getElementById("playground").appendChild(visualizerCanvas)
-
-
-
-    // val DSPbutton = button("DSP thangs").render
-    // val DSPbutton2 = button("DSP thangs2").render
-    // val connectWfButton = button("connect waveforms").render
-    // val glButton = button("gl hf").render
-    // val testDebugMessages = button("hurr").render
-
-    // document.getElementById("playground").appendChild(DSPbutton)
-    // document.getElementById("playground").appendChild(DSPbutton2)
-    // document.getElementById("playground").appendChild(DSPbutton2)
-    // document.getElementById("playground").appendChild(connectWfButton)
-    // document.getElementById("playground").appendChild(glButton)
-    // document.getElementById("playground").appendChild(testDebugMessages)
-
-
-    // Self-evident
-    // DSPbutton.onclick = (_: MouseEvent) =>
-    //   frontHTTPclient.dspTest
-
-    // DSPbutton2.onclick = (_: MouseEvent) =>
-    //   frontHTTPclient.dspTest
-
-    // runs a gl test. fuck gl tbh
-    // glButton.onclick = (_: MouseEvent) => {
-    //   println("visualize waveform button clicked")
-    //   val aa = new webgltest.webgltestController(visualizerCanvas)
-    //   aa.test1()
-    // }
-
-
-    // testDebugMessages.onclick = (_: MouseEvent) => {
-    //   frontHTTPclient.testDebugMsg
-    // }
-
-
   }
 }

@@ -134,12 +134,13 @@ object params {
     val pointsPerSec = experiment.samplerate
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
-    // val maxVal = 600
+
     val maxVal = 1800
     val wfMsgSize = 1200
     val sixtyFPSrefreshRate = 17  //every 17 ms
     val thirtyFPSrefreshRate = 33 //every 33 ms
     val dataPointsReceivedPerSec = 60*(pointsPerSec/blockSize)
+
     val wfMsgSentPerSecond = dataPointsReceivedPerSec/wfMsgSize
 
     def printMe(): Unit = {

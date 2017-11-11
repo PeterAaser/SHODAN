@@ -46,15 +46,6 @@ object waveformVisualizer {
       # # # # # # # #
         # # # # # #
 
-        _ _ o o _ _
-      _ x _ o o _ x _
-      _ _ _ o o _ _ _
-      o o o o o o o o
-      o o o o o o o o
-      _ _ _ o o _ _ _
-      _ x _ o o _ x _
-        _ _ o o _ _
-
       Some tuple rearranging, but conceptually simple, just follow the types
       */
 
@@ -79,7 +70,7 @@ object waveformVisualizer {
     val groupSize = wfMsgSize/60
     var running = false
 
-    scalajs.js.timers.setInterval(70) {
+    scalajs.js.timers.setInterval(60) {
       if(!running){
         running = true
         if(dataqueue.size > 500){
