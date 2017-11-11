@@ -9,15 +9,27 @@ import scala.concurrent.ExecutionContext
 
 object Feedback {
 
-
   /**
-    Creates a self modifying pipe, with some caveats
+    Creates a self modifying pipe
+
+    createSimRunner:
+    Should create one scenario to be evaluated,
+    for instance, resetting the agent runner
+
+    evaluator:
+    Should emit exactly 1 evaluation per sim runner
+
+    filterGenerator:
+    A pipe that transforms evaluations into new filters.
+    This pipe should keep some internal state.
+    This pipe MUST emit a default pipe!!
+
     */
-  def experimentPipe[F[_]: Effect, ReservoirOutput, FilterOutput, O](
-    createSimRunner: () => Pipe[F,FilterOutput, O], // resettable
-    evaluator:             Pipe[F,O, Double],
-    filterGenerator:       Pipe[F,Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]]
-  )(implicit ec: ExecutionContext): Pipe[F,ReservoirOutput, O] = { inStream =>
+  def experimentPipe[F[_], ReservoirOutput, FilterOutput, O](
+    createSimRunner: () => Pipe[F, FilterOutput, O], // resettable
+    evaluator:             Pipe[F, O, Double],
+    filterGenerator:       Pipe[F, Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]]
+  )(implicit ec: ExecutionContext, eff: Effect[F]): Pipe[F, ReservoirOutput, O] = { inStream =>
 
     type Filter = Pipe[F, ReservoirOutput, Option[FilterOutput]]
 
@@ -33,7 +45,7 @@ object Feedback {
       */
     def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double]): Pipe[F, ReservoirOutput, O] = reservoirData =>
     reservoirData.through(filter).unNoneTerminate
-      .through(createSimRunner() )
+      .through( createSimRunner() )
       .observe(_.through(evaluator).through(evalSink))
 
 
@@ -41,7 +53,7 @@ object Feedback {
       Dequeues one filter, runs it to completion and enqueues the evaluation
       */
     def loop(
-      filterQueue:   Queue[F,Pipe[F,ReservoirOutput,Option[FilterOutput]]],
+      filterQueue:   Queue[F,Filter],
       inputQueue:    Queue[F,ReservoirOutput],
       evalSink:      Sink[F,Double]
     ): Stream[F,O] = {
@@ -64,9 +76,15 @@ object Feedback {
       evaluationQueueS.flatMap { evaluationQueue =>
         filterQueueS.flatMap { filterQueue =>
 
-          val enqueueInput = inStream.through(inputQueue.enqueue)
-          val evalSink = evaluationQueue.enqueue
-          val generateFilters = evaluationQueue.dequeue.through(filterGenerator).through(filterQueue.enqueue)
+          val enqueueInput = inStream
+            .through(inputQueue.enqueue)
+
+          val evalSink = (in: Stream[F,Double]) => in
+            .through(evaluationQueue.enqueue)
+
+          val generateFilters = evaluationQueue.dequeue
+            .through(filterGenerator).through(filterQueue.enqueue)
+
 
           loop(filterQueue, inputQueue, evalSink)
             .concurrently(enqueueInput)

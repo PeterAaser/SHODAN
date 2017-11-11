@@ -7,9 +7,16 @@ object Launcher {
 
     println("wello")
 
-    params.printParams()
-    Assemblers.startSHODAN.run.unsafeRunSync()
+    // params.printParams()
+    // Assemblers.startSHODAN.run.unsafeRunSync()
     // Assemblers.assembleMcsFileReader.run.unsafeRunSync()
 
+    import fs2.Stream._
+    import fs2.Stream
+
+    import scala.concurrent.duration._
+    simpleFeedback.doIt.flatMap(Stream.eval(_)).run.unsafeRunTimed(1.second)
+
+    println("OK")
   }
 }

@@ -11,6 +11,7 @@ import scala.language.higherKinds
 
 object utilz {
 
+  type EC = ExecutionContext
   type Channel = Int
   case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
