@@ -10,17 +10,17 @@
 
 * Database notes
 ** To open db in terminal:
-   peter$~/:    sudo su postgres 
+   peter$~/:    sudo su postgres
    postgres$~/: psql -d world -U postgres
-  
+
    select name from country;
    \q
 ** To redo a database
-   peter$~/:    sudo su postgres 
+   peter$~/:    sudo su postgres
    postgres$~/: psql -c 'drop database $db;' -U postgres
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
-   
+
 * About neurons
 ** Filtering
    None of these assumptions have any sort of neurological basis, they're just assumed
@@ -28,36 +28,51 @@
 
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
-    
+
 * DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
   Turns out it was queue segment size being 1
 ** DONE Try to create a send only program
 ** DONE Figure out the deal with queue sizes
    dequeueAvailable or dequeueBatch achieves what we're after
-   
-* TODO Chunk all data from TCP for easier restarts etc
+
+* DONE Chunk all data from TCP for easier restarts etc
   As it is, the datastream from MEAME and the DB does not identify which segment is running.
   By adding tags we can make it easier to restart etc.
   Should topics get the same treatment?
 
-* TODO Better handling of parameters   
+* TODO Fix the GA for the last time
+** DONE Create generic version
+** DONE Test with simple example
+** TODO reimplement GA in terms of generic version
+** TODO figure out how to dequeueAvailable without losing unconsumed
+
+* TODO Better handling of parameters
+** TODO Define requirements
+   'better' is not a requirement, although in its current state it's not
+   100% wrong either. Ideally params should be a signal or some other IO
+   mutable construct, including an isReady IO[Bool]
+
 * TODO Less unescessary restarts for both SHODAN and MEAME
 ** DONE MEAME
 ** TODO SHODAN
-   see: [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]] 
-   also: UI
-   
+*** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+*** TODO UI support
+** TODO Reset protocol(?)
+   Might not be necessary unless we somehow lose track of an input stream
+   In this scenario we can't demodulate the TCP datastream
+
 * TODO Add TCP listening for other users, possibly on specific channels
-* TODO Improve the frontend  
+  With HTTP
+* TODO Improve the frontend
 ** TODO Settings accessible on the frontend
 ** TODO Make a spec before randomly writing a lot of code
-** TODO Redo basic UI  
+** TODO Redo basic UI
    Added react, now to learn using it. Ish
 
 ** TODO Add functionality for making a recording
 *** TODO UI elements
 *** TODO Backend support
-    
+
 ** TODO Functionality for stim protocols?
    Oh fuck me
 *** TODO UI elements
@@ -66,7 +81,9 @@
 
 * DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really
-  
+
+* TODO Add tests
+
 * how 2 fs2 fra gitter (ikke slett plz)
 Yeah, I do that in too many places
 but soon I've got a working version out, then I'm gonna refactor and write good tests and all that jazz while the stable version automagically outputs research data
@@ -260,18 +277,18 @@ we should totally find out what it is and find a way to incorporate it into the 
 * React
   < is for tags and tag attributes (<.div and <div looks similar)
   ^ is for attributes since it's concise
-  
+
   underscore seemingly indicates we don't want to care about renderscope
 
   render_P: ((String) => VDomElement)                                  => Step4
   renderP:  ((RenderScope[String, Unit, Unit], String) => VDomElement) => Step4
-  
+
   the renderScope is typically passed as $ (which is a legal identifier in scala, who knew)
-  
+
   props: basically function argument for a UI component
   state: stuff that changes which a component may or may not react to (?)
-  
-* React Code scala vs js
+
+* React Code scalajs vs js
 #+begin_src js
   class ProductCategoryRow extends React.Component {
     render() {
@@ -283,7 +300,7 @@ we should totally find out what it is and find a way to incorporate it into the 
     }
   }
 #+end_src
-  
+
   translates to
 
 #+begin_src scala
@@ -331,3 +348,25 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 * Circe
   Figure out how I can work with Map for working with registers info without having to resort to
   the clumsy stuff I'm using now.
+
+* MCS meeting talking points
+** MEAME data acquisition
+** DSP stim stuff
+*** How can I debug this stuff
+*** The mcs update tool
+*** Blanking etc
+*** Generating stimulus patterns
+*** Uploading stimulus patterns from the computer
+*** Code samples plz
+
+** Blanking
+   Only for the equipment
+
+* Register representation
+  case 1: Bit field with only one member
+  case 2: Bit fields with many members (for instance 30 bits representing 15 2bit fields)
+
+  case 2 can be handled with a list of case 1. Should it?
+  How about a method for generating these?
+
+

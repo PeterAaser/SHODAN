@@ -1,6 +1,54 @@
 package cyborg
 object DspRegisters {
 
+  /**
+    A bitfield signifies a subfield of a register. For instance the first 2 bits of a register.
+    When setting a bitfield we must ensure that we do not overwrite the previous value in the
+    parts of the register outside our bitfield. This operation is handled on the DSP, but we
+    need to tag it as such, hence the extra representation
+    */
+  case class BitField(
+    address: Int,
+    description: String,
+    bits: Int,
+    start: Int,
+    translation: Option[Map[Int,String]]
+  )
+
+
+  /**
+    A logical grouping of bitfields
+    */
+  case class BitFieldGroup(
+    description: String,
+    members: List[BitField],
+    longDescription: String = "No extra description provided"
+  )
+
+
+  /**
+    Generate many bitfields at the same address. Note that due to endian-ness start and end
+    might be a little different logically
+    */
+  def generateBitFields(
+    address: Int,
+    description: String,
+    stride: Int,
+    start: Int,
+    end: Int,
+    translation: Option[Map[Int,String]],
+    offset: Int = 0
+  ): Vector[BitField] = {
+
+    val numRegisters = (start - end)/stride
+    (0 until numRegisters).map { regNo =>
+      val bfDescription = description + s" ${regNo + offset}"
+      val regStart = start + (regNo*stride)
+      BitField(address, bfDescription, stride, regStart, translation)
+    }.toVector
+  }
+
+
   val MAIL_BASE          = (0x1000)
   val WRITE_REQ_ID       = (MAIL_BASE + 0xc)
   val WRITE_ACK_ID       = (MAIL_BASE + 0x10)
@@ -101,6 +149,13 @@ object DspRegisters {
   val  READ_START3        = (TRIGGER_CTRL_BASE + 0x50)
 
   val  MANUAL_TRIGGER     = (TRIGGER_CTRL_BASE + 0x14)
+
+
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ///// STG 1 (possible duplicates)
+
 
   val regMap = Map(
   "MAIL_BASE             " -> (0x1000),

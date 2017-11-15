@@ -62,35 +62,25 @@ object Feedback {
 
         val evaluator = assembleEvaluator(filter, evalSink)
 
-        inputQueue.dequeueAvailable.through(evaluator) ++
+        // TODO: Ideally we'd want dequeuBatch here, but this causes us to lose unconsumed values
+        inputQueue.dequeue.through(evaluator) ++
           loop(filterQueue, inputQueue, evalSink)
       }
     }
 
 
-    val inputQueueS = Stream.eval(fs2.async.boundedQueue[F,ReservoirOutput](100000))
-    val evaluationQueueS = Stream.eval(fs2.async.boundedQueue[F,Double](100))
-    val filterQueueS = Stream.eval(fs2.async.boundedQueue[F,Filter](10))
+    for {
 
-    inputQueueS.flatMap { inputQueue =>
-      evaluationQueueS.flatMap { evaluationQueue =>
-        filterQueueS.flatMap { filterQueue =>
+      inputQueue      <- Stream.eval(fs2.async.boundedQueue[F,ReservoirOutput](100000))
+      evaluationQueue <- Stream.eval(fs2.async.boundedQueue[F,Double](100))
+      filterQueue     <- Stream.eval(fs2.async.boundedQueue[F,Filter](10))
 
-          val enqueueInput = inStream
-            .through(inputQueue.enqueue)
+      enqueueInput    = inStream.through(inputQueue.enqueue)
+      evalSink        = (in: Stream[F,Double]) => in.through(evaluationQueue.enqueue)
+      generateFilters = evaluationQueue.dequeue.through(filterGenerator).through(filterQueue.enqueue)
 
-          val evalSink = (in: Stream[F,Double]) => in
-            .through(evaluationQueue.enqueue)
+      output          <- loop(filterQueue, inputQueue, evalSink).concurrently(enqueueInput).concurrently(generateFilters)
 
-          val generateFilters = evaluationQueue.dequeue
-            .through(filterGenerator).through(filterQueue.enqueue)
-
-
-          loop(filterQueue, inputQueue, evalSink)
-            .concurrently(enqueueInput)
-            .concurrently(generateFilters)
-        }
-      }
-    }
+    } yield (output)
   }
 }

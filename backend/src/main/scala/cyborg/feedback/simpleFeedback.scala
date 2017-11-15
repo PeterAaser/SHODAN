@@ -28,7 +28,7 @@ object simpleFeedback {
 
   type Filter          = Pipe[IO, ReservoirOutput, Option[FilterOutput]]
 
-  val resOut: Stream[IO,ReservoirOutput] = Stream(1).repeat
+  val resOut: Stream[IO,ReservoirOutput] = Stream.iterate(0)(_+1)
 
   val size = 30
 
@@ -47,8 +47,8 @@ object simpleFeedback {
       }
       else
         s.pull.uncons1 flatMap {
-          case Some((_, tl)) => {
-            val innerCountString = s"received element $ec"
+          case Some((a, tl)) => {
+            val innerCountString = s"received element $ec with value $a"
             Pull.output1(Some(outerCountString ++ innerCountString)) >> go(tl, ec + 1)
           }
         }
@@ -87,5 +87,5 @@ object simpleFeedback {
   def expPipe(implicit ec: EC) =
     Feedback.experimentPipe[IO, ReservoirOutput, FilterOutput, O](myCreateSimrunner, myEval, myGenerator)
 
-  def doIt(implicit ec: EC): Stream[IO,IO[Unit]] = resOut.through(expPipe)
+  def doIt(implicit ec: EC): Stream[IO,IO[Unit]] = resOut.take(400).through(expPipe)
 }

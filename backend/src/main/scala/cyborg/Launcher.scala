@@ -15,7 +15,7 @@ object Launcher {
     import fs2.Stream
 
     import scala.concurrent.duration._
-    simpleFeedback.doIt.flatMap(Stream.eval(_)).run.unsafeRunTimed(1.second)
+    // simpleFeedback.doIt.flatMap(Stream.eval(_)).run.unsafeRunTimed(1.second)
 
     println("OK")
   }

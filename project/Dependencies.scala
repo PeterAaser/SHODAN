@@ -18,7 +18,9 @@ object Dependencies {
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",
     "org.scodec" %%% "scodec-core" % "1.10.3",
-    "org.typelevel" %%% "cats-core" % "1.0.0-MF"
+    "org.typelevel" %%% "cats-core" % "1.0.0-MF",
+
+    "org.typelevel" %% "spire" % "0.14.1"
   ))
 
 
