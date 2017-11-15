@@ -32,13 +32,13 @@ triggers can use the same memory
   )
 
 
-  val ElectrodModeMap = Some(Map(x2"00" -> "Auto", x2"11" -> "Manual"))
-  val ElectrodMode1 = generateBitFields(0x9120, "electrod mode", 1, 29, 0, ElectrodModeMap)
-  val ElectrodMode2 = generateBitFields(0x9124, "electrod mode", 1, 29, 0, ElectrodModeMap, 15)
+  val ElectrodeModeMap = Some(Map(x2"00" -> "Auto", x2"11" -> "Manual"))
+  val ElectrodeMode1 = generateBitFields(0x9120, "electrod mode", 1, 29, 0, ElectrodeModeMap)
+  val ElectrodeMode2 = generateBitFields(0x9124, "electrod mode", 1, 29, 0, ElectrodeModeMap, 15)
 
   val ElectrodeModeBF = BitFieldGroup(
     "Electrode control mode",
-    List(ElectrodMode1, ElectrodMode2),
+    List(ElectrodeMode1, ElectrodeMode2).flatten,
     """
 The state of an electrode in manual mode will always be decided by
 the electrode DAC assignment registers (0x9160 and 0x9164), and
@@ -73,12 +73,12 @@ will only be valid when activated by the sideband.
 """
   )
 
-  val ElectrodEnable1 = generateBitFields(0x9158, "electrode enable", 1, 29, 0, None)
-  val ElectrodEnable2 = generateBitFields(0x915c, "electrode enable", 1, 29, 0, None, 15)
+  val ElectrodeEnable1 = generateBitFields(0x9158, "electrode enable", 1, 29, 0, None)
+  val ElectrodeEnable2 = generateBitFields(0x915c, "electrode enable", 1, 29, 0, None, 15)
 
   val ElectrodEnableBF = BitFieldGroup(
     "Electrode enable",
-    List(ElectrodEnable1, ElectrodEnable2),
+    List(ElectrodeEnable1, ElectrodeEnable2).flatten,
     """
 When enabled the electrode stimulation switch enable can still be logic low if the electrode
 is in auto mode.
@@ -91,14 +91,13 @@ is in auto mode.
                                         x2"10" -> "DAC C/D",
                                         x2"11" -> "DAC E/F"))
 
-  val DACSelect1 = generateBitFields(0x9160, "electrode", 1, 29, 0, ElectrodeSelectMap)
-  val DACSelect2 = generateBitFields(0x9164, "electrode", 1, 29, 0, ElectrodeSelectMap, 15)
+  val DACSelect1 = generateBitFields(0x9160, "electrode", 1, 29, 0, DACSelectMap)
+  val DACSelect2 = generateBitFields(0x9164, "electrode", 1, 29, 0, DACSelectMap, 15)
 
   val DACSelectBF = BitFieldGroup(
     "Electrode assignment",
-    List(DACSelect1, DACSelect2)
-    """
-Decides which DAC should be used as stimulus source. May be overriden to ground by the
+    List(DACSelect1, DACSelect2).flatten,
+    """Decides which DAC should be used as stimulus source. May be overriden to ground by the
 sideband if electrode mode is set to auto.
 """)
 
@@ -143,10 +142,10 @@ sideband if electrode mode is set to auto.
   )
 
   val DataSourceSelectBF = BitFieldGroup(
-    "Data source select",
+    "DAC stimulus source block assignment",
     DataSourceSelect,
-    """
-TODO: Describe
+    """Assigns which block from the stimulus pattern memory the DAC should
+be reading from.
 """
   )
 
@@ -158,9 +157,12 @@ TODO: Describe
   )
 
   val SidebandSourceSelectBF = BitFieldGroup(
-    "FUCK",
+    "Sideband data source block assignment",
     SidebandSelect,
-    "ASS"
+    """Assigns which block from the stimulus pattern memory the sideband
+should be reading from. For some reason stimulus and sideband data live
+in the same memory-area.
+"""
   )
 
 

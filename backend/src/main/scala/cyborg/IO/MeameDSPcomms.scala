@@ -157,7 +157,7 @@ object DspComms {
       setDomain(transform)(distance)
     }
 
-    // val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
+   // val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
     val desc2 = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).foldLeft(0.0)(_+_)
 
     val period = if(desc2 > 0) 10000 else 100000
@@ -170,7 +170,39 @@ object DspComms {
   }
 
   import fs2._
-  def stimuliRequestSink(throttle: Int = 1000): Sink[IO,List[Double]] =
+  def stimuliRequestSink(throttle: Int = 1000): Sink[IO,List[Double]] = {
     _.through(utilz.mapN(throttle, _.toArray.head)).evalMap(stimuliRequest)
+  }
+
+
+  // TODO Add bounds check et al
+  def setBitField(reg: Int, bits: Int, firstBit: Int, lastBit: Int, printMe: String = "no"): Int = {
+
+    def asNdigitBinary (source: Int, digits: Int): String = {
+      val l: java.lang.Long = source.toBinaryString.toLong
+      String.format ("%0" + digits + "d", l) }
+
+    val bitsToSet = (lastBit - firstBit + 1)
+    val mask = (math.pow(2, bitsToSet).toInt) - 1
+    val shiftedMask = mask << firstBit
+    val shiftedBits = bits << firstBit
+    val cleared = ~(~reg | shiftedMask)
+    val set = cleared | shiftedBits
+
+    if(printMe == "print me"){
+      println(s"for reg with value: ${asNdigitBinary(reg, 8)} " ++
+                s"setting bits ${asNdigitBinary(bits, (lastBit - firstBit + 1))} " ++
+                s"from $lastBit to $firstBit")
+
+      println(s"bits to set: ${asNdigitBinary(bitsToSet, 8)}")
+      println(s"mask: ${asNdigitBinary(mask ,8)}")
+      println(s"shiftedMask: ${asNdigitBinary(shiftedMask ,8)}")
+      println(s"shiftedBits: ${asNdigitBinary(shiftedBits ,8)}")
+      println(s"cleared: ${asNdigitBinary(cleared ,8)}")
+      println(s"set: ${asNdigitBinary(set, 8)}")
+    }
+
+    set
+  }
 
 }
