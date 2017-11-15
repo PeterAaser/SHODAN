@@ -1,7 +1,7 @@
 * Rewritten from the circus of shit that is the DSP wiki
 ** STG overview
    [[file:img/mcs_overview.png]]
-    
+
    An STG consists of the following:
    + 60 electrode channels
    + 3 DAC pairs
@@ -9,7 +9,7 @@
    + 3 Trigger statemachines
 
    TODO This is incomprehensible, Fix after doing the last part.
-   The trigger statemachines control the 
+   The trigger statemachines control the
    Within each module, the three DAC pairs and three sideband
    channels can be arbitrary controlled by three trigger statemachines. These
    statemachines handle the stimulus pattern read out units (DAC/SBS) to whom they
@@ -22,48 +22,48 @@
    analog patterns, additional information is stored in memory regions called
    sidebands. These sideband data contain digital information for controling the
    switches and muxes to enable stimulation. The update of this data is also every
-   20 us. 
+   20 us.
 
-   The electrical parameters are: 
-   + Voltage Mode 
+   The electrical parameters are:
+   + Voltage Mode
      * Range: +- 12 V
      * Resolution: 0.571 mV per digit
-   + Current Mode: 
-     * Range: +- 1.5 mA, 
+   + Current Mode:
+     * Range: +- 1.5 mA,
      * Resolution: 0.05 µA per digit
 
-   The configuration of the Stimulus Generator consists of three parts: 
+   The configuration of the Stimulus Generator consists of three parts:
 
-   + Stimulus pattern upload 
-   + Electrode configuration 
-   + Trigger setup 
+   + Stimulus pattern upload
+   + Electrode configuration
+   + Trigger setup
 
    remove?
    The configuration of the Direct Streaming mode can be done in two ways:
-   When controled by Computer SW via DSP 
+   When controled by Computer SW via DSP
    When fully controled by DSP Stimulus
 
-** Pattern Upload 
-   
+** Pattern Upload
+
    [[file:img/mcs_stim_mem.png]]
-   
-   The patterns used to stimulate electrodes is held in the stimulus memory as 
+
+   The patterns used to stimulate electrodes is held in the stimulus memory as
    shown in the figure.
    This data is read by 8 stimulus pattern readout units, however in default
    configuration only 6 of them are in use: One for each sideband, and one for
    each DAC.
-   
+
    The memory is divided into segments of blocks. Only the base case with one
-   segment will be considered for now. Setup is handled by writing to the memory 
+   segment will be considered for now. Setup is handled by writing to the memory
    control register.
 
    After setting up the memory data is written by using the DAC and SBS write
    registers at 0x9F20 - 0x9F3C.
    Writing to these registers appends data to the corresponding block, take
    care not to write more data than each block has allocated.
-   
+
    TODO Describe these
-   Interesting registers: 
+   Interesting registers:
    + 0x9F20 - 0x9F3c
    + 0x9200 - 0x9200 ... - 0x92E0
    + 0x9F40 - 0x9F54
@@ -80,24 +80,24 @@
     one based. Whereby a 0x1 will lead to ignore the vector and a 0x2 will
     repeat once. A value of 0x0 means to loop forever! The address offset is
     also one based. A 0x1 will jump backward on
-    
 
-** DAC Units 
-   The STG comes with 6 DACs, which in defaul configuration forms three pairs, each 
-   pair covering 30 electrodes each. 
-   This is the same as stating that the 60 electros is divided into two groups of 
+
+** DAC Units
+   The STG comes with 6 DACs, which in defaul configuration forms three pairs, each
+   pair covering 30 electrodes each.
+   This is the same as stating that the 60 electros is divided into two groups of
    electrodes, each group covered by 3 DACs.
-   
+
    In this setup each DAC pair operates as one logic unit, such that the programmer
    only has to consider three DACs covering 60 electrodes, however if necessary
-   each pair can be broken up allowing for 6 individual DACs, each DAC restricted 
+   each pair can be broken up allowing for 6 individual DACs, each DAC restricted
    to 30 electrodes.
-   
+
    default configuration these six DACs are combined into three DAC pairs, so that
    each pair appear as a single DAC capable of stimulating all 60 electrodes.
-   
+
    For advanced applications, these DAC pairs can be broken up, allowing
-   stimulation with three DACs available for each block of 30 electrodes. 
+   stimulation with three DACs available for each block of 30 electrodes.
    DACs A, C and E are available for the lower 30 electrodes, while
    DACs B, D and F are available for the upper 30.
    In the default paired mode AB, CD and EF would be paired.
@@ -107,43 +107,41 @@
    amound the three sidebands.
 
    Interesting registers:
-   + 0x91D0: DAC stimulus to DAC stimulus pattern readout
-   + 0x91D4: Sideband configuration (TODO: wrt what?)
+   + 0x91D0: DAC stimulus pattern memory block 
+   + 0x91D4: DAC sideband pattern memory block
 
 ** Sideband data
-   A Sideband has two responsibilities: Firstly, controlling the switches connecting the stimulation DACs to 
-   electrodes and controlling the Amplifier Protection("Blanking") of ADC data while a stimulus pulse 
-   is active. 
-  
+   A Sideband has two responsibilities: Firstly, controlling the switches connecting the stimulation DACs to
+   electrodes and controlling the Amplifier Protection("Blanking") of ADC data while a stimulus pulse
+   is active.
+
    Secondly, the sideband can be utilized to send data to the USB, DSP or digital outputs on the IFB
    which are synchronous to the the running stimulation.
-  
+
    For SHODAN, the latter is not a focus-area, so it will be ignored here.
 
    Each sideband controls electrodes with the following signals:
-   * Bit 0: Amplifier Protection Switch on Headstage/Blanking 
-   * Bit 3: Stimulation Switch Close 
-   * Bit 4: Stimulus Selector Enable 
-   * Bit 8: List Mode config ID increment on/to the Interface Board or Bit 15­8 List Mode config 
+   * Bit 0: Amplifier Protection Switch on Headstage/Blanking
+   * Bit 3: Stimulation Switch Close
+   * Bit 4: Stimulus Selector Enable
+   * Bit 8: List Mode config ID increment on/to the Interface Board or Bit 15­8 List Mode config
      ID when source of ID is switched to SB bits (TODO translate whatever the fuck this means)
 
    [[file:img/mcs_sideband.png]]
-   The diagram shows an example stimulus pattern together with the sideband control signals. 
-   As shown in the drawing, the Stimulation switch can open with the end of the Stimulus. 
+   The diagram shows an example stimulus pattern together with the sideband control signals.
+   As shown in the drawing, the Stimulation switch can open with the end of the Stimulus.
    The Blanking signal should stay active for some additional time after stimulus is finished.
-   Likewise, the Stimulation Selector should be kept for some additional time. 
+   Likewise, the Stimulation Selector should be kept for some additional time.
    20µs is recommended.
-  
+
 ** Electrode Configuration
    Each electrode is assigned to one of the three DACs in its STG subsystem, or to an inactive
    ground state, controlled by the 'DAC Multiplexer' registers 0x9160 - 0x916C.
 
    the Stimulation Enable registers at 0x158­0x15C connects the DAC multiplexer output with the
    electrode.
-   
-*** Asinine diagram: 
-    
-    [[file:img/mcs_dac_multiplexer.png]]
+
+   [[file:img/mcs_dac_multiplexer.png]]
    In this wildly uninformative diagram the stim mux is shown as the red line, and DAC assignment
    as blue.
 
@@ -154,11 +152,69 @@
    switch close signal is high. Similarily, only when the sideband stim selector enable is high can
    an electrode be assigned a source from the DAC select register (no selection = GND).
 
-   In default mode DAC A/B is assigned to sideband 1, C/D to sideband 2, and E/F to band 3.
-   This can be changed in the sideband select registers (0x9154)
+   In default mode DAC pairs are assigned as
+   * DAC pair AB - Sideband 1
+   * DAC pair CD - Sideband 2
+   * DAC pair EF - Sideband 3
 
-** Electrode setup advice 
-*** Decide wether your electrode is used as stimulation or measurement electrode (set
-   * corresponding bit in register 0x120­0x12C and 0x158­0x15C) Assign your stimulation electrode to 
-     a stimulation channel (DAC A to F) (set corresponding bits in register 0x160­0x16C) 
-   * Stimulus channel setup advice Assign a sideband Channel to a stimulation channel (set in register 0x154)
+   This can be configured in the sideband select registers (0x9154)
+   
+   In short:
+   * Decide which electrodes should stimulate 
+     Set the appropriate mode (auto/manual) at 0x9120 .., and enable registers at 0x9158 ..
+   * Assign electrodes to stimulation channel 
+     Connect the electrod to one of the DACs, using the DAC assign register at 0x9160 ..
+   * Assign sidebands to stimulation channels 
+     Assign sidebands using the sideband select register at 0x9154
+   
+   Here's a figure that will confuse the shit out of you:
+   [[file:img/mcs_octopus_diagram.png]]
+   
+*** List mode
+    More advanced stim control can be set up in list mode, this will be deciphered later.
+    
+** Trigger setup
+*** Standard Trigger Setup 
+    Three statemachines for controlling stimuli are implemented.
+    In the default configuration each trigger controls two stimulus pattern
+    readout units, one for sideband data and one for stimulus data, thus 
+    controlling one stimulus routine.
+    
+    By assigining more than one DAC to the same trigger we can stimulate different
+    sets of electrodes using the same sideband (thus sharing timing, but differing
+    in data).
+    
+    A trigger can control many sidebands/stimulus patterns, allowing several
+    stimuli/sideband configurations 
+
+*** Incomprehensible
+    An example where more than one
+    DAC is assigned to one trigger is, when multiple electrodes are to be
+    stimulated, grouped into two blocks, where each of the two blocks has a
+    different stimulation signal amplitude. To accomplish this, two DACs can be
+    assigned to one trigger. As long as the timing of the two stimulation patterns
+    for two stimulus groups are the same, they can share one sideband resulting in a
+    setup where one trigger controls two DACS and one sideband. When the two
+    stimulation groups have differences in timing it is useful to use a seperate
+    sidebands for each of these groups, thus resulting in a setup where one trigger
+    controls two DACs and two sidebands. The assignment of the three DAC pairs and
+    three sidebands to the three triggers within each block is controlled by
+    registers 0x104 for the DACs and by register 0x108
+    The assignment of the three DAC pairs and
+    three sidebands to the three triggers within each block is controlled by
+    registers 0x104 for the DACs and by register 0x108 for the sideband channels.
+    With this setup the controlling trigger for each DAC and sideband has to be
+    choosen. Start and Stop of the stimulation is always controlled at the level of
+    the triggers, so that all DAC and sidebands which are grouped together to a
+    specific trigger are started and keeped running in sync. Start Trigger For the
+    trigger to work, the first bit(0) in the Trigger Control Register 1 (0x200) on
+    the Interface board has to be set to 1. This enables the trigger event packet to
+    propagate from the interface board to the stimulus generators. The Trigger ID
+    registers (0x218 to 0x244) define for each trigger, which Stimulus­Pattern
+    Memory­Segment to use when the corresponding trigger is startet. For single
+    segment mode leave this register at the default value of 0. To actually start a
+    trigger manually, write a "1" to the bit which corresponds the trigger number in
+    the Trigger Event Status register 0x214. For example to manually start trigger
+    1, write a value of 0x00000001 to register 0x214. To start a trigger with
+    external signals or other sources a Digital Multiplexer for source select is
+    implemented (0x280­0x2AC).

@@ -123,14 +123,14 @@ sideband if electrode mode is set to auto.
 
 
   // Something is weird with the decoding here. Why have 4 bits? Fucking mcs...
-  val DataSourceSelectMap = Some(Map(x2"0000" -> "Stimulus 1 data stream",
-                                     x2"0001" -> "Stimulus 2 data stream",
-                                     x2"0010" -> "Stimulus 3 data stream",
-                                     x2"0011" -> "Stimulus 4 data stream",
-                                     x2"0100" -> "Stimulus 5 data stream",
-                                     x2"0101" -> "Stimulus 6 data stream",
-                                     x2"0110" -> "Stimulus 7 data stream",
-                                     x2"0111" -> "Stimulus 8 data stream")
+  val DataSourceSelectMap = Some(Map(x2"0000" -> "Block 1 data stream",
+                                     x2"0001" -> "Block 2 data stream",
+                                     x2"0010" -> "Block 3 data stream",
+                                     x2"0011" -> "Block 4 data stream",
+                                     x2"0100" -> "Block 5 data stream",
+                                     x2"0101" -> "Block 6 data stream",
+                                     x2"0110" -> "Block 7 data stream",
+                                     x2"0111" -> "Block 8 data stream")
   )
 
   val DataSourceSelect = List(
