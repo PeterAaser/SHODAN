@@ -37,6 +37,8 @@ object HttpClient {
       for(i <- 0 until addresses.size){ println(f"${regMap.get(addresses(i)).getOrElse("NONE")} at 0x${addresses(i)}%x <- 0x${values(i)}%x") }
     }
   }
+
+
   case object RegisterSetList {
     def apply(r: List[(Int,Int)]): RegisterSetList =
       RegisterSetList(r.unzip._2, r.unzip._1)
@@ -44,6 +46,7 @@ object HttpClient {
     def apply(r: List[(Int,Int)], desc: String): RegisterSetList =
       RegisterSetList(r.unzip._2, r.unzip._1, desc)
   }
+
 
   case class RegisterReadList(addresses: List[Int], desc: String = ""){
     def show(): Unit = {
@@ -53,7 +56,7 @@ object HttpClient {
   }
 
 
-  case class RegisterReadResponse(values: List[Int], desc: String = ""){
+  case class RegisterReadResponse(values: List[Int]){
     def show(r: RegisterReadList): Unit = {
       for(i <- 0 until values.size){ println(f"${regMap.get(r.addresses(i)).getOrElse("NONE")} at 0x${r.addresses(i)}%x := 0x${values(i)}%x") } }
   }
@@ -64,25 +67,23 @@ object HttpClient {
       println(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
     }
     val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
-    val derp = httpClient.expect[String](req)
-    derp
+    httpClient.expect[String](req)
   }
 
 
   def setRegistersRequest(regs: RegisterSetList): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/setreg"), regs.asJson)
-    httpClient.expect[String](req)
-  }
+    httpClient.expect[String](req) }
+
 
   def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
-    httpClient.expect[RegisterReadResponse](req)
-  }
+    httpClient.expect[RegisterReadResponse](req) }
+
 
   def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
-    httpClient.expect[String](req)
-  }
+    httpClient.expect[String](req) }
 
 
   def startDAQrequest: IO[String] =
@@ -93,6 +94,9 @@ object HttpClient {
 
   def sayHello: IO[String] =
     httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/status")))
+
+  def dspConnect: IO[Unit] =
+    httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
 
   def dspTest: IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/dsptest")))

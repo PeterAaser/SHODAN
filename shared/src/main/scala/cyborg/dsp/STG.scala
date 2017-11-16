@@ -3,6 +3,8 @@ import DspRegisters._
 
 object STG {
 
+  import twiddle._
+
   import spire.syntax.literals.radix._
 
   val TriggerSelectMap = Some(Map(x2"00" -> "Trigger 1",
