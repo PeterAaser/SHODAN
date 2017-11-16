@@ -1,13 +1,6 @@
 * Neste gang
-** Se på visualisering
-   Legge til bedre filtere? Altså voltage etc?
-   Sette det til 2 sek vindu
-** Mer om stimuli
-   Få det til å funke på fler kanaler.
-   Fikse notater med MCS folka
-** Snakke med Neshat om å hente data?
-*** Vurdere en egen modul for å snakke med roboter?
-
+  Hente register fra DSP, sette bitfields og sende tilbake
+    
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres

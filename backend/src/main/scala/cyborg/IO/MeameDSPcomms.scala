@@ -157,7 +157,6 @@ object DspComms {
       setDomain(transform)(distance)
     }
 
-   // val desc = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).mkString("\n[","]\n[","]")
     val desc2 = vision.map(toStimFrequency( logScaleBuilder(scala.math.E), _)).foldLeft(0.0)(_+_)
 
     val period = if(desc2 > 0) 10000 else 100000
@@ -175,34 +174,86 @@ object DspComms {
   }
 
 
-  // TODO Add bounds check et al
-  def setBitField(reg: Int, bits: Int, firstBit: Int, lastBit: Int, printMe: String = "no"): Int = {
+  /**
+    modifies the bits of a single register
+    */
+  def setBitField_(reg: Int, bits: Int, firstBit: Int, lastBit: Int, printMe: String = "no", printBits: Int = 8): Int = {
 
-    def asNdigitBinary (source: Int, digits: Int): String = {
-      val l: java.lang.Long = source.toBinaryString.toLong
-      String.format ("%0" + digits + "d", l) }
+    import utilz.asNdigitBinary
 
     val bitsToSet = (lastBit - firstBit + 1)
-    val mask = (math.pow(2, bitsToSet).toInt) - 1
+    val mask = (1 << bitsToSet) - 1
     val shiftedMask = mask << firstBit
     val shiftedBits = bits << firstBit
     val cleared = ~(~reg | shiftedMask)
     val set = cleared | shiftedBits
 
     if(printMe == "print me"){
-      println(s"for reg with value: ${asNdigitBinary(reg, 8)} " ++
-                s"setting bits ${asNdigitBinary(bits, (lastBit - firstBit + 1))} " ++
-                s"from $lastBit to $firstBit")
 
-      println(s"bits to set: ${asNdigitBinary(bitsToSet, 8)}")
-      println(s"mask: ${asNdigitBinary(mask ,8)}")
-      println(s"shiftedMask: ${asNdigitBinary(shiftedMask ,8)}")
-      println(s"shiftedBits: ${asNdigitBinary(shiftedBits ,8)}")
-      println(s"cleared: ${asNdigitBinary(cleared ,8)}")
-      println(s"set: ${asNdigitBinary(set, 8)}")
+      val offset = (printBits - lastBit)
+      val offsets = ("" /: (0 until offset - 1))((a,b) => a ++ " ")
+      val points = ("" /: (0 until (lastBit - firstBit + 1)))((a,b) => a ++ "^")
+      println(s"setting bits ${asNdigitBinary(bits, (lastBit - firstBit + 1))} " ++
+                s"from positions $lastBit to $firstBit\n")
+
+      println(s"init:        ${asNdigitBinary(reg, printBits)}")
+      println(s"set:         ${offsets}${asNdigitBinary(bits, (lastBit - firstBit +1))}")
+      println(s"to:          ${asNdigitBinary(set, printBits)}")
+      println(s"             ${offsets}${points}")
+      println()
+      println(s"result in decimal: ${set}")
     }
 
     set
   }
 
+  /**
+    Sets a bitfield with given value
+    */
+  def setBitField(b: BitField, reg: Int, bits: Int, printMe: String = "no", printBits: Int = 32): Int = {
+    println(b)
+
+    val legalValue = b.translation.map(_.contains(bits)).getOrElse(true)
+    val legalLength = ((1 << b.nBits) - 1) > bits
+    val isLegal = legalValue && legalLength
+
+    if(isLegal){
+      setBitField_(reg, bits, b.start - b.nBits, b.start, printMe, printBits)
+    }
+    else if(legalLength){
+      println("Illegal value")
+      setBitField_(reg, bits, b.start - b.nBits, b.start, printMe, printBits)
+    }
+    else{
+      println("Illegal length")
+      0
+    }
+  }
+
+
+  def readBitFields(bs: Set[BitField]): IO[RegisterReadResponse] = {
+    val addressList = bs.map(_.address).toSet.toList
+    HttpClient.readRegistersRequest(RegisterReadList(addressList))
+  }
+
+
+  def writeBitFields(bs: List[(BitField, Int)]): IO[String] = {
+    val addresses = bs.map(_._1.address).toSet.toList
+    val reads = readBitFields(bs.map(_._1).toSet)
+    val partitionedByAddress = bs.groupBy(_._1.address)
+    val collapsed = partitionedByAddress.map{ a =>
+      val address = a._1
+      val writeVals: List[(BitField, Int)] = a._2
+      (address, (µ: Int) => writeVals.foldLeft(µ)( (reg, λ) => setBitField(λ._1, reg, λ._2)))
+    }
+
+    println(collapsed)
+    println(addresses)
+
+    reads flatMap{ response =>
+      val registers = (response.values zip addresses)
+      val writes = RegisterSetList(registers.map(λ => (λ._2, collapsed.get(λ._2).get(λ._1))))
+      HttpClient.setRegistersRequest(writes)
+    }
+  }
 }

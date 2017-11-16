@@ -16,6 +16,12 @@ object utilz {
   case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
 
+  def asNdigitBinary (source: Int, digits: Int): String = {
+    val l  = source.toBinaryString
+    val padLen = digits - l.size
+    val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
+    pad + l
+  }
 
   /**
     Decodes a byte stream from MEAME into a stream of 32 bit signed ints

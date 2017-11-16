@@ -10,10 +10,40 @@ object DspRegisters {
   case class BitField(
     address: Int,
     description: String,
-    bits: Int,
+    nBits: Int,
     start: Int,
     translation: Option[Map[Int,String]]
-  )
+  ){
+
+    def read(register: Int): Int = {
+      val ls = register << start
+      val rs = ls >>> (32 - nBits)
+      rs
+    }
+
+    override def toString(): String = {
+
+      val basic = "bit field at address " + address.toHexString +
+        "\n" + s"description: $description\n"
+
+      val layout = (0 until 32).map(λ => (!(λ > start) && (!(λ < (start - nBits))))).reverse
+
+      val frame = (0 to 32).map(_ => "").toList.mkString("","+---","+\n")
+      val fill = layout.zipWithIndex.map{λ =>
+        if(!λ._1) "| " + Console.CYAN + "%02d".format((32 - λ._2)-1) + Console.RESET else "| " + Console.YELLOW_B + "%02d".format((32 - λ._2)-1) + Console.RESET
+      }.foldLeft("")(_+_) + "|\n"
+
+
+      val translationString = translation.map { λ =>
+        λ.foldLeft(""){ (acc: String, pair: (Int, String)) => 
+          import utilz.asNdigitBinary
+          acc + s"${asNdigitBinary(pair._1, nBits)} --> ${pair._2}\n"
+        }
+      }
+
+      basic + frame + fill + frame + translationString.getOrElse("")
+    }
+  }
 
 
   /**
