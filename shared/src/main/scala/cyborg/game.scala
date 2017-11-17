@@ -89,7 +89,7 @@ object wallAvoid {
     val xUnitDir = if(angleRad < PI/2 || angleRad > 3*PI/2) -1 else 1
     val yUnitDir = if(angleRad < PI) -1 else 1
 
-    val xWallDistance = math.abs(loc.x - (if(xUnitDir == 1) width else 0))
+    val xWallDistance = math.abs(loc.x - (if(xUnitDir == 1) width  else 0))
     val yWallDistance = math.abs(loc.y - (if(yUnitDir == 1) height else 0))
 
     val xDistance = xWallDistance/math.abs(math.cos(angleRad))

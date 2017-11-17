@@ -18,6 +18,8 @@ import org.http4s.circe._
 
 object HttpClient {
 
+  import DspComms._
+
   val httpClient = PooledHttp1Client[IO]()
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
   implicit val regSetCodec = jsonOf[IO, RegisterSetList]
@@ -28,38 +30,6 @@ object HttpClient {
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
   case class SimpleStimReq(period: Int)
-
-
-  import DspRegisters._
-  case class RegisterSetList(addresses: List[Int], values: List[Int], desc: String = ""){
-    def show(): Unit = {
-      println("Register set list:")
-      for(i <- 0 until addresses.size){ println(f"${regMap.get(addresses(i)).getOrElse("NONE")} at 0x${addresses(i)}%x <- 0x${values(i)}%x") }
-    }
-  }
-
-
-  case object RegisterSetList {
-    def apply(r: List[(Int,Int)]): RegisterSetList =
-      RegisterSetList(r.unzip._2, r.unzip._1)
-
-    def apply(r: List[(Int,Int)], desc: String): RegisterSetList =
-      RegisterSetList(r.unzip._2, r.unzip._1, desc)
-  }
-
-
-  case class RegisterReadList(addresses: List[Int], desc: String = ""){
-    def show(): Unit = {
-      println("Register read list:")
-      for(i <- 0 until addresses.size){ println(f"${regMap.get(addresses(i)).getOrElse("NONE")} at 0x${addresses(i)}%x") }
-    }
-  }
-
-
-  case class RegisterReadResponse(values: List[Int]){
-    def show(r: RegisterReadList): Unit = {
-      for(i <- 0 until values.size){ println(f"${regMap.get(r.addresses(i)).getOrElse("NONE")} at 0x${r.addresses(i)}%x := 0x${values(i)}%x") } }
-  }
 
 
   def connectDAQrequest(params: DAQparams): IO[String] = {

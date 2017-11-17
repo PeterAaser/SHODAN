@@ -23,12 +23,15 @@ object Launcher {
 
     val setlist = STG.TriggerSelect.zip(List(3,3,3,3,3,2,1,0))
 
-    val huh = Stream.eval(HttpClient.dspConnect) >>
-      Stream.eval(HttpClient.dspTest) >>
-      Stream.eval(DspComms.writeBitFields(setlist))
+    // val huh = Stream.eval(HttpClient.dspConnect) >>
+    //   Stream.eval(HttpClient.dspTest) >>
+    //   Stream.eval(DspComms.writeBitFields(setlist))
 
-    huh.run.unsafeRunSync()
+    // huh.run.unsafeRunSync()
 
     // DspComms.setBitField(STG.TriggerSelect.head, 0, x2"01", "print me", 32)
+
+    val u = STG.SidebandSelectBF.showRegister(1234)
+    println(u)
   }
 }
