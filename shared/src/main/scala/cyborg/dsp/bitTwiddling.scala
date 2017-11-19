@@ -10,7 +10,7 @@ object twiddle {
   case class FieldName(n: String) extends AnyVal
 
 
-  case class Field(first: Int, size: Int, name: String, render: Bits => String) extends Ordered[Field] {
+  case class Field(first: Int, size: Int, name: String, render: (Field, Bits) => String) extends Ordered[Field] {
     def compare(that: Field): Int = this.first compare that.first
 
     val last = first + size - 1
@@ -22,7 +22,7 @@ object twiddle {
     }
 
     def getFieldString(word: Word): String =
-      render(getFieldValue(word))
+      render(this, getFieldValue(word))
 
     def patch(word: Word, bits: Bits): Word = {
       val bitsToSet = (last - first)
@@ -37,17 +37,18 @@ object twiddle {
   }
 
 
-  def getFieldValue(word: Word, f: Field): Bits = {
-    val rs = word.w << (31 - f.last)
-    val ls = rs >>> (32 - f.size)
-    Bits(ls)
+  def asNdigitBinary (source: Int, digits: Int): String = {
+    val l  = source.toBinaryString
+    val padLen = digits - l.size
+    val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
+    pad + l
+  }
+  def asHex(f: Field, b: Bits): String = "0x" + b.b.toHexString
+  def asBin(f: Field, b: Bits): String = {
+    "0b" + asNdigitBinary(b.b, f.size)
   }
 
-
-  def asHex(b: Bits): String = "0x" + b.b.toHexString
-  def asBin(b: Bits): String = "0b" + b.b.toBinaryString
-
-  def asNdigitBinaryPretty (word: Word, fields: List[Field]): String = {
+  def showRegister(word: Word, fields: List[Field]): String = {
     val l = word.w.toBinaryString.toList
     val padLen = 32 - l.size
     val padded = (List.fill(padLen)('0') ::: l)
@@ -96,15 +97,13 @@ object twiddle {
     val bitString = coloredStrings.bits.mkString("|","|","|")
 
     val frame = List.fill(32)("").mkString("+--","+--","+")
-    println(frame)
-    println(bitString)
-    println(frame)
-    println(fillString)
-    println(frame)
 
-    fields.foreach(λ => println(s"${λ.name} <- ${λ.getFieldString(word)}"))
-
-    ""
+    frame + "\n" +
+      bitString + "\n" +
+      frame + "\n" +
+      fillString + "\n" +
+      frame + "\n" +
+      fields.foldLeft("")( (λ,µ) => s"$λ\n${µ.name} <- ${µ.getFieldString(word)}")
   }
 
   def dothing = {
@@ -119,19 +118,6 @@ object twiddle {
     import spire.syntax.literals.radix._
     val theWord = Word(x2"01010101111111110000000111001010")
 
-    asNdigitBinaryPretty(theWord, fields)
-
-    println(fields(0))
-    println(fields(1))
-    println(fields(2))
-    println(fields(3))
-    println(fields(4))
-
-    println(getFieldValue(theWord ,fields(0)))
-    println(getFieldValue(theWord ,fields(1)))
-    println(getFieldValue(theWord ,fields(2)))
-    println(getFieldValue(theWord ,fields(3)))
-    println(getFieldValue(theWord ,fields(4)))
-
+    println(showRegister(theWord, fields))
   }
 }
