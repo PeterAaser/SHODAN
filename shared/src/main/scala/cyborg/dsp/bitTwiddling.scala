@@ -1,130 +1,137 @@
 package cyborg
 
-/**
-  Operations for treating subfields of registers as semantic values, allowing them to
-  set, read and represented in an understandable manner.
-  */
+import scala.math.Ordered.orderingToOrdered
+
 object twiddle {
 
-  import utilz.asNdigitBinary
+  case class Word(w: Int) extends AnyVal
+  case class Bits(b: Int) extends AnyVal
+  case class Reg(r: Int) extends AnyVal
+  case class FieldName(n: String) extends AnyVal
 
-  type Register = Int // An address
-  type DSPWord  = Int // A 32 bit word
-  type DSPField = Int // A subfield
 
-  val frame = (0 to 32).map(_ => "").toList.mkString("","+--","+\n")
+  case class Field(first: Int, size: Int, name: String, render: Bits => String) extends Ordered[Field] {
+    def compare(that: Field): Int = this.first compare that.first
 
-  /**
-    A bitfield signifies a subfield of a register. For instance the first 2 bits of a register.
-    When setting a bitfield we must ensure that we do not overwrite the previous value in the
-    parts of the register outside our bitfield. This operation is handled on the DSP, but we
-    need to tag it as such, hence the extra representation
+    val last = first + size - 1
 
-    Note that a BitField does not carry any state, they're simply descriptors of a register.
-    Data should preferably not be stored on SHODAN unless absolutely necessary.
-
-    The read method is DSPWord => Int, this means you must supply the DSPWord!
-    */
-  case class BitField(
-    address: Int,
-    description: String,
-    nBits: Int,
-    start: Int,
-    registerMap: Option[Map[Int,String]]
-  ){
-
-    def read(register: DSPWord): DSPField = {
-      val ls = register << start
-      ls >>> (32 - nBits)
+    def getFieldValue(word: Word): Bits = {
+      val rs = word.w << (31 - last)
+      val ls = rs >>> (32 - size)
+      Bits(ls)
     }
 
+    def getFieldString(word: Word): String =
+      render(getFieldValue(word))
 
-    def translate(b: BitField) = b.registerMap.map { λ =>
-        λ.foldLeft("")( (acc: String, pair: (Int, String)) =>
-          acc + s"${asNdigitBinary(pair._1, b.nBits)} --> ${pair._2}\n")
-    }.getOrElse("")
+    def patch(word: Word, bits: Bits): Word = {
+      val bitsToSet = (last - first)
+      val mask = (1 << bitsToSet) - 1
+      val shiftedMask = mask << first
+      val shiftedBits = bits.b << first
+      val cleared = ~(~word.w | shiftedMask)
+      val set = cleared | shiftedBits
 
-
-    def getLayout: List[Boolean] =
-      (0 until 32).map(λ => (!(λ > start) && (!(λ < (1 + start - nBits))))).reverse.toList
-
-
-    override def toString(): String = {
-
-      val basic = "bit field at address " + address.toHexString +
-        "\n" + s"description: $description\n"
-
-      val fill = getLayout.zipWithIndex.map{λ =>
-        if(!λ._1) "|" + Console.CYAN + "%02d".format((32 - λ._2)-1) + Console.RESET else "|" + Console.YELLOW_B + "%02d".format((32 - λ._2)-1) + Console.RESET
-      }.foldLeft("")(_+_) + "|\n"
-
-      basic + frame + fill + frame
-    }
-
-    def getValue(r: DSPWord): String = {
-      val dur = registerMap.flatMap(_.get(read(r))).getOrElse(asNdigitBinary(read(r), nBits))
-      description + " <- " + dur
+      Word(set)
     }
   }
 
 
-  /**
-    A logical grouping of bitfields
-    */
-  case class BitFieldGroup(
-    description: String,
-    members: List[BitField],
-    longDescription: String = ""
-  ){
-    def showRegister(r: DSPWord): String = {
+  def getFieldValue(word: Word, f: Field): Bits = {
+    val rs = word.w << (31 - f.last)
+    val ls = rs >>> (32 - f.size)
+    Bits(ls)
+  }
 
-      val layouts = (List.fill(32)(false) /: members.map(_.getLayout))( (acc, λ) =>
-        {
-          (acc zip λ).map(λ => λ._1 || λ._2)
-        })
 
-      var color = 0
-      def getColor(): String = {
-        color = color + 1
-        if(((color-1)/members.head.nBits) % 2 == 0)
-          Console.YELLOW_B
-        else
-          Console.RED_B
-      }
-      val fill = layouts.zipWithIndex.map{λ =>
-        if(!λ._1) "|" + Console.CYAN + "%02d".format((32 - λ._2)-1) + Console.RESET else "|" + getColor() + "%02d".format((32 - λ._2)-1) + Console.RESET
-      }.foldLeft("")(_+_) + "|\n"
+  def asHex(b: Bits): String = "0x" + b.b.toHexString
+  def asBin(b: Bits): String = "0b" + b.b.toBinaryString
 
-      val regString = utilz.asNdigitBinaryPretty(r, 32, layouts, members.head.nBits)
-      val valString = members.foldLeft(""){ (λ, µ) =>
-        λ + µ.getValue(r) + "\n"
-      }
+  def asNdigitBinaryPretty (word: Word, fields: List[Field]): String = {
+    val l = word.w.toBinaryString.toList
+    val padLen = 32 - l.size
+    val padded = (List.fill(padLen)('0') ::: l)
+    val posString = (0 until 32).toList.reverse.map(λ => "%02d".format(λ))
 
-      "\n" + Console.BOLD + Console.YELLOW + description + Console.RESET + longDescription + frame + fill + frame + regString + frame + valString
+    def getColor(c: Int) =
+      if(c % 2 == 0) Console.YELLOW else Console.RED
+    def getColor_B(c: Int) =
+      if(c % 2 == 0) Console.YELLOW_B else Console.RED_B
+
+    case class Accumulated(fill: List[String], bits: List[String], color: Int, pos: Int)
+    val coloredStrings_ = fields.sorted.reverse.foldLeft(Accumulated(Nil,Nil,0,31)){ (λ,µ) =>
+
+      val deadDrop = 31 - λ.pos
+      val deadTake = λ.pos - µ.last
+      val liveDrop = (31 - λ.pos) + (λ.pos - µ.last)
+      val liveTake = µ.size
+      val taken = deadTake + liveTake
+
+      val deadBitString = padded.drop(deadDrop).take(deadTake)
+        .map(Console.CYAN + _ + Console.RESET)
+      val liveBitString = padded.drop(liveDrop).take(liveTake)
+        .map(getColor(λ.color) + _ + Console.RESET)
+
+      val deadPosString = posString.drop(deadDrop).take(deadTake)
+        .map(Console.CYAN + _ + Console.RESET)
+      val livePosString = posString.drop(liveDrop).take(liveTake)
+        .map(getColor_B(λ.color) + _ + Console.RESET)
+
+      val nextPos = λ.pos - taken
+
+      λ.copy(
+        fill = λ.fill ::: deadBitString ::: liveBitString,
+        bits = λ.bits ::: deadPosString ::: livePosString,
+        color = λ.color + 1,
+        pos = nextPos
+      )
     }
+
+    val coloredStrings = coloredStrings_.copy(
+      fill = coloredStrings_.fill ::: padded.drop(31 - coloredStrings_.pos).map(Console.CYAN + _ + Console.RESET),
+      bits = coloredStrings_.bits ::: posString.drop(31 - coloredStrings_.pos).map(Console.CYAN + _ + Console.RESET),
+    )
+
+    val fillString = coloredStrings.fill.mkString("| ","| ","|")
+    val bitString = coloredStrings.bits.mkString("|","|","|")
+
+    val frame = List.fill(32)("").mkString("+--","+--","+")
+    println(frame)
+    println(bitString)
+    println(frame)
+    println(fillString)
+    println(frame)
+
+    fields.foreach(λ => println(s"${λ.name} <- ${λ.getFieldString(word)}"))
+
+    ""
   }
 
+  def dothing = {
+    val fields = List(
+      Field(0, 2, "a",  asBin),
+      Field(2, 2, "a",  asBin),
+      Field(5, 2, "b",  asBin),
+      Field(8, 2, "c",  asBin),
+      Field(11, 2, "d", asBin)
+    ).reverse
 
-  /**
-    Generate many bitfields at the same address. Note that due to endian-ness start and end
-    might be a little different logically
-    */
-  def generateBitFields(
-    address: Int,
-    description: String,
-    stride: Int,
-    start: Int,
-    end: Int,
-    registerMap: Option[Map[Int,String]],
-    offset: Int = 0
-  ): Vector[BitField] = {
+    import spire.syntax.literals.radix._
+    val theWord = Word(x2"01010101111111110000000111001010")
 
-    val numRegisters = (start - end)/stride
-    (0 until numRegisters).map { regNo =>
-      val bfDescription = description + s" ${regNo + offset}"
-      val regStart = start + (regNo*stride)
-      BitField(address, bfDescription, stride, regStart, registerMap)
-    }.toVector
+    asNdigitBinaryPretty(theWord, fields)
+
+    println(fields(0))
+    println(fields(1))
+    println(fields(2))
+    println(fields(3))
+    println(fields(4))
+
+    println(getFieldValue(theWord ,fields(0)))
+    println(getFieldValue(theWord ,fields(1)))
+    println(getFieldValue(theWord ,fields(2)))
+    println(getFieldValue(theWord ,fields(3)))
+    println(getFieldValue(theWord ,fields(4)))
+
   }
-
 }
