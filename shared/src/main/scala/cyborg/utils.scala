@@ -16,39 +16,21 @@ object utilz {
   case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
 
-
-  /**
-    Twiddle an integer to a binary digit string
-    */
-  def asNdigitBinary (source: Int, digits: Int): String = {
-    val l  = source.toBinaryString
-    val padLen = digits - l.size
-    val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
-    pad + l
-  }
+  def swapMap[A,B](m: Map[A,B]): Map[B,List[A]] =
+    m.toList.groupBy(_._2).mapValues(_.map(_._1))
 
 
-  def asNdigitBinaryPretty (source: Int, digits: Int, layout: List[Boolean], fieldLength: Int): String = {
-    val l = source.toBinaryString.toList
-    val padLen = digits - l.size
-    val padded = List.fill(padLen)('0') ::: l
+  def intersectWith[A, B, C, D](m1: Map[A, B], m2: Map[A, C])(f: (B, C) => D): Map[A, D] =
+    for {
+      (a, b) <- m1
+      c <- m2.get(a)
+    } yield a -> f(b, c)
 
-    var color = 0
-    def getColor(): String = {
-      color = color + 1
-      if(((color-1)/fieldLength) % 2 == 0)
-        Console.YELLOW
-      else
-        Console.RED
-    }
-
-    val fill = (layout zip padded).map{ λ =>
-      if(!λ._1) "| " + Console.CYAN + λ._2 + Console.RESET else "| " + getColor() + λ._2 + Console.RESET
-    }.foldLeft("")(_+_) + "|\n"
-
-    fill
-  }
-
+  def intersect[A, B, C, D](m1: Map[A, B], m2: Map[A, C]): Map[A, (B,C)] =
+    for {
+      (a, b) <- m1
+      c <- m2.get(a)
+    } yield a -> (b, c)
 
   /**
     Decodes a byte stream from MEAME into a stream of 32 bit signed ints

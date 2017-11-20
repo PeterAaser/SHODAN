@@ -8,9 +8,9 @@ scalaVersion in ThisBuild := "2.12.3"
 organization in ThisBuild := "cyborg"
 crossPaths in ThisBuild := false
 scalacOptions in ThisBuild ++= Seq(
-  "-feature",
-  "-deprecation",
-  "-unchecked",
+  // "-feature",
+  // "-deprecation",
+  // "-unchecked",
   "-language:implicitConversions",
   "-language:existentials",
   "-language:dynamics",
