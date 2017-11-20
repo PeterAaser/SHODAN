@@ -1,5 +1,12 @@
 * Neste gang
-  Hente register fra DSP, sette bitfields og sende tilbake
+  se BitDrawing.dothing i launcher
+  
+  word -> List[field] -> String
+  
+  RegistryGroup burde ha en [Address, Word] -> Show
+  render for hver register
+  
+  For å teste at det virker kjør alle write ops, coalesce og redraw.
     
 * Database notes
 ** To open db in terminal:
@@ -77,6 +84,8 @@
 ** DONE Read and write bit fields
 ** DONE Coalesce reads and writes
 ** TODO Refactor HttpClient stuff, get the forest under control
+** TODO Refine register representation.
+   
 
 * DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really

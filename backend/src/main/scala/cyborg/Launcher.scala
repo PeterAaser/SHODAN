@@ -7,31 +7,50 @@ object Launcher {
 
     println("wello")
 
-    // params.printParams()
-    // Assemblers.startSHODAN.run.unsafeRunSync()
-    // Assemblers.assembleMcsFileReader.run.unsafeRunSync()
-
     import fs2.Stream._
     import fs2.Stream
 
     import scala.concurrent.duration._
-    // simpleFeedback.doIt.flatMap(Stream.eval(_)).run.unsafeRunTimed(1.second)
-
     import spire.syntax.literals.radix._
+
+    // BitDrawing.dothing
+
+    import DspRoutines._
+    import twiddle._
+
+    // val hurp = STG.TriggerSelectBF.writeSettingToField(SettingName("Trigger 1"), FieldName("Mem 1"))
+    // println(STG.TriggerSelectBF.renderFields)
+
+    val testReads = Map(
+      Reg(0x9104) -> Word(0xFF00),
+      Reg(0x9108) -> Word(0x00FF)
+    )
+
+    // println(STG.TriggerSelectBF.writeValues(
+    //   Map(x2"10" -> "Mem 7",
+    //       x2"01" -> "Mem 5"))
+    // )
+
+    val writes = STG.TriggerSelectBF.writeSettings(
+      List("Trigger 3" -> "Mem 7",
+           "Trigger 3" -> "Mem 5",
+           "Trigger 3" -> "Mem 3",
+           "Trigger 3" -> "Mem 1",
+           "Trigger 2" -> "Mem 2",
+           "Trigger 2" -> "Mem 4",
+           "Trigger 2" -> "Mem 6",
+           "Trigger 2" -> "Mem 8")
+    ).map(λ => (λ.r, λ.execute(Word(0)))).toMap
+
+    println(STG.TriggerSelectBF.renderWords(writes))
+
+
+
+    // println(STG.TriggerSelectBF.renderWords(testReads))
+    // println(STG.TriggerSelectBF.renderFields)
+    // println(STG.ElectrodeModeBF.renderFields)
 
     println("OK")
 
-    val setlist = STG.TriggerSelect.zip(List(3,3,3,3,3,2,1,0))
-
-    // val huh = Stream.eval(HttpClient.dspConnect) >>
-    //   Stream.eval(HttpClient.dspTest) >>
-    //   Stream.eval(DspComms.writeBitFields(setlist))
-
-    // huh.run.unsafeRunSync()
-
-    // DspComms.setBitField(STG.TriggerSelect.head, 0, x2"01", "print me", 32)
-
-    val u = STG.SidebandSelectBF.showRegister(1234)
-    println(u)
   }
 }

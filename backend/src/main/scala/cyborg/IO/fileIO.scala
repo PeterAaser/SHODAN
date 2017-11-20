@@ -95,4 +95,9 @@ object fileIO {
       .through(_.map(_.split(",").map(_.toInt).toList))
       .through(utilz.chunkify)
   }
+
+
+  def stringToFile[F[_]: Effect](s: String, path: Path): Stream[F,Unit] = {
+    Stream.emit(s).covary[F].through(text.utf8Encode).through(io.file.writeAll(path))
+  }
 }

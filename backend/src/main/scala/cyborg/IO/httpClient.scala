@@ -19,6 +19,8 @@ import org.http4s.circe._
 object HttpClient {
 
   import DspComms._
+  import twiddle._
+  import DspRegisters._
 
   val httpClient = PooledHttp1Client[IO]()
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
@@ -50,6 +52,9 @@ object HttpClient {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req) }
 
+  def readRegistersDirect(regs: RegisterReadList): IO[RegisterReadResponse] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/dump"), regs.asJson)
+    httpClient.expect[RegisterReadResponse](req) }
 
   def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
