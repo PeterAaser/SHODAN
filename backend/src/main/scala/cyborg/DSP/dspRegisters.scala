@@ -5,7 +5,9 @@ object DspRegisters {
 
   case class RegisterSetList(addresses: List[Int], values: List[Int])
   case class RegisterReadList(addresses: List[Int])
-  case class RegisterReadResponse(addresses: List[Int], values: List[Int])
+  case class RegisterReadResponse(addresses: List[Int], values: List[Int]){
+    def asMap: Map[Reg, Word] = (addresses zip values).map(λ => (Reg(λ._1),Word(λ._2))).toMap
+  }
 
   case object RegisterSetList {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)

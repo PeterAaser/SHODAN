@@ -1,11 +1,14 @@
 package cyborg
 import DspRoutines._
 
+/**
+  Contains the registers described in STG regions of interest
+  */
 object STG {
 
   import twiddle._
-
   import spire.syntax.literals.radix._
+
 
   val invalidSetting = SettingName("Invalid")
 
@@ -14,15 +17,15 @@ object STG {
                              Bits(x2"10") -> SettingName("Trigger 3"))
 
   val TriggerSelect = List(
-    Field(Reg(0x9104), 25, 2, FieldName("Mem 7"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 17, 2, FieldName("Mem 5"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 9,  2, FieldName("Mem 3"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 1,  2, FieldName("Mem 1"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 24, 2, FieldName("Mem 7"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 16, 2, FieldName("Mem 5"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 8,  2, FieldName("Mem 3"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 0,  2, FieldName("Mem 1"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
 
-    Field(Reg(0x9108), 25, 2, FieldName("Mem 8"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 17, 2, FieldName("Mem 6"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 9,  2, FieldName("Mem 4"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 1,  2, FieldName("Mem 2"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n)
+    Field(Reg(0x9108), 24, 2, FieldName("Mem 8"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 16, 2, FieldName("Mem 6"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 8,  2, FieldName("Mem 4"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 0,  2, FieldName("Mem 2"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n)
   )
   val TriggerSelectBF = RegistryGroup(
     "Assignment of trigger to stimulus memory source.",
@@ -67,12 +70,12 @@ This mode is described in docs/dsp.org
   def SidebandRender(f: Field, b: Bits): String = SidebandSelectMap.get(b).getOrElse(invalidSetting).n
 
   val SidebandSelect = List(
-    Field(Reg(0x9154),25,2, FieldName("DAC F"), SidebandRender),
-    Field(Reg(0x9154),21,2, FieldName("DAC D"), SidebandRender),
-    Field(Reg(0x9154),17,2, FieldName("DAC B"), SidebandRender),
-    Field(Reg(0x9154),9 ,2, FieldName("DAC E"), SidebandRender),
-    Field(Reg(0x9154),5 ,2, FieldName("DAC C"), SidebandRender),
-    Field(Reg(0x9154),1 ,2, FieldName("DAC A"), SidebandRender),
+    Field(Reg(0x9154),24,2, FieldName("DAC F"), SidebandRender),
+    Field(Reg(0x9154),20,2, FieldName("DAC D"), SidebandRender),
+    Field(Reg(0x9154),16,2, FieldName("DAC B"), SidebandRender),
+    Field(Reg(0x9154),8 ,2, FieldName("DAC E"), SidebandRender),
+    Field(Reg(0x9154),4 ,2, FieldName("DAC C"), SidebandRender),
+    Field(Reg(0x9154),0 ,2, FieldName("DAC A"), SidebandRender),
   )
 
   val SidebandSelectBF = RegistryGroup(
@@ -163,12 +166,12 @@ sideband if electrode mode is set to auto.
   def DataSourceSelectRender(f: Field, b: Bits): String = DataSourceSelectMap.get(b).getOrElse(invalidSetting).n
 
   val DataSourceSelect = List(
-    Field(Reg(0x91D0), 27, 4, FieldName("DAC F"), DataSourceSelectRender),
-    Field(Reg(0x91D0), 23, 4, FieldName("DAC D"), DataSourceSelectRender),
-    Field(Reg(0x91D0), 19, 4, FieldName("DAC B"), DataSourceSelectRender),
-    Field(Reg(0x91D0), 11, 4, FieldName("DAC E"), DataSourceSelectRender),
-    Field(Reg(0x91D0),  7, 4, FieldName("DAC C"), DataSourceSelectRender),
-    Field(Reg(0x91D0),  3, 4, FieldName("DAC A"), DataSourceSelectRender)
+    Field(Reg(0x91D0), 24, 4, FieldName("DAC F"), DataSourceSelectRender),
+    Field(Reg(0x91D0), 20, 4, FieldName("DAC D"), DataSourceSelectRender),
+    Field(Reg(0x91D0), 16, 4, FieldName("DAC B"), DataSourceSelectRender),
+    Field(Reg(0x91D0),  8, 4, FieldName("DAC E"), DataSourceSelectRender),
+    Field(Reg(0x91D0),  4, 4, FieldName("DAC C"), DataSourceSelectRender),
+    Field(Reg(0x91D0),  0, 4, FieldName("DAC A"), DataSourceSelectRender)
   )
 
   val DataSourceSelectBF = RegistryGroup(
@@ -224,7 +227,7 @@ be reading from.
   def StimMemControlRender(f: Field, b: Bits): String = StimMemControlMap.get(b).get.n
 
    val StimMemControl = List(
-     Field(Reg(0x9200), 29, 2, FieldName("Stim 1 ctrl"), StimMemControlRender)
+     Field(Reg(0x9200), 28, 2, FieldName("Stim 1 ctrl"), StimMemControlRender)
    )
 
    val StimMemControlBF = RegistryGroup(
@@ -241,5 +244,16 @@ be reading from.
  Currently setting this to 01 should be sufficient to avoid any serious brain damage.
  """)
 
+  val theWholeFuckingLot = List(
+    TriggerSelectBF,
+    ElectrodeModeBF,
+    SidebandSelectBF,
+    ElectrodEnableBF,
+    DACSelectBF,
+    VoltageSelectBF,
+    DataSourceSelectBF,
+    SidebandSourceSelectBF,
+    StimMemControlBF
+  )
 
 }

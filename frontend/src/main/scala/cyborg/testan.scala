@@ -30,11 +30,12 @@ object hurr {
     val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
     val visualizeWfButton = button("visualize waveforms").render
-    val crash = button("stop_SHODAN").render
+    val crash = button("stop SHODAN").render
     val startDBButton = button("From DB").render
     val startSHODANButton = button("start SHODAN").render
     val visualizeAgentButton = button("visualize agent").render
     val connectAgentButton = button("connect agent").render
+    val testStimButton = button("test stim").render
 
 
     /**
@@ -68,8 +69,6 @@ object hurr {
       frontHTTPclient.startWaveformStream(visualizerCanvas)
 
 
-
-
     /**
       Stops (crashes) SHODAN
       */
@@ -88,12 +87,21 @@ object hurr {
     }
 
 
+    /**
+      Fires a stim test
+      */
+    testStimButton.onclick = (_: MouseEvent) => {
+      println("Running DSP stim test")
+      frontHTTPclient.dspTest
+    }
+
     document.getElementById("playground").appendChild(startSHODANButton)
     document.getElementById("playground").appendChild(connectAgentButton)
     document.getElementById("playground").appendChild(visualizeAgentButton)
     document.getElementById("playground").appendChild(visualizeWfButton)
     document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(startDBButton)
+    document.getElementById("playground").appendChild(testStimButton)
 
 
     document.getElementById("playground").appendChild(agentCanvas)

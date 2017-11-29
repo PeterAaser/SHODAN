@@ -87,7 +87,7 @@ object twiddle {
       render: (Field, Bits) => String,
       offset: Int = 0): List[Field] = {
 
-      (0 to amount).map{ i =>
+      (0 until amount).map{ i =>
         Field(
           address,
           first + stride*i,

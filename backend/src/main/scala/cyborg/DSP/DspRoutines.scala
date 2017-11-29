@@ -40,6 +40,9 @@ object DspRoutines {
     def wordsToString(words: Map[Reg, Word]): Map[Reg, String] =
       BitDrawing.renderFieldWithWords(regToFields, words)
 
+    def getReadList: RegisterReadList =
+      RegisterReadList(fields.map(_.address.r).toSet.toList)
+
 
     def writeValues(v: Map[Int, String]): List[WriteOp] = {
       val tmp = v.toList
@@ -57,7 +60,6 @@ object DspRoutines {
 
       dudes
     }
-
 
 
     def renderFields: String = {
@@ -79,4 +81,13 @@ object DspRoutines {
     }
   }
 
+
+  def readRegisterFromDSP(group: RegistryGroup): IO[RegisterReadResponse] =
+    HttpClient.readRegistersRequest(group.getReadList)
+
+
+  def renderRegisterFromDSP(group: RegistryGroup): IO[String] =
+    readRegisterFromDSP(group).map{ resp =>
+      group.renderWords(resp.asMap)
+    }
 }

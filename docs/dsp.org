@@ -62,11 +62,13 @@
    Writing to these registers appends data to the corresponding block, take
    care not to write more data than each block has allocated.
 
-   TODO Describe these
    Interesting registers:
-   + 0x9F20 - 0x9F3c
    + 0x9200 - 0x9200 ... - 0x92E0
+     Segment selector
+   + 0x9F20 - 0x9F3c
+     Write Stim 1 Data register -> Write Stim 8 Data Register
    + 0x9F40 - 0x9F54
+     Write & Clear Stim 1 Data register -> Write & Clear Stim 8 Data Register
 
 *** A whole lot of indecipherable MCS shit about ↑
     The data vector (000) is either a value with a 16 bit amplitude for DACs or
@@ -218,3 +220,42 @@
     1, write a value of 0x00000001 to register 0x214. To start a trigger with
     external signals or other sources a Digital Multiplexer for source select is
     implemented (0x280­0x2AC).
+
+    
+* An attempt to decipher writing of data
+  In setup:
+  
+** SetSegment(0, 0)
+   0x9200 <- 0
+  
+** SetSegment(1, 0)
+   0x9220 <- 0
+
+** uploadSine
+   seems to be the outer loop. Keeps track of 
+   + previous value
+   + duration
+   + datapoints
+   + a volatile i
+   + vectors used
+
+*** ClearChannel(0)
+    0x920c <- 0
+   
+*** for i in 1000:
+    Seems to increment duration until it reaches stepsize
+    When stepsize is reached, duration resets, and 
+    vectors used is incremented in a sideeffect-tastic manner:
+    
+    vectors used += AddDataPoint(0, duration, yold + 0x8000) (0x8000 = 2¹⁶/2 aka 2¹⁵)
+    I assume 0 is min, 2¹⁶ is max, thus 2¹⁵ is the zero voltage offset
+    
+    AddDatapoint:
+    Checks the duration, then writes the data to the lower 2 bytes of
+    0x9f20, and if duration is above 1000 sets the 26th bit, setting repeat time 1000 * 20µs
+    0x9f20 is a FIFO it seems, so setting it should consume the data
+    
+    After the loop
+    AddLoop is called
+    AddLoop writes to 09f20, but only if repeats are requested.
+

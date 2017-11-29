@@ -1,13 +1,10 @@
 * Neste gang
-  se BitDrawing.dothing i launcher
+
+* Doing
+** Figure out triggers
+*** Reimplement GA to use generalized feedback pipe
   
-  word -> List[field] -> String
   
-  RegistryGroup burde ha en [Address, Word] -> Show
-  render for hver register
-  
-  For å teste at det virker kjør alle write ops, coalesce og redraw.
-    
 * Database notes
 ** To open db in terminal:
    peter$~/:    sudo su postgres
@@ -81,10 +78,16 @@
 
     
 * TODO Refactor registry representation
-** DONE Read and write bit fields
-** DONE Coalesce reads and writes
-** TODO Refactor HttpClient stuff, get the forest under control
-** TODO Refine register representation.
+** DONE Refine register representation.
+** DONE Check correctness of STG.scala
+** TODO Make specialized rendering per field basis
+   For instance electrode enable should use ✘ and ✓ instead of dumping everything
+   Similarily, this allows for more sensible per group rendering.
+   Currently it's worth asking if this is actually needed, can we simply get by
+   with a specialized function? (yes)
+** TODO Create specialized stimulus upload
+   Let this be handled on the DSP for now...
+** TODO Refactor HttpClient stuff, get the forest under control.
    
 
 * DONE Add sine wave generator on MEAME for debugging
@@ -371,11 +374,38 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 ** Blanking
    Only for the equipment
 
-* Register representation
-  case 1: Bit field with only one member
-  case 2: Bit fields with many members (for instance 30 bits representing 15 2bit fields)
+* On registers and DSPs
+  Problem: A device can be controlled by setting bits, however this is a very
+  primitive encoding, offering no semantic description.
+  
+  A register may contain several fields, and some registers may even have
+  different semantics for some bits based on other bits.
+  
+  I want a system that feels more ergonomic to program, but also allows us
+  to catch impossible configurations at compile time, which means we prefer
+  registers to not be stringly typed. We may even go as far as having codecs
+  specific for some memory regions which allows us to decode a register that
+  can have multiple meanings. This might make compile time detection of errors
+  harder, but we can possibly use decoders only and simply dump the register 
+  if it's invalid.
+  
+  There are several possible identifiers for a register:
+  + name
+    A register should have a semantic name. Should address -> name be surjective?
+    injective?
 
-  case 2 can be handled with a list of case 1. Should it?
-  How about a method for generating these?
+  + address
+    Should all addresses be covered?
 
+  + group membership?
 
+  What we're really trying to describe is the relations address, field, name
+  and package it somewhat reasonably
+  
+  We want to be able to query fields, set fields, we shouldn't have to care
+  about addresses at all other than when visualizing.
+  Do we want custom visualizers?
+  
+** Syntax?
+   Problem: We want a map of possible 
+   
