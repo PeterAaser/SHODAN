@@ -7,6 +7,9 @@ import cats.effect.Effect
 import fs2.async.mutable.Queue
 import scala.concurrent.ExecutionContext
 
+import utilz._
+import scala.concurrent.duration._
+
 object Feedback {
 
   /**
@@ -43,10 +46,13 @@ object Feedback {
 
       This pipe should terminate after running its course
       */
-    def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double]): Pipe[F, ReservoirOutput, O] = reservoirData =>
-    reservoirData.through(filter).unNoneTerminate
-      .through( createSimRunner() )
-      .observe(_.through(evaluator).through(evalSink))
+    def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double])(implicit ec: EC): Pipe[F, ReservoirOutput, O] = {
+      println("assembling an evaluator!")
+      reservoirData =>
+      reservoirData.through(filter).unNoneTerminate
+        .through( createSimRunner() )
+        .observe(_.through(evaluator).through(evalSink))
+    }
 
 
     /**
@@ -57,6 +63,8 @@ object Feedback {
       inputQueue:    Queue[F,ReservoirOutput],
       evalSink:      Sink[F,Double]
     ): Stream[F,O] = {
+
+      println("loop is running")
 
       Stream.eval(filterQueue.dequeue1) flatMap { filter =>
 
@@ -79,7 +87,10 @@ object Feedback {
       evalSink        = (in: Stream[F,Double]) => in.through(evaluationQueue.enqueue)
       generateFilters = evaluationQueue.dequeue.through(filterGenerator).through(filterQueue.enqueue)
 
-      output          <- loop(filterQueue, inputQueue, evalSink).concurrently(enqueueInput).concurrently(generateFilters)
+
+      output          <- loop(filterQueue, inputQueue, evalSink)
+        .concurrently(enqueueInput)
+        .concurrently(generateFilters)
 
     } yield (output)
   }

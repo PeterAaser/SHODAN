@@ -114,13 +114,6 @@ object agentPipe {
     val challengePipe: Pipe[F,ffANNoutput,Agent]
       = Pipe.join(Stream.emits(challengePipes.map(attachSink(_, evalSink))))
 
-    val perPipe = {
-      // TODO hardcoded
-      val u = 5*ticksPerEval
-      println(s"attach sink thinks we need $u")
-      u
-    }
-
     s: Stream[F,ffANNoutput] => s.through(challengePipe)
   }
 }

@@ -92,11 +92,7 @@ object Assemblers {
     println("checking if clogged")
     // spikeChannels.head.take(100).through(_.map(println(_))).run.unsafeRunTimed(1.second)
 
-    // Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
-    // interleaveList(spikeChannels).through(_.map(_.toVector))
-    // val hurr = spikeChannels.head.interleaveAll(spikeChannels.tail.head).through(vectorize(2))
-    // hurr
-    spikeChannels.head.through(vectorize(2))
+    Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
   }
 
 
@@ -163,8 +159,6 @@ object Assemblers {
     def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
 
     val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe
-
-    dataSource(5).subscribe(100).through(_.map(println(_))).take(100).run.unsafeRunTimed(1.second)
 
     inputSpikes.through(experimentPipe)
       .observeAsync(10000)(frontendAgentObserver)

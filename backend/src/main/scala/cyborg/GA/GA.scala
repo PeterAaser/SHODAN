@@ -18,11 +18,8 @@ import seqUtils._
   */
 object GArunner {
 
-  // TODO hardcoded
-  val ticksPerEval = 1000
-  val pipesPerGeneration = 6
-  val pipesKeptPerGeneration = params.GA.pipesKeptPerGeneration
-  val layout = List(2,3,2)
+  import params.GA._
+  import params.filtering._
 
   type ReservoirOutput = Vector[Double]
   type FilterOutput    = List[Double]
@@ -73,23 +70,30 @@ object GArunner {
         .map(_ => (Filters.FeedForward.randomNetWithLayout(layout)))
         .toList
 
-      Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval, _)))) >> go(initNetworks, s)
+      println(s"Outputting $pipesPerGeneration pipes")
+      Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _)))) >> go(initNetworks, s)
     }
 
 
     def go(previous: List[FeedForward], evals: Stream[IO, Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
       evals.pull.unconsN((pipesPerGeneration - 1).toLong, false) flatMap {
         case Some((segment, tl)) => {
+          println("got evaluations")
           val scoredPipes = ScoredSeq(segment.toList.zip(previous).toVector)
           val nextPop = generate(scoredPipes)
-          val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval, _))
+          val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))
           Pull.output(Chunk.seq(nextPipes)) >> go(nextPop,tl)
+        }
+        case None => {
+          println("uh oh")
+          Pull.done
         }
       }
     }
 
     // Generates a new set of neural networks, no guarantees that they'll be any good...
     def generate(seed: ScoredSeq[FeedForward]): List[FeedForward] = {
+      println("Generated pipes")
       val freak = mutate(seed.randomSample(1).repr.head._2)
       val rouletteScaled = seed.sort.rouletteScale
       val selectedParents = seed.randomSample(2)
@@ -111,6 +115,7 @@ object GArunner {
     def go(s: Stream[IO,Agent]): Pull[IO,Double,Unit] = {
       s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
         case Some((seg, _)) => {
+          println("Evaluated a performance")
           val closest = seg.toList
             .map(_.distanceToClosest)
             .min
@@ -128,4 +133,70 @@ object GArunner {
 
   def gaPipe(implicit ec: EC) = Feedback.experimentPipe(createSimRunner, evaluator, filterGenerator)
 
+}
+
+
+
+
+/**
+  Should implement some of the basic stuff often used for ranking populations etc in GAs
+  */
+object seqUtils {
+  import scala.util.Random
+
+  type ScaledBy
+
+  case class ScoredSeq[A](repr: Vector[(Double,A)]) {
+    def scoreSum: Double = (.0 /: repr)( (sum, tup) => sum + tup._1)
+    def sort = copy(repr.sortWith(_._1 < _._1))
+
+    def normalize = copy(repr.map(λ => (λ._1/scoreSum, λ._2)))
+    def scale(f: (Double,Double) => Double) = copy(repr.map(λ => (f(scoreSum,λ._1),λ._2)))
+
+    def strip: Vector[A] = repr.map(_._2)
+
+    /**
+      Requires the list to be sorted, looking into ways to encode this
+      */
+    def rouletteScale = copy(
+      ((.0,List[(Double,A)]()) /: repr)((acc,λ) =>
+        {
+          val nextScore = acc._1 + λ._1
+          val nextElement = (nextScore, λ._2)
+          (nextScore, acc._2 :+ nextElement)
+        })._2.toVector)
+
+    def randomSample(samples: Int) = {
+      val indexes = Random.shuffle(0 to repr.length - 1).take(samples)
+      copy(indexes.map(λ => repr(λ)).toVector)
+    }
+
+    /**
+      Also known as roulette.
+      Iterates through a list, picks the element if the numbers up
+      */
+    def biasedSample(samples: Int): Vector[A] = {
+
+      // Selections cannot contain elements with a value higher than the highest scoring individual
+      val selections = Vector.fill(samples)(Random.nextDouble).sorted.map(_*repr.last._1)
+      println(selections)
+
+      def hepler(targets: Vector[Double], animals: Vector[(Double,A)]): Vector[A] =
+        targets match {
+          case h +: tail => {
+            val (a, remainingAs) = hapler(h,animals)
+            a +: hepler(tail, remainingAs)
+          }
+          case _ => Vector.empty
+        }
+
+        def hapler(target: Double, animals: Vector[(Double,A)]): (A, Vector[(Double,A)]) = {
+          val memes = animals.dropWhile(λ => (target > λ._1))
+          (memes.head._2, memes)
+        }
+
+      hepler(selections, repr)
+
+    }
+  }
 }

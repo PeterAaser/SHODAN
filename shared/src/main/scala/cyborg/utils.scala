@@ -303,14 +303,6 @@ object utilz {
   }
 
 
-  def interleaveList[F[_],I](streams: List[Stream[F,I]]): Stream[F,List[I]] = {
-    // def zip2List(a: Stream[F,I], b: Stream[F,List[I]]): Stream[F,List[I]] = {
-    //   a.zipWith(b)(_::_)
-    // }
-    // val mpty: Stream[F,I] = Stream[I]().repeat
-    streams.tail.foldLeft(streams.head)((λ,µ) => λ.interleaveAll(µ)).through(vectorizeList(streams.size))
-  }
-
   /**
     Synchronizes a list of streams, discarding segment ID
     */

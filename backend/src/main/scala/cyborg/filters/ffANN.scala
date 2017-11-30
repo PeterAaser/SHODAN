@@ -127,8 +127,10 @@ object Filters {
     def ffPipeO[F[_]](runs: Int, net: FeedForward): Pipe[F,Vector[Double], Option[List[Double]]] = {
 
       def go(run: Int, s: Stream[F, Vector[Double]]): Pull[F,Option[List[Double]],Unit] = {
-        if(run == 0)
+        if(run == 0){
+          println("ffPipeO returns None")
           Pull.output1(None)
+        }
         else{
           s.pull.uncons1 flatMap {
             case Some((seg, tl)) => {

@@ -416,6 +416,11 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    Problem: We want a map of possible 
    
 
+* Dev diary
+** GA terminates after one evaluation
+   Turns out the filter terminated after TicksPerEval,
+   however we need 5*ticksPerEval for 5 challenges!
+
 * Clogged stream checklist
 ** Previous cases
    The mystery of the silent topics!
@@ -442,9 +447,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
           
 
-
 ** Round robin acting up again?
    Check if simply using the head instead of round robin works out
    
-** Only head of list of stream is emitting   
+** Only head of list of stream is emitting
    Typically falls through the cracks. Try join vectorize instead of roundRobin or similar.
