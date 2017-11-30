@@ -121,5 +121,25 @@ object Filters {
       }
       in => go(in).stream
     }
+
+
+    // terrible hack
+    def ffPipeO[F[_]](runs: Int, net: FeedForward): Pipe[F,Vector[Double], Option[List[Double]]] = {
+
+      def go(run: Int, s: Stream[F, Vector[Double]]): Pull[F,Option[List[Double]],Unit] = {
+        if(run == 0)
+          Pull.output1(None)
+        else{
+          s.pull.uncons1 flatMap {
+            case Some((seg, tl)) => {
+              val outputs = net.feed(seg.toList)
+              Pull.output1(Some(outputs)) >> go(run - 1, tl)
+            }
+            case None => Pull.done
+          }
+        }
+      }
+      in => go(runs, in).stream
+    }
   }
 }

@@ -1,4 +1,8 @@
 * Neste gang
+  Did I forget to put data to the topics??
+  Turns out I printed the stream rather than mapping it with print...
+  
+  Why does nothing happen??
 
 * Doing
 ** Figure out triggers
@@ -41,6 +45,8 @@
 ** DONE Create generic version
 ** DONE Test with simple example
 ** TODO reimplement GA in terms of generic version
+*** DONE Implement
+*** TODO Make it work
 ** TODO figure out how to dequeueAvailable without losing unconsumed
 
 * TODO Better handling of parameters
@@ -409,3 +415,36 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 ** Syntax?
    Problem: We want a map of possible 
    
+
+* Clogged stream checklist
+** Previous cases
+   The mystery of the silent topics!
+   I suspect this issue has been a problem for a long time, but I finally found it when
+   working on porting the GA to the new generalized framework.
+   This gave me a very large surface of errors, I'm not sure it was a good idea, or if I
+   would have been better off using the old GA stuff, which at least worked.
+   After unsuccessfully looking at the GA and generalized pipe code I decided to test if
+   data was even getting through which I did by printing the head of the list of streams from
+   topic in Assemblers. This only worked because I happened to choose the first topic, which
+   it turns out had all the data. I then tried to rewrite roundrobin yet again (poor round
+   robin was likely framed many times because of this silly bug). When I couldn't get that 
+   to work, I tried to simply interleave the two first streams, which also clogged! I then
+   attempted to run output only from the second stream, which gave no output! This made me 
+   realize that in all likelyhood the broadcaster had a bug, which it indirectly did. The
+   broadcaster simply multiplexes tagged segments based on their channel tag, tags which was
+   added in the tag pipe. The tag pipe was the source of the bug in the end, as it didn't 
+   actually increment the tag inbetween segments! OOPS!!!
+   Fix: 
+   
+   >>>>>>
+   Pull.output1(TaggedSegment(n, seg.toVector)) >> go(n%60, tl)
+   <<<<<<
+   Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
+          
+
+
+** Round robin acting up again?
+   Check if simply using the head instead of round robin works out
+   
+** Only head of list of stream is emitting   
+   Typically falls through the cracks. Try join vectorize instead of roundRobin or similar.

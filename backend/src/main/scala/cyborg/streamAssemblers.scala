@@ -69,15 +69,17 @@ object Assemblers {
     detector, before aggregating spikes from each channel into ANN input vectors
     */
   // TODO rename to spike detector something?
-  def assembleInputFilter[F[_]: Effect](
-    broadcastSource: List[Topic[F,TaggedSegment]],
+  def assembleInputFilter(
+    broadcastSource: List[Topic[IO,TaggedSegment]],
     channels: List[Channel],
-    spikeDetector: Pipe[F,Int,Double]
-  ): Stream[F,ffANNinput] = {
+    spikeDetector: Pipe[IO,Int,Double]
+  ): Stream[IO,ffANNinput] = {
 
     // selects relevant topics and subscribe to them
     val inputTopics = channels.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(100))
+
+    println(s"creating input filter with channels $channels")
 
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
@@ -87,7 +89,14 @@ object Assemblers {
       .map(_.through(chunkify))
       .map(_.through(spikeDetector))
 
-    Stream.emit(spikeChannels).covary[F].through(roundRobin).map(_.toVector)
+    println("checking if clogged")
+    // spikeChannels.head.take(100).through(_.map(println(_))).run.unsafeRunTimed(1.second)
+
+    // Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
+    // interleaveList(spikeChannels).through(_.map(_.toVector))
+    // val hurr = spikeChannels.head.interleaveAll(spikeChannels.tail.head).through(vectorize(2))
+    // hurr
+    spikeChannels.head.through(vectorize(2))
   }
 
 
@@ -107,6 +116,7 @@ object Assemblers {
     def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,IO[Unit],Unit] = {
+        // println("publish sink is running")
         s.pull.uncons1 flatMap {
           case Some((taggedSeg, tl)) => {
             val idx = taggedSeg.data._1
@@ -137,24 +147,26 @@ object Assemblers {
   /**
     Assembles a GA run from an input topic and returns a byte stream to MEAME
     */
-  def assembleGA[F[_]: Effect](
-    dataSource: List[Topic[F,TaggedSegment]],
+  def assembleGA(
+    dataSource: List[Topic[IO,TaggedSegment]],
     inputChannels: List[Channel],
     outputChannels: List[Channel],
-    frontendAgentObserver: Sink[F,Agent],
-    feedbackSink: Sink[F,List[Double]])(implicit ec: ExecutionContext): Stream[F,Unit] =
+    frontendAgentObserver: Sink[IO,Agent],
+    feedbackSink: Sink[IO,List[Double]])(implicit ec: ExecutionContext): Stream[IO,Unit] =
   {
 
     import params.experiment._
     import params.filtering._
 
-    def filter = spikeDetector.spikeDetectorPipe[F](samplerate, MAGIC_THRESHOLD)
+    def filter = spikeDetector.spikeDetectorPipe[IO](samplerate, MAGIC_THRESHOLD)
 
     def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
 
-    val experimentPipe = GApipes.experimentPipe(inputSpikes, params.filtering.layout)
+    val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe
 
-    experimentPipe
+    dataSource(5).subscribe(100).through(_.map(println(_))).take(100).run.unsafeRunTimed(1.second)
+
+    inputSpikes.through(experimentPipe)
       .observeAsync(10000)(frontendAgentObserver)
       .through(_.map((λ: Agent) => {λ.distances}))
       .through(feedbackSink)
