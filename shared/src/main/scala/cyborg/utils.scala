@@ -303,6 +303,14 @@ object utilz {
   }
 
 
+  def interleaveList[F[_],I](streams: List[Stream[F,I]]): Stream[F,List[I]] = {
+    // def zip2List(a: Stream[F,I], b: Stream[F,List[I]]): Stream[F,List[I]] = {
+    //   a.zipWith(b)(_::_)
+    // }
+    // val mpty: Stream[F,I] = Stream[I]().repeat
+    streams.tail.foldLeft(streams.head)((λ,µ) => λ.interleaveAll(µ)).through(vectorizeList(streams.size))
+  }
+
   /**
     Synchronizes a list of streams, discarding segment ID
     */
@@ -381,7 +389,7 @@ object utilz {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
       s.pull.unconsN(segmentLength.toLong, false) flatMap {
         case Some((seg, tl)) => {
-          Pull.output1(TaggedSegment(n, seg.toVector)) >> go(n%60, tl)
+          Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
         }
         case None => Pull.done
       }
