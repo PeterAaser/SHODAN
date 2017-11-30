@@ -99,6 +99,13 @@ object HttpServer {
         } yield (resp)
       }
 
+      case req @ POST -> Root / "dspstimtest" => {
+        for {
+          emit <- cmd(DspStimTest)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
       case req @ POST -> Root / "dspset" => {
         for {
           emit <- cmd(DspSet)
@@ -139,6 +146,7 @@ object HttpCommands {
   case object Shutdown extends UserCommand
 
   case object DspTest extends UserCommand
+  case object DspStimTest extends UserCommand
   case object DspSet extends UserCommand
 }
 

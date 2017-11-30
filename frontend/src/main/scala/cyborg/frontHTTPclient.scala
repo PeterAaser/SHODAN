@@ -75,6 +75,12 @@ object frontHTTPclient {
     req.send()
   }
 
+  def dspStimTest: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/dspstimtest")
+    req.send()
+  }
+
   def testDebugMsg: Unit = {
     val sizeReq = new dom.XMLHttpRequest()
     sizeReq.open("GET", "http://127.0.0.1:8080/info_waiting")

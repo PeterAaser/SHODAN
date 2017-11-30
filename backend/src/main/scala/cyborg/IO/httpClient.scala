@@ -76,6 +76,9 @@ object HttpClient {
   def dspTest: IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/dsptest")))
 
+  def dspStimTest: IO[String] =
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/stimtest")))
+
   def meameConsoleLog(s: String): IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))
 

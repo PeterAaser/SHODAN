@@ -5,8 +5,7 @@
   Why does nothing happen??
 
 * Doing
-** Figure out triggers
-*** Reimplement GA to use generalized feedback pipe
+** Implement stim sites
   
   
 * Database notes
@@ -30,6 +29,8 @@
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
 
+* TODO Add tests
+* TODO Implement stim sites on MEAME
 * DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
   Turns out it was queue segment size being 1
 ** DONE Try to create a send only program
@@ -41,19 +42,21 @@
   By adding tags we can make it easier to restart etc.
   Should topics get the same treatment?
 
-* TODO Fix the GA for the last time
+* DONE Fix the GA for the last time
 ** DONE Create generic version
 ** DONE Test with simple example
-** TODO reimplement GA in terms of generic version
+** DONE reimplement GA in terms of generic version
 *** DONE Implement
-*** TODO Make it work
+*** DONE Make it work
+* TODO Refactor Feedback pipe
 ** TODO figure out how to dequeueAvailable without losing unconsumed
-
+** TODO The filter should not be responsible for termination
 * TODO Better handling of parameters
 ** TODO Define requirements
    'better' is not a requirement, although in its current state it's not
-   100% wrong either. Ideally params should be a signal or some other IO
-   mutable construct, including an isReady IO[Bool]
+   100% wrong either. Possibly params could be a signal or some other IO
+   mutable construct, including an isReady IO[Bool].
+   Sort of react-ish way of handling it
 
 * TODO Less unescessary restarts for both SHODAN and MEAME
 ** DONE MEAME
@@ -63,6 +66,7 @@
 ** TODO Reset protocol(?)
    Might not be necessary unless we somehow lose track of an input stream
    In this scenario we can't demodulate the TCP datastream
+   Have actually managed to trigger this error, so it might be an issue
 
 * TODO Add TCP listening for other users, possibly on specific channels
   With HTTP
@@ -99,7 +103,6 @@
 * DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really
 
-* TODO Add tests
 
 
 * how 2 fs2 fra gitter (ikke slett plz)
@@ -416,10 +419,17 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    Problem: We want a map of possible 
    
 
+* Issues with output from MEAME
+  It seems the data corruption issues only happen with low samplerates.
+  At 10000hz the ground is correctly rendered. WHY
+  WHY WHY WHY
 * Dev diary
 ** GA terminates after one evaluation
    Turns out the filter terminated after TicksPerEval,
    however we need 5*ticksPerEval for 5 challenges!
+   This is a hint that the current method isn't very
+   ergonomical, it should not be the responsibility of
+   the filter to know when it's done.
 
 * Clogged stream checklist
 ** Previous cases

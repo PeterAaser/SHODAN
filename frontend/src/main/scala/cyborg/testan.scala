@@ -92,7 +92,7 @@ object hurr {
       */
     testStimButton.onclick = (_: MouseEvent) => {
       println("Running DSP stim test")
-      frontHTTPclient.dspTest
+      frontHTTPclient.dspStimTest
     }
 
     document.getElementById("playground").appendChild(startSHODANButton)

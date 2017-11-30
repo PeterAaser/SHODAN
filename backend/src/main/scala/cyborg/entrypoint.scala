@@ -64,6 +64,13 @@ object staging {
                 uhm
               }
 
+            case DspStimTest =>
+              {
+                println("stim test yo")
+                val uhm: Stream[IO,Unit] = Stream.eval(HttpClient.dspStimTest).drain
+                uhm
+              }
+
             case _ =>
               {
                 println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)
