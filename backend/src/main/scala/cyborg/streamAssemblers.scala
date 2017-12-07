@@ -29,10 +29,8 @@ object Assemblers {
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val taggedSegQueueS = Stream.eval(fs2.async.unboundedQueue[IO,TaggedSegment])
 
-    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(throttle = 100)
-
-    import DebugMessages._
-    import backendImplicits._
+    // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.oldStimuliRequestSink(300)
+    val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
 
     commandQueueS flatMap {           commandQueue =>
       agentQueueS flatMap {           agentQueue =>
@@ -90,7 +88,6 @@ object Assemblers {
       .map(_.through(spikeDetector))
 
     println("checking if clogged")
-    // spikeChannels.head.take(100).through(_.map(println(_))).run.unsafeRunTimed(1.second)
 
     Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
   }
@@ -131,7 +128,7 @@ object Assemblers {
   /**
     Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
     parametrized with the import params thing because db might have more or less channels
-    TODO: Outdated, slated for removal
+    TODO: Outdated, slated for removal. (just call directly?)
     */
   def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,List[Topic[F,TaggedSegment]]] = {
 
@@ -155,7 +152,6 @@ object Assemblers {
     import params.filtering._
 
     def filter = spikeDetector.spikeDetectorPipe[IO](samplerate, MAGIC_THRESHOLD)
-
     def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
 
     val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe

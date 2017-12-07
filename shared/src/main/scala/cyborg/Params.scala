@@ -18,6 +18,8 @@ object params {
     val minFreq = 0.33
     val maxFreq = 10.0
 
+    val DSPticksPerSecond = 50000
+
     def printMe(): Unit = {
       println(Console.YELLOW + "----[Experiment params]----")
       println(Console.YELLOW + s"samplerate: \t\t" + Console.RED + s"$samplerate")
@@ -105,10 +107,10 @@ object params {
   object game {
     val width = 10000.0
     val height = 10000.0
-    val speed = 10.0
-    val turnRate = 0.01
+    val speed = 1.0
+    val turnRate = 0.001
     val viewPoints = 4
-    val maxTurnRate = 0.01
+    val maxTurnRate = 0.001
 
     val sightRange = 3000.0
     val deadZone = 200.0
@@ -135,7 +137,7 @@ object params {
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
 
-    val maxVal = 4800
+    val maxVal = 300
     val wfMsgSize = 1200
     val sixtyFPSrefreshRate = 17  //every 17 ms
     val thirtyFPSrefreshRate = 33 //every 33 ms

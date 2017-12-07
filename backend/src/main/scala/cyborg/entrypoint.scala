@@ -1,5 +1,7 @@
 package cyborg
 
+import scala.concurrent.duration._
+
 import cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.{ Queue, Topic }
@@ -42,7 +44,7 @@ object staging {
               }
 
             case AgentStart =>
-                Assemblers.assembleGA(topics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
+              Assemblers.assembleGA(topics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
 
             // TODO id hardcoded atm
             case RunFromDB(id) =>
@@ -68,6 +70,27 @@ object staging {
               {
                 println("stim test yo")
                 val uhm: Stream[IO,Unit] = Stream.eval(HttpClient.dspStimTest).drain
+                uhm
+              }
+
+            case DspTickTest =>
+              {
+                println("stim test yo")
+                val uhm: Stream[IO,Unit] = Stream.eval(HttpClient.dspTickTest).drain
+                uhm
+              }
+
+            case DspUploadTest =>
+              {
+                println("upload test")
+                val regset1 = waveformGenerator.sineWave(0, 100.millis, 200.0)
+                val regset2 = waveformGenerator.sineWave(2, 300.millis, 200.0)
+                val regset3 = waveformGenerator.sineWave(4, 600.millis, 200.0)
+                val uhm: Stream[IO,Unit] =
+                  Stream.eval(regset1) >>
+                  Stream.eval(regset2) >>
+                  Stream.eval(regset3).drain
+
                 uhm
               }
 

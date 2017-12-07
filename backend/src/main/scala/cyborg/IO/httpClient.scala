@@ -27,11 +27,13 @@ object HttpClient {
   implicit val regSetCodec = jsonOf[IO, RegisterSetList]
   implicit val regReadCodec = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  implicit val simpleStimCodec = jsonOf[IO, SimpleStimReq]
+  // implicit val simpleStimCodec = jsonOf[IO, SimpleStimReq]
+  implicit val StimCodec = jsonOf[IO, StimReq]
 
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
-  case class SimpleStimReq(period: Int)
+  // case class SimpleStimReq(period: Int)
+  case class StimReq(periods: List[Int])
 
 
   def connectDAQrequest(params: DAQparams): IO[String] = {
@@ -56,10 +58,13 @@ object HttpClient {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/dump"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req) }
 
-  def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
+  // def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
+  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/simplestimreq"), stim.asJson)
+  //   httpClient.expect[String](req) }
+
+  def stimRequest(stim: StimReq): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
     httpClient.expect[String](req) }
-
 
   def startDAQrequest: IO[String] =
     httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/start")))
@@ -78,6 +83,9 @@ object HttpClient {
 
   def dspStimTest: IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/stimtest")))
+
+  def dspTickTest: IO[String] =
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/ticktest")))
 
   def meameConsoleLog(s: String): IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))

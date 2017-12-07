@@ -106,9 +106,24 @@ object HttpServer {
         } yield (resp)
       }
 
+      case req @ POST -> Root / "dspticktest" => {
+        for {
+          emit <- cmd(DspTickTest)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
       case req @ POST -> Root / "dspset" => {
         for {
           emit <- cmd(DspSet)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
+
+      case req @ POST -> Root / "dspuploadtest" => {
+        for {
+          emit <- cmd(DspUploadTest)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
@@ -147,6 +162,8 @@ object HttpCommands {
 
   case object DspTest extends UserCommand
   case object DspStimTest extends UserCommand
+  case object DspTickTest extends UserCommand
+  case object DspUploadTest extends UserCommand
   case object DspSet extends UserCommand
 }
 

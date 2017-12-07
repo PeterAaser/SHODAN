@@ -259,3 +259,37 @@
     AddLoop is called
     AddLoop writes to 09f20, but only if repeats are requested.
 
+
+* Tidbits
+  the IRQ on data triggers at 50khz. bretty nice.
+  
+
+* On blanking
+  In order to get test data for implementing stimuli a salt solution should be used (test this)
+  
+  A simple repeating test in salt lake is shown
+  [[file:img/blank/1_setup.png]]
+  
+** With blanking and dedicated on the following is produced.
+  [[file:img/blank/2blank_dedicated.png]]
+
+** Without a dedicated electrode:
+
+*** zoomed out
+    [[file:img/blank/3blank_zoomed_out.png]]
+  
+*** zoomed in
+    [[file:img/blank/4blank_no_zoom.png]]
+
+** With a dedicated electrode and no blanking:
+   [[file:img/blank/5dedicated_no_zoom.png]]
+  
+** With both turned off:
+   [[file:img/blank/6neither.png]]
+
+   For development the setting with no blanking and dedicated stimuli seems reasonable
+  
+** To achieve this the setup should be as follows
+   [[file:img/blank/good2.png]]
+  
+   Only the two top rows are active, the lower half is for STG 2 in a 120 electrode setup

@@ -87,10 +87,7 @@ object Feedback {
       evalSink        = (in: Stream[F,Double]) => in.through(evaluationQueue.enqueue)
       generateFilters = evaluationQueue.dequeue.through(filterGenerator).through(filterQueue.enqueue)
 
-
-      output          <- loop(filterQueue, inputQueue, evalSink)
-        .concurrently(enqueueInput)
-        .concurrently(generateFilters)
+      output          <- loop(filterQueue, inputQueue, evalSink).concurrently(enqueueInput).concurrently(generateFilters)
 
     } yield (output)
   }

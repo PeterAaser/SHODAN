@@ -70,7 +70,7 @@ object waveformVisualizer {
     val groupSize = wfMsgSize/60
     var running = false
 
-    scalajs.js.timers.setInterval(60) {
+    scalajs.js.timers.setInterval(50) {
       if(!running){
         running = true
         if(dataqueue.size > 500){
@@ -181,7 +181,7 @@ object waveformVisualizer {
           else if (y == 7)
             6 + 6*8 + x
           else
-            6 + (y-1)*8 + x
+            (6 + (y-1)*8 + x) + 1
 
         val channelString = s"[%02d]".format(channelNo - 1)
         renderer.fillStyle = "black"

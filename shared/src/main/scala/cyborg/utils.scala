@@ -39,12 +39,9 @@ object utilz {
   def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
 
     def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
-      s.pull.unconsChunk flatMap {
-        case Some((chunk, tl)) => {
-          if(chunk.size % 4 != 0){
-            println( Console.RED + "CHUNK MISALIGNMENT IN BYTES TO INTS CONVERTER" + Console.RESET )
-            assert(false)
-          }
+      s.pull.unconsN(4096, false)flatMap {
+        case Some((seg, tl)) => {
+          val chunk = seg.toChunk
           val intBuf = Array.ofDim[Int](chunk.size/4)
 
           for(i <- 0 until chunk.size/4){
@@ -56,9 +53,9 @@ object utilz {
 
             val asInt: Int = (
               ((0xFF & w) << 24) |
-                ((0xFF & z) << 16) |
-                ((0xFF & y) << 8) |
-                ((0xFF & x))
+              ((0xFF & z) << 16) |
+              ((0xFF & y) << 8)  |
+              ((0xFF & x))
             )
 
             intBuf(i) = asInt

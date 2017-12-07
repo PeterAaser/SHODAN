@@ -1,12 +1,9 @@
 * Neste gang
-  Did I forget to put data to the topics??
-  Turns out I printed the stream rather than mapping it with print...
-  
-  Why does nothing happen??
 
 * Doing
-** Implement stim sites
-  
+  SBS og stimulus.
+  sjekk hva som skjer hvis MEAME for en reg write req større enn buf size
+  (burde ikke være et problem)
   
 * Database notes
 ** To open db in terminal:
@@ -30,7 +27,13 @@
 
 
 * TODO Add tests
-* TODO Implement stim sites on MEAME
+* DONE Implement stim on MEAME
+  
+* TODO Stim
+** TODO Rewrite stimulus. Possibly from SHODAN?
+** TODO SHODAN stim requests for single stim site
+** TODO Multiple stim sites
+
 * DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
   Turns out it was queue segment size being 1
 ** DONE Try to create a send only program
@@ -49,8 +52,11 @@
 *** DONE Implement
 *** DONE Make it work
 * TODO Refactor Feedback pipe
+  not critical
 ** TODO figure out how to dequeueAvailable without losing unconsumed
 ** TODO The filter should not be responsible for termination
+*** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
+    Might deadlock or whatever
 * TODO Better handling of parameters
 ** TODO Define requirements
    'better' is not a requirement, although in its current state it's not
@@ -421,8 +427,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 
 * Issues with output from MEAME
   It seems the data corruption issues only happen with low samplerates.
-  At 10000hz the ground is correctly rendered. WHY
-  WHY WHY WHY
+  At 10000hz the ground is correctly rendered. WHY?
+  Gunnar suggests DSP using only one of its two memory bands. Not too far fetched
 * Dev diary
 ** GA terminates after one evaluation
    Turns out the filter terminated after TicksPerEval,
@@ -433,7 +439,7 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 
 * Clogged stream checklist
 ** Previous cases
-   The mystery of the silent topics!
+*** The mystery of the silent topics
    I suspect this issue has been a problem for a long time, but I finally found it when
    working on porting the GA to the new generalized framework.
    This gave me a very large surface of errors, I'm not sure it was a good idea, or if I
@@ -456,6 +462,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    <<<<<<
    Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
           
+*** Return of the unimplemented method
+    Implemented a new pipe for ahh fuck it
 
 ** Round robin acting up again?
    Check if simply using the head instead of round robin works out

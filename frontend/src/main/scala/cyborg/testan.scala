@@ -36,6 +36,9 @@ object hurr {
     val visualizeAgentButton = button("visualize agent").render
     val connectAgentButton = button("connect agent").render
     val testStimButton = button("test stim").render
+    val testTickButton = button("test tick").render
+
+    val testUploadButton = button("upload stimulus test").render
 
 
     /**
@@ -95,6 +98,19 @@ object hurr {
       frontHTTPclient.dspStimTest
     }
 
+
+    testTickButton.onclick = (_: MouseEvent) => {
+      println("Running DSP tick test")
+      frontHTTPclient.dspTickTest
+    }
+
+
+    testUploadButton.onclick = (_: MouseEvent) => {
+      println("Attempting to upload stimulus")
+      frontHTTPclient.dspTickTest
+    }
+
+
     document.getElementById("playground").appendChild(startSHODANButton)
     document.getElementById("playground").appendChild(connectAgentButton)
     document.getElementById("playground").appendChild(visualizeAgentButton)
@@ -102,6 +118,7 @@ object hurr {
     document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(startDBButton)
     document.getElementById("playground").appendChild(testStimButton)
+    document.getElementById("playground").appendChild(testTickButton)
 
 
     document.getElementById("playground").appendChild(agentCanvas)
