@@ -101,7 +101,15 @@ object params {
     val ticksPerEval = 1000 // How many ticks should each run last
 
     val inputChannels = List(0,1,2)
-    val outputChannels = List(3,4,5,6)
+    // val outputChannels = List(3,4,5,6)
+
+    val outputChannels = List(List(0,1), List(12,13), List(22), List(29))
+    val outputChannelsBits: List[List[Int]] = {
+      val lower = outputChannels.map(_.filter(_ < 30)).map(_.foldLeft(0)((acc,µ) => acc + (1 << µ)))
+      val upper = outputChannels.map(_.filter(_ >= 30)).map(_.foldLeft(0)((acc,µ) => acc + (1 << (µ % 30))))
+      (lower zip upper).map(λ => List(λ._1, λ._2))
+    }
+
   }
 
   object game {

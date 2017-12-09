@@ -31,6 +31,8 @@
   
 * TODO Stim
 ** TODO Rewrite stimulus. Possibly from SHODAN?
+*** DONE Write
+*** TODO Verify
 ** TODO SHODAN stim requests for single stim site
 ** TODO Multiple stim sites
 
@@ -51,6 +53,7 @@
 ** DONE reimplement GA in terms of generic version
 *** DONE Implement
 *** DONE Make it work
+* TODO Verify file playback.
 * TODO Refactor Feedback pipe
   not critical
 ** TODO figure out how to dequeueAvailable without losing unconsumed
@@ -77,6 +80,7 @@
 * TODO Add TCP listening for other users, possibly on specific channels
   With HTTP
 * TODO Improve the frontend
+** TODO Get rid of the annyoing redundant clicks!!
 ** TODO Settings accessible on the frontend
 ** TODO Make a spec before randomly writing a lot of code
 ** TODO Redo basic UI
@@ -376,19 +380,6 @@ ReactDOM.render(React.createElement(Timer), mountNode);
   Figure out how I can work with Map for working with registers info without having to resort to
   the clumsy stuff I'm using now.
 
-* MCS meeting talking points
-** MEAME data acquisition
-** DSP stim stuff
-*** How can I debug this stuff
-*** The mcs update tool
-*** Blanking etc
-*** Generating stimulus patterns
-*** Uploading stimulus patterns from the computer
-*** Code samples plz
-
-** Blanking
-   Only for the equipment
-
 * On registers and DSPs
   Problem: A device can be controlled by setting bits, however this is a very
   primitive encoding, offering no semantic description.
@@ -437,8 +428,13 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    ergonomical, it should not be the responsibility of
    the filter to know when it's done.
 
+  [[file:backend/src/main/scala/cyborg/streamAssemblers.scala::def%20startSHODAN(implicit%20ec:%20ExecutionContext):%20Stream%5BIO,%20Unit%5D%20=%20{][start shodan in stream assemblers]] 
+   
 * Clogged stream checklist
+  + NYI exceptions might end up being swallowed
+  + Check if all streams are running, not just the head of a stream of streams etc.
 ** Previous cases
+     
 *** The mystery of the silent topics
    I suspect this issue has been a problem for a long time, but I finally found it when
    working on porting the GA to the new generalized framework.
@@ -463,10 +459,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
           
 *** Return of the unimplemented method
-    Implemented a new pipe for ahh fuck it
+    Implemented a new pipe for producing stimulus signal periods. The function from Hz to 
+    period was not implemented but the exception was swallowed.
+    This should be tested properly, but until then using ??? is very dangerous since NYI 
+    errors might be swallowed.
 
-** Round robin acting up again?
-   Check if simply using the head instead of round robin works out
-   
-** Only head of list of stream is emitting
-   Typically falls through the cracks. Try join vectorize instead of roundRobin or similar.

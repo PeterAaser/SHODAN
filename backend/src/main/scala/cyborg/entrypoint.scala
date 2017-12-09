@@ -8,6 +8,7 @@ import fs2.async.mutable.{ Queue, Topic }
 import fs2.async.mutable.Queue
 
 import cats.effect.IO
+import cats.effect.Sync
 import java.io.IOException
 import scala.concurrent.ExecutionContext
 
@@ -17,8 +18,6 @@ import utilz.TaggedSegment
 
 object staging {
 
-  type agentFitnessFunction = Agent => Double
-
   import params.GA._
   import HttpCommands._
 
@@ -27,89 +26,63 @@ object staging {
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,List[Double]],
     rawDataQueue: Queue[IO,TaggedSegment]
-  )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, Stream[IO,Unit]] = {
+  )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, IO[Unit]] = {
 
-    def go(s: Stream[IO,UserCommand]): Pull[IO, Stream[IO,Unit], Unit] = {
-      s.pull.uncons1 flatMap { case Some((cmd, tl)) =>
-        {
-          println(s"got a $cmd")
+    def go(s: Stream[IO,UserCommand]): Pull[IO, IO[Any], Unit] = {
+      s.pull.uncons1 flatMap {
+        case Some((cmd, tl)) => {
           val action = cmd match {
 
-
-            case StartMEAME =>
-              {
-                Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
-                val tcpStream = sIO.streamFromTCP(params.experiment.segmentLength)
-                Assemblers.broadcastDataStream(tcpStream, topics, rawDataQueue.enqueue)
-              }
+            case StartMEAME => {
+              // TODO: Figure out how to idiomatically get rid of uns*feRun here
+              // Might finally get a use for the mysterious R parameter from pull
+              Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
+              val tcpStream = sIO.streamFromTCP(params.experiment.segmentLength)
+              Assemblers.broadcastDataStream(tcpStream, topics, rawDataQueue.enqueue).run
+            }
 
             case AgentStart =>
-              Assemblers.assembleGA(topics, inputChannels, outputChannels, frontendAgentSink, meameFeedbackSink)
+              Assemblers.assembleGA(topics, inputChannels, frontendAgentSink, meameFeedbackSink).run
 
-            // TODO id hardcoded atm
-            case RunFromDB(id) =>
-              {
-                val dbStream = sIO.streamFromDatabase(1)
-                Assemblers.broadcastDataStream(dbStream, topics, rawDataQueue.enqueue)
-              }
+            case DspConf =>
+              HttpClient.dspConfigure
+
+            // TODO hardcoded
+            case RunFromDB(id) => {
+              val dbStream = sIO.streamFromDatabase(1)
+              Assemblers.broadcastDataStream(dbStream, topics, rawDataQueue.enqueue).run
+            }
 
             case StoreToDB(comment) =>
-              sIO.streamToDatabase(rawDataQueue.dequeue, comment)
+              sIO.streamToDatabase(rawDataQueue.dequeue, comment).run
+
 
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")
 
-            case DspTest =>
-              {
-                println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)
-                val uhm: Stream[IO,Unit] = Stream.empty
-                uhm
-              }
-
             case DspStimTest =>
-              {
-                println("stim test yo")
-                val uhm: Stream[IO,Unit] = Stream.eval(HttpClient.dspStimTest).drain
-                uhm
-              }
+              HttpClient.dspStimTest
 
-            case DspTickTest =>
-              {
-                println("stim test yo")
-                val uhm: Stream[IO,Unit] = Stream.eval(HttpClient.dspTickTest).drain
-                uhm
-              }
 
-            case DspUploadTest =>
-              {
-                println("upload test")
-                val regset1 = waveformGenerator.sineWave(0, 100.millis, 200.0)
-                val regset2 = waveformGenerator.sineWave(2, 300.millis, 200.0)
-                val regset3 = waveformGenerator.sineWave(4, 600.millis, 200.0)
-                val uhm: Stream[IO,Unit] =
-                  Stream.eval(regset1) >>
-                  Stream.eval(regset2) >>
-                  Stream.eval(regset3).drain
+            case DspUploadTest => for {
+              _ <- waveformGenerator.sineWave(0, 100.millis, 200.0)
+              _ <- waveformGenerator.sineWave(2, 300.millis, 200.0)
+              _ <- waveformGenerator.sineWave(4, 600.millis, 200.0)
+            } yield ()
 
-                uhm
-              }
 
-            case _ =>
-              {
-                println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)
-                val uhm: Stream[IO,Unit] = Stream.empty
-                uhm
-              }
+            case _ => {
+              println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)
+              Stream.empty.covary[IO].run
+            }
           }
 
           Pull.output1(action) >> go(tl)
         }
-        case None => {
-          println("commandpipe none pull")
-          Pull.done
-        }
+
+        case None => Pull.done
       }
     }
-    in: Stream[IO,UserCommand] => go(in).stream
+    in => go(in).stream.through(_.map(_.map(λ => ())))
   }
 }

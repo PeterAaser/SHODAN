@@ -91,24 +91,9 @@ object HttpServer {
         } yield (resp)
       }
 
-
-      case req @ POST -> Root / "dsptest" => {
-        for {
-          emit <- cmd(DspTest)
-          resp <- Ok("what the fugg xD")
-        } yield (resp)
-      }
-
       case req @ POST -> Root / "dspstimtest" => {
         for {
           emit <- cmd(DspStimTest)
-          resp <- Ok("what the fugg xD")
-        } yield (resp)
-      }
-
-      case req @ POST -> Root / "dspticktest" => {
-        for {
-          emit <- cmd(DspTickTest)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
@@ -160,11 +145,11 @@ object HttpCommands {
   case class StoreToDB(comment: String) extends UserCommand
   case object Shutdown extends UserCommand
 
-  case object DspTest extends UserCommand
-  case object DspStimTest extends UserCommand
-  case object DspTickTest extends UserCommand
-  case object DspUploadTest extends UserCommand
   case object DspSet extends UserCommand
+  case object DspConf extends UserCommand
+
+  case object DspStimTest extends UserCommand
+  case object DspUploadTest extends UserCommand // uploading stimulus, not bitfile
 }
 
 

@@ -8,8 +8,8 @@ object Launcher {
   def main(args: Array[String]): Unit = {
 
     println("wello")
-    // Assemblers.startSHODAN.run.unsafeRunSync()
-    scratchpad.play
+    Assemblers.startSHODAN.run.unsafeRunSync()
+    // scratchpad.play
 
 
 

@@ -10,6 +10,8 @@ import utilz._
 
 object DspComms {
 
+  case class DSPconf(electrodeConfs: List[List[Int]])
+
   import fs2._
 
   def stimuliRequestSink(tolerance: Double)(implicit ec: EC): Sink[IO,List[Double]] = {
@@ -22,7 +24,6 @@ object DspComms {
           val clamped = seg.map(λ => if(λ > 3200.0) 3200.0 else( if(λ < 200.0) 200.0 else λ))
           val shouldUpdate = {
 
-            // This one triggers even when out of range!
             val diffExceedsThreshHold = ((prev zip clamped).map { case(old,next) => math.abs(old-next) })
               .foldLeft(false){ (a,b) => a || (b >= tolerance) }
 
@@ -62,4 +63,6 @@ object DspComms {
 
     in => init(in).stream.flatMap(Stream.eval).drain.join(100)
   }
+
+  val defaultDSPconfig = DSPconf(params.GA.outputChannelsBits)
 }

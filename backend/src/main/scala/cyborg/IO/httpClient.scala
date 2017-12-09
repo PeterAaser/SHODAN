@@ -27,8 +27,8 @@ object HttpClient {
   implicit val regSetCodec = jsonOf[IO, RegisterSetList]
   implicit val regReadCodec = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  // implicit val simpleStimCodec = jsonOf[IO, SimpleStimReq]
   implicit val StimCodec = jsonOf[IO, StimReq]
+  implicit val DSPconfigCodec = jsonOf[IO, DSPconf]
 
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
@@ -36,34 +36,37 @@ object HttpClient {
   case class StimReq(periods: List[Int])
 
 
-  def connectDAQrequest(params: DAQparams): IO[String] = {
-    if(params.samplerate > 1000){
-      println(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
-    }
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
-    httpClient.expect[String](req)
-  }
 
-
+  // DSP
   def setRegistersRequest(regs: RegisterSetList): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/setreg"), regs.asJson)
     httpClient.expect[String](req) }
-
 
   def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req) }
 
-  def readRegistersDirect(regs: RegisterReadList): IO[RegisterReadResponse] = {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/dump"), regs.asJson)
-    httpClient.expect[RegisterReadResponse](req) }
-
-  // def simpleStimRequest(stim: SimpleStimReq): IO[String] = {
-  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/simplestimreq"), stim.asJson)
-  //   httpClient.expect[String](req) }
-
   def stimRequest(stim: StimReq): IO[String] = {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
+    httpClient.expect[String](req) }
+
+  // Uploads bitfile etc
+  def dspConnect: IO[Unit] =
+    httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
+
+  // Configures uploaded bitfile
+  def dspConfigure: IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), DspComms.defaultDSPconfig.asJson)
+    httpClient.expect[String](req)
+  }
+
+
+  // DAQ
+  def connectDAQrequest(params: DAQparams): IO[String] = {
+    if(params.samplerate > 1000){
+      println(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
+    }
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
     httpClient.expect[String](req) }
 
   def startDAQrequest: IO[String] =
@@ -72,23 +75,22 @@ object HttpClient {
   def stopDAQrequest: IO[String] =
     httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/stopDAQ")))
 
-  def sayHello: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/status")))
 
-  def dspConnect: IO[Unit] =
-    httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
+
+  // Auxillary
+  def dspStimTest: IO[String] =
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/stimtest")))
+
+  def meameConsoleLog(s: String): IO[String] =
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))
 
   def dspTest: IO[String] =
     httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/dsptest")))
 
-  def dspStimTest: IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/stimtest")))
+  def readRegistersDirect(regs: RegisterReadList): IO[RegisterReadResponse] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/dump"), regs.asJson)
+    httpClient.expect[RegisterReadResponse](req) }
 
-  def dspTickTest: IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/ticktest")))
-
-  def meameConsoleLog(s: String): IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))
 
   import params.experiment._
 

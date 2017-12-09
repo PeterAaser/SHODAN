@@ -50,7 +50,7 @@ object Assemblers {
                 webSocketAgentServer flatMap {   wsAgentServer =>
                   webSocketVizServer flatMap {   wsVizServer =>
 
-                    commandQueue.dequeue.through(commandPipe).join(100)
+                    commandQueue.dequeue.through(commandPipe).map(Stream.eval).join(100)
                   }
                 }
               }
@@ -143,7 +143,6 @@ object Assemblers {
   def assembleGA(
     dataSource: List[Topic[IO,TaggedSegment]],
     inputChannels: List[Channel],
-    outputChannels: List[Channel],
     frontendAgentObserver: Sink[IO,Agent],
     feedbackSink: Sink[IO,List[Double]])(implicit ec: ExecutionContext): Stream[IO,Unit] =
   {
