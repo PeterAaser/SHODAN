@@ -1,116 +1,119 @@
 * Neste gang
+  Test og debug stim queue
+  Test og debug stim upload
+  Se videre på testing
 
 * Doing
-  SBS og stimulus.
-  sjekk hva som skjer hvis MEAME for en reg write req større enn buf size
-  (burde ikke være et problem)
+  File playback
   
-* Database notes
-** To open db in terminal:
-   peter$~/:    sudo su postgres
-   postgres$~/: psql -d world -U postgres
 
-   select name from country;
-   \q
-** To redo a database
-   peter$~/:    sudo su postgres
-   postgres$~/: psql -c 'drop database $db;' -U postgres
-   postgres$~/: psql -c 'create database $db;' -U postgres
-   postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
-
-* About neurons
-** Filtering
-   None of these assumptions have any sort of neurological basis, they're just assumed
-   in order to get a working prototype.
-
-   I assume maximum amount of spikes we're interested in recording is 50 per second
-
-
-* TODO Add tests
-* DONE Implement stim on MEAME
-  
-* TODO Stim
-** TODO Rewrite stimulus. Possibly from SHODAN?
-*** DONE Write
-*** TODO Verify
-** TODO SHODAN stim requests for single stim site
-** TODO Multiple stim sites
-
-* DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
-  Turns out it was queue segment size being 1
-** DONE Try to create a send only program
-** DONE Figure out the deal with queue sizes
-   dequeueAvailable or dequeueBatch achieves what we're after
-
-* DONE Chunk all data from TCP for easier restarts etc
-  As it is, the datastream from MEAME and the DB does not identify which segment is running.
-  By adding tags we can make it easier to restart etc.
-  Should topics get the same treatment?
-
-* DONE Fix the GA for the last time
-** DONE Create generic version
-** DONE Test with simple example
-** DONE reimplement GA in terms of generic version
+* Now
+** TODO Write more documentation
+** DONE Stim req system
 *** DONE Implement
-*** DONE Make it work
-* TODO Verify file playback.
-* TODO Refactor Feedback pipe
-  not critical
-** TODO figure out how to dequeueAvailable without losing unconsumed
-** TODO The filter should not be responsible for termination
-*** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
-    Might deadlock or whatever
-* TODO Better handling of parameters
-** TODO Define requirements
-   'better' is not a requirement, although in its current state it's not
-   100% wrong either. Possibly params could be a signal or some other IO
-   mutable construct, including an isReady IO[Bool].
-   Sort of react-ish way of handling it
+*** DONE Test
+**** DONE Implement logging rig
+**** DONE Debug with logging rig
+** TODO Add tests
+   Maybe read the chapter on prop testing in the red book?
+*** TODO Get hello world test to run
+*** TODO Make simple sine wave playback server/harness
+*** TODO Make database playback mock server/harness
+   
+** TODO Stimulus
+*** TODO Rewrite stimulus.
+**** DONE Write
+    See MEAMEutilz
+**** TODO Verify
+** TODO Verify and finish file playback.
+*** TODO Verify that recording triangle waves from MEAME2 works
+**** TODO Stream to database
+**** TODO Stream from database
+*** TODO Specify how I want files parsed and delegate slave labor
+*** TODO Get throttling to work properly
+*** TODO Verify correctness
+   
+** TODO Redo build file
+   Look at build.sbt.next
+   When testing out the new build file make sure scala js
+   actually updates.
+* Later
+** TODO Refactor Feedback pipe
+   not critical
+*** TODO figure out how to dequeueAvailable without losing unconsumed
+*** TODO The filter should not be responsible for termination
+**** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
+     Might deadlock or whatever
+    
+** TODO Better handling of parameters
+*** TODO Define requirements
+    'better' is not a requirement, although in its current state it's not
+    100% wrong either. Possibly params could be a signal or some other IO
+    mutable construct, including an isReady IO[Bool].
+    Sort of react-ish way of handling it
 
-* TODO Less unescessary restarts for both SHODAN and MEAME
-** DONE MEAME
-** TODO SHODAN
-*** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
-*** TODO UI support
-** TODO Reset protocol(?)
-   Might not be necessary unless we somehow lose track of an input stream
-   In this scenario we can't demodulate the TCP datastream
-   Have actually managed to trigger this error, so it might be an issue
+** TODO Less unescessary restarts for both SHODAN and MEAME
+*** DONE MEAME
+*** TODO SHODAN
+**** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** TODO UI support
+*** TODO Reset protocol(?)
+    Might not be necessary unless we somehow lose track of an input stream
+    In this scenario we can't demodulate the TCP datastream
+    Have actually managed to trigger this error, so it might be an issue
 
-* TODO Add TCP listening for other users, possibly on specific channels
-  With HTTP
-* TODO Improve the frontend
-** TODO Get rid of the annyoing redundant clicks!!
-** TODO Settings accessible on the frontend
-** TODO Make a spec before randomly writing a lot of code
-** TODO Redo basic UI
+** TODO Add TCP listening for other users, possibly on specific channels
+   With HTTP
+** TODO Improve the frontend
+*** TODO Get rid of the annyoing redundant clicks!!
+*** TODO Settings accessible on the frontend
+*** TODO Make a spec before randomly writing a lot of code
+*** TODO Redo basic UI
    Added react, now to learn using it. Ish
 
-** TODO Add functionality for making a recording
-*** TODO UI elements
-*** TODO Backend support
+*** TODO Add functionality for making a recording
+**** TODO UI elements
+**** TODO Backend support
 
-** TODO Functionality for stim protocols?
-*** TODO UI elements
-*** TODO MEAME support?
-*** TODO DSP support
+*** TODO Functionality for stim protocols?
+**** TODO UI elements
+**** TODO MEAME support?
+**** TODO DSP support
     See refactoring representation element
 
-    
-* TODO Refactor registry representation
-** DONE Refine register representation.
-** DONE Check correctness of STG.scala
-** TODO Make specialized rendering per field basis
+** TODO Refactor registry representation
+*** DONE Refine register representation.
+*** DONE Check correctness of STG.scala
+*** TODO Make specialized rendering per field basis
    For instance electrode enable should use ✘ and ✓ instead of dumping everything
    Similarily, this allows for more sensible per group rendering.
    Currently it's worth asking if this is actually needed, can we simply get by
    with a specialized function? (yes)
-** TODO Create specialized stimulus upload
+*** TODO Create specialized stimulus upload
    Let this be handled on the DSP for now...
-** TODO Refactor HttpClient stuff, get the forest under control.
+*** TODO Refactor HttpClient stuff, get the forest under control.
    
+* Finished
+** DONE Implement stim on MEAME
+** DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
+  Turns out it was queue segment size being 1
+*** DONE Try to create a send only program
+*** DONE Figure out the deal with queue sizes
+   dequeueAvailable or dequeueBatch achieves what we're after
 
-* DONE Add sine wave generator on MEAME for debugging
+** DONE Chunk all data from TCP for easier restarts etc
+   As it is, the datastream from MEAME and the DB does not identify which segment is running.
+   By adding tags we can make it easier to restart etc.
+   Should topics get the same treatment?
+** DONE Fix the GA for the last time
+*** DONE Create generic version
+*** DONE Test with simple example
+*** DONE reimplement GA in terms of generic version
+**** DONE Implement
+**** DONE Make it work
+  
+
+** DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really
 
 
@@ -415,6 +418,26 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 ** Syntax?
    Problem: We want a map of possible 
    
+* Database notes
+** To open db in terminal:
+   peter$~/:    sudo su postgres
+   postgres$~/: psql -d world -U postgres
+
+   select name from country;
+   \q
+** To redo a database
+   peter$~/:    sudo su postgres
+   postgres$~/: psql -c 'drop database $db;' -U postgres
+   postgres$~/: psql -c 'create database $db;' -U postgres
+   postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
+
+* About neurons
+** Filtering
+   None of these assumptions have any sort of neurological basis, they're just assumed
+   in order to get a working prototype.
+
+   I assume maximum amount of spikes we're interested in recording is 50 per second
+
 
 * Issues with output from MEAME
   It seems the data corruption issues only happen with low samplerates.
@@ -464,3 +487,17 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     This should be tested properly, but until then using ??? is very dangerous since NYI 
     errors might be swallowed.
 
+
+* On testing
+  Scala has 3 major testing frameworks.
+  + ScalaCheck
+    Focuses on property-based testing 
+  + specs2
+    Concentrates on behavior-drive development. 
+  + ScalaTest 
+    a flexible testing platform.
+    "ScalaTest enables teams to use the style of testing that fits them best, and
+    supports property-based testing via integration with ScalaCheck."
+  
+  These frameworks are compatible with each other, typically
+  ScalaTest and ScalaCheck are used in conjunction.

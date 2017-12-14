@@ -43,11 +43,9 @@ object websocketStream {
         buf(ii) = memelord.getInt32(ii*4)
       }
 
-      println(counter)
       counter = counter + 1
-      if(counter == 100){
+      if(counter == 1000){
         counter = 0
-        println("frontend wf received")
         println(s"frontend dataqueue buffered size is ${controller.dataqueue.size}")
       }
 

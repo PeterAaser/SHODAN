@@ -18,12 +18,6 @@ object frontHTTPclient {
     req.send()
   }
 
-  def stopSHODAN: Unit = {
-    val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/stop")
-    req.send()
-  }
-
   def startAgentStream(cantvas: html.Canvas): Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/agent")
@@ -50,30 +44,11 @@ object frontHTTPclient {
     req.send()
   }
 
-  def dspTest: Unit = {
-    val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/dsptest")
-    req.send()
-  }
-
-  def dspSet: Unit = {
-    val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/dspset")
-    req.send()
-  }
-
   def dspStimTest: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/dspstimtest")
     req.send()
   }
-
-  def dspTickTest: Unit = {
-    val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/dspticktest")
-    req.send()
-  }
-
 
   def dspUploadTest: Unit = {
     val req = new dom.XMLHttpRequest()
@@ -81,7 +56,7 @@ object frontHTTPclient {
     req.send()
   }
 
-  def barf: Unit = {
+  def dspBarf: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/barf")
     req.send()
@@ -93,13 +68,15 @@ object frontHTTPclient {
     req.send()
   }
 
+  def startRecording: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/record_start")
+    req.send()
+  }
 
-  def testDebugMsg: Unit = {
-    val sizeReq = new dom.XMLHttpRequest()
-    sizeReq.open("GET", "http://127.0.0.1:8080/info_waiting")
-    sizeReq.onload = (e: dom.Event) => {
-      println(e)
-    }
-    sizeReq.send()
+  def stopRecording: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/record_start")
+    req.send()
   }
 }

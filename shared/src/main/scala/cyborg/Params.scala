@@ -145,7 +145,7 @@ object params {
     val blockSize = pointsPerSec/vizLength
     val reducedSegmentLength = experiment.segmentLength/blockSize
 
-    val maxVal = 300
+    val maxVal = 1300
     val wfMsgSize = 1200
     val sixtyFPSrefreshRate = 17  //every 17 ms
     val thirtyFPSrefreshRate = 33 //every 33 ms

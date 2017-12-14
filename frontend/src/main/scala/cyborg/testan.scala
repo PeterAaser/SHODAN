@@ -31,12 +31,13 @@ object hurr {
 
     val startMEAME = button("MEAME").render
     val startDB = button("DB").render
+    val startRecord = button("start recording").render
+    val stopRecord = button("stop recording").render
     val crash = button("stop SHODAN").render
     val testStimButton = button("test stim").render
     val testUploadButton = button("upload stimulus test").render
     val barf = button("DSP barf").render
     val reset = button("DSP reset").render
-
 
     /**
       Starts SHODAN and connects to MEAME.
@@ -60,6 +61,19 @@ object hurr {
     }
 
 
+    startRecord.onclick = (_: MouseEvent) => {
+      println("Starting a database recording")
+      document.getElementById("playground").replaceChild(stopRecord, startRecord)
+      frontHTTPclient.startRecording
+    }
+
+    stopRecord.onclick = (_: MouseEvent) => {
+      println("Stopping database recording")
+      document.getElementById("playground").replaceChild(startRecord, stopRecord)
+      frontHTTPclient.stopRecording
+    }
+
+
     /**
       Stops (crashes) SHODAN
       */
@@ -70,22 +84,21 @@ object hurr {
 
 
     /**
-      Fires a stim test
+      Extras and debug
       */
     testStimButton.onclick = (_: MouseEvent) => {
-      println("Running DSP stim test")
+      println("Running DSP stim request test")
       frontHTTPclient.dspStimTest
     }
 
-
     testUploadButton.onclick = (_: MouseEvent) => {
       println("Attempting to upload stimulus")
-      frontHTTPclient.dspTickTest
+      frontHTTPclient.dspUploadTest
     }
 
     barf.onclick = (_: MouseEvent) => {
       println("barfing debug")
-      frontHTTPclient.barf
+      frontHTTPclient.dspBarf
     }
 
     reset.onclick = (_: MouseEvent) => {
@@ -94,8 +107,9 @@ object hurr {
     }
 
     document.getElementById("playground").appendChild(startMEAME)
-    document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(startDB)
+    document.getElementById("playground").appendChild(startRecord)
+    document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(testStimButton)
     document.getElementById("playground").appendChild(barf)
     document.getElementById("playground").appendChild(reset)
