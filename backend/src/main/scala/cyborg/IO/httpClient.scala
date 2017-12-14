@@ -60,6 +60,16 @@ object HttpClient {
     httpClient.expect[String](req)
   }
 
+  def dspBarf: IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/barf"))
+    httpClient.expect[String](req)
+  }
+
+  def dspDebugReset: IO[String] = {
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/reset_debug"))
+    httpClient.expect[String](req)
+  }
+
 
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[String] = {

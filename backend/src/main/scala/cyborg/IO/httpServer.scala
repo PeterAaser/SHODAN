@@ -119,6 +119,20 @@ object HttpServer {
           resp <- Ok("shutting down")
         } yield (resp)
       }
+
+      case req @ POST -> Root / "barf" => {
+        for {
+          emit <- cmd(DspBarf)
+          resp <- Ok("barfing")
+        } yield (resp)
+      }
+
+      case req @ POST -> Root / "reset_dsp_debug" => {
+        for {
+          emit <- cmd(DspDebugReset)
+          resp <- Ok("resetting")
+        } yield (resp)
+      }
     }
   }
 
@@ -150,6 +164,9 @@ object HttpCommands {
 
   case object DspStimTest extends UserCommand
   case object DspUploadTest extends UserCommand // uploading stimulus, not bitfile
+
+  case object DspBarf extends UserCommand
+  case object DspDebugReset extends UserCommand
 }
 
 

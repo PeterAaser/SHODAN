@@ -142,8 +142,11 @@ object utilz {
   }
 
 
-  // TODO figure out if this is actually needed or not
-  // Very likely not needed
+  /**
+    Not really something that has any right to remain in the codebase.
+    Sadly it's so ingrained now I cba removing it. Feel free to do so
+    yourself!
+    */
   def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
 
     def go(s: Stream[F,Seq[I]]): Pull[F,I,Unit] = {
@@ -172,7 +175,7 @@ object utilz {
     require(windowWidth > overlap, "windowWidth must be wider than overlap")
     val stepsize = windowWidth - overlap
     def go(s: Stream[F,I], last: Vector[I]): Pull[F,Vector[I],Unit] = {
-      s.pull.unconsN(stepsize, false).flatMap {
+      s.pull.unconsN(stepsize.toLong, false).flatMap {
         case Some((seg, tl)) =>
           Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
         case None => Pull.done
@@ -237,45 +240,26 @@ object utilz {
 
 
   /**
-    Periodically emits "tokens" to a queue. By zipping the output of the queue with a
-    stream and then discarding the token the stream will be throttled to the rate of token outputs.
-    TODO: I think this is now a part of the standard fs2 lib
+    Shouldn't really remain as a function when reduced to a call from the scheduler.
     */
-  def throttle[F[_], I](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Pipe[F,I,I] = {
-
-    val throttler: Stream[F,Unit] = t.fixedRate(period)
-    val throttleQueueTask = fs2.async.boundedQueue[F,Unit](10)
-
-    // Should now periodically input tokens to the throttle queue
-    val throttleStream: Stream[F, Unit] =
-      Stream.eval(throttleQueueTask) flatMap { queue =>
-        println(Console.RED + "I DONT WORK" + Console.RESET)
-        val in = throttler.through(_.map{λ => println(λ);λ}).through(queue.enqueue)
-        val out = queue.dequeue
-        val spam = spamQueueSize("throttle q", queue, 1.second)
-        in.concurrently(out.concurrently(spam))
-      }
-
-    s => s.zipWith(throttleStream)((λ,µ) => λ)
-  }
-
-  def throttul2[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
-    val throttler: Stream[F,Unit] = t.fixedRate(period)
-    val throttleQueueTask = fs2.async.boundedQueue[F,Unit](10)
-
-    val throttleStream: Stream[F, Unit] =
-      Stream.eval(throttleQueueTask) flatMap { queue =>
-        println(Console.RED + "I DONT WORK" + Console.RESET)
-        val in = throttler.through(queue.enqueue)
-        val out = queue.dequeue
-        val spam = spamQueueSize("throttle q", queue, 1.second)
-        in.concurrently(out.concurrently(spam))
-      }
-    throttleStream
-  }
-
-  def throttul[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+  def tickSource[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
     t.fixedRate(period)
+  }
+
+
+  /**
+    Does not account for rounding errors!
+
+    */
+  def throttlerPipe[F[_]: Effect,I](elementsPerSec: Int, resolution: FiniteDuration)(implicit s: Scheduler, ec: EC): Pipe[F,I,I] = {
+
+    val ticksPerSecond = (1.second/resolution)
+    val elementsPerTick = (elementsPerSec/ticksPerSecond).toInt
+
+    _.through(vectorize(elementsPerTick))
+      .zip(tickSource(resolution))
+      .through(_.map(_._1))
+      .through(chunkify)
   }
 
 
@@ -284,9 +268,6 @@ object utilz {
     by selecting output from each input stream in a round robin fashion.
 
     Not built for speed, at least not when chunksize is low
-
-    TODO: By adding queues we would stop blocking while waiting
-    TODO: Verify that this is a perf problem
     */
   def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],List[I]] = _.flatMap(roundRobinL)
 
@@ -360,20 +341,21 @@ object utilz {
 
 
   /**
-    Should print the size of a queue at regular intervals
+    Prints the size of a queue to std.out at supplied interval.
+    Used for unclogging
     */
   def spamQueueSize[F[_]: Effect, I](
     name: String,
     q: Queue[F,I],
     dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
 
-    throttul(dur).flatMap { _ =>
+    tickSource(dur).flatMap { _ =>
       Stream.eval(q.size.get).through(_.map(λ => println(s"Queue with name $name has a size of $λ")))
     }.repeat
   }
 
 
-  // TODO: rewrite with idiomatic ops
+  // TODO: maybe rewrite with more idiomatic ops?
   def tagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
       s.pull.unconsN(segmentLength.toLong, false) flatMap {

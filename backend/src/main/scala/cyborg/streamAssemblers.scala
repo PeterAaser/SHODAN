@@ -29,7 +29,7 @@ object Assemblers {
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
     val taggedSegQueueS = Stream.eval(fs2.async.unboundedQueue[IO,TaggedSegment])
 
-    // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.oldStimuliRequestSink(300)
+    // magic hardcoded threshold
     val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
 
     commandQueueS flatMap {           commandQueue =>
@@ -132,7 +132,7 @@ object Assemblers {
     */
   def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,List[Topic[F,TaggedSegment]]] = {
 
-    // hardcoded
+    // hardcoded init. Should be harmless
     createTopics[F,TaggedSegment](60, TaggedSegment((-1,Vector[Int]())))
   }
 

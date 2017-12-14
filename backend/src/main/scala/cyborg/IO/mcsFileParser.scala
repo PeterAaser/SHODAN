@@ -88,7 +88,7 @@ object mcsParser {
       uris.map { uri =>
 
         val metaData = fileIO.getListOfFiles("/home/peteraa/MEAdata/mcs_data/metadata")
-          .filterNot(λ => λ.getName.eq(uri.getFileName))
+          .filterNot(λ => λ.getName.eq(uri.getFileName.toString()))
           .head.toPath() // #YOLO
 
         (uri, metaData)

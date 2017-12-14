@@ -24,31 +24,18 @@ object frontHTTPclient {
     req.send()
   }
 
-  def startAgent: Unit = {
+  def startAgentStream(cantvas: html.Canvas): Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/agent")
     req.send()
-  }
-
-  /**
-    Opens a websocket to get the hottest new Agent data
-    */
-  def startAgentStream(cantvas: html.Canvas): Unit = {
 
     val controller = new Visualizer.VisualizerControl(cantvas, Agent(Coord(.0,.0),0,0))
     websocketStream.createAgentWsQueue(controller)
   }
 
   def startWaveformStream(cantvas: html.Canvas): Unit = {
-
     val controller = new waveformVisualizer.WFVisualizerControl(cantvas, new scala.collection.mutable.Queue())
     websocketStream.createWaveformWs(controller)
-  }
-
-  def startWf: Unit = {
-    val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/wf")
-    req.send()
   }
 
   def startDB: Unit = {
@@ -93,6 +80,19 @@ object frontHTTPclient {
     req.open("POST", "http://127.0.0.1:8080/dspuploadtest")
     req.send()
   }
+
+  def barf: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/barf")
+    req.send()
+  }
+
+  def reset: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/reset_dsp_debug")
+    req.send()
+  }
+
 
   def testDebugMsg: Unit = {
     val sizeReq = new dom.XMLHttpRequest()

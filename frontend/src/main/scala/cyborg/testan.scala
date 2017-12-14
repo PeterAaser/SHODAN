@@ -29,47 +29,35 @@ object hurr {
     val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
     val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
-    val visualizeWfButton = button("visualize waveforms").render
+    val startMEAME = button("MEAME").render
+    val startDB = button("DB").render
     val crash = button("stop SHODAN").render
-    val startDBButton = button("From DB").render
-    val startSHODANButton = button("start SHODAN").render
-    val visualizeAgentButton = button("visualize agent").render
-    val connectAgentButton = button("connect agent").render
     val testStimButton = button("test stim").render
-    val testTickButton = button("test tick").render
-
     val testUploadButton = button("upload stimulus test").render
+    val barf = button("DSP barf").render
+    val reset = button("DSP reset").render
 
 
     /**
       Starts SHODAN and connects to MEAME.
       SHODAN is already running, so not really nescessary
       */
-    startSHODANButton.onclick = (_: MouseEvent) =>
-      frontHTTPclient.startSHODAN
-
-
-    /**
-      Creates and initializes an agent. If data is available
-      this agent will start running even though visualization has not yet been started
-      */
-    connectAgentButton.onclick = (_: MouseEvent) =>
-      frontHTTPclient.startAgent
-
-
-    /**
-      Visualizes data from a currently running agent
-      */
-    visualizeAgentButton.onclick = (_: MouseEvent) =>
-      frontHTTPclient.startAgentStream(agentCanvas)
-
-
-    /**
-      Opens a websocket to get raw data for visualization from SHODAN
-      Can be run both from database and from raw input
-      */
-    visualizeWfButton.onclick = (_: MouseEvent) =>
+    startMEAME.onclick = (_: MouseEvent) => {
       frontHTTPclient.startWaveformStream(visualizerCanvas)
+      frontHTTPclient.startAgentStream(agentCanvas)
+      frontHTTPclient.startSHODAN
+    }
+
+
+    /**
+      Starts running data from SHODANs database
+      */
+    startDB.onclick = (_: MouseEvent) => {
+      println("DB button clicked")
+      frontHTTPclient.startWaveformStream(visualizerCanvas)
+      frontHTTPclient.startAgentStream(agentCanvas)
+      frontHTTPclient.startDB
+    }
 
 
     /**
@@ -82,15 +70,6 @@ object hurr {
 
 
     /**
-      Starts running data from SHODANs database
-      */
-    startDBButton.onclick = (_: MouseEvent) => {
-      println("DB button clicked")
-      frontHTTPclient.startDB
-    }
-
-
-    /**
       Fires a stim test
       */
     testStimButton.onclick = (_: MouseEvent) => {
@@ -99,26 +78,27 @@ object hurr {
     }
 
 
-    testTickButton.onclick = (_: MouseEvent) => {
-      println("Running DSP tick test")
-      frontHTTPclient.dspTickTest
-    }
-
-
     testUploadButton.onclick = (_: MouseEvent) => {
       println("Attempting to upload stimulus")
       frontHTTPclient.dspTickTest
     }
 
+    barf.onclick = (_: MouseEvent) => {
+      println("barfing debug")
+      frontHTTPclient.barf
+    }
 
-    document.getElementById("playground").appendChild(startSHODANButton)
-    document.getElementById("playground").appendChild(connectAgentButton)
-    document.getElementById("playground").appendChild(visualizeAgentButton)
-    document.getElementById("playground").appendChild(visualizeWfButton)
+    reset.onclick = (_: MouseEvent) => {
+      println("resetting debug")
+      frontHTTPclient.reset
+    }
+
+    document.getElementById("playground").appendChild(startMEAME)
     document.getElementById("playground").appendChild(crash)
-    document.getElementById("playground").appendChild(startDBButton)
+    document.getElementById("playground").appendChild(startDB)
     document.getElementById("playground").appendChild(testStimButton)
-    document.getElementById("playground").appendChild(testTickButton)
+    document.getElementById("playground").appendChild(barf)
+    document.getElementById("playground").appendChild(reset)
 
 
     document.getElementById("playground").appendChild(agentCanvas)

@@ -56,13 +56,11 @@ object staging {
             case StoreToDB(comment) =>
               sIO.streamToDatabase(rawDataQueue.dequeue, comment).run
 
-
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")
 
             case DspStimTest =>
               HttpClient.dspStimTest
-
 
             case DspUploadTest => for {
               _ <- waveformGenerator.sineWave(0, 100.millis, 200.0)
@@ -70,6 +68,11 @@ object staging {
               _ <- waveformGenerator.sineWave(4, 600.millis, 200.0)
             } yield ()
 
+            case DspBarf =>
+              HttpClient.dspBarf
+
+            case DspDebugReset =>
+              HttpClient.dspDebugReset
 
             case _ => {
               println(Console.RED + "UNSUPPORTED ACTION ISSUED" + Console.RESET)

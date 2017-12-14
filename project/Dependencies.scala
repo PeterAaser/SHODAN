@@ -51,11 +51,6 @@ object Dependencies {
       minified  "react-dom-server.min.js"
       dependsOn "react-dom.js"
       commonJSName "ReactDOMServer"
-
-    // "org.webjars.npm" % "material-ui" % "0.15.2"
-    //   /         "material-ui.js"
-    //   minified  "material-ui.min.js"
-    //   commonJSName "materialUi"
   ))
 
 
@@ -91,9 +86,6 @@ object Dependencies {
     "org.tpolecat" %% "doobie-postgres"   % doobieVersion,
     "org.tpolecat" %% "doobie-specs2"     % doobieVersion,
     "net.postgis" % "postgis-jdbc" % "2.2.1",
-
-    "io.spray" %%  "spray-json" % "1.3.3",
-    "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
 
     "org.scodec" %% "scodec-bits" % "1.1.2",
     "org.scodec" %% "scodec-core" % "1.10.3",
