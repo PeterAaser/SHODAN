@@ -26,6 +26,7 @@
     See MEAMEutilz
 **** TODO Verify
 ** TODO Verify and finish file playback.
+*** DONE Add basic user interface support
 *** TODO Verify that recording triangle waves from MEAME2 works
 **** TODO Stream to database
 **** TODO Stream from database
