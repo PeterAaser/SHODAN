@@ -76,7 +76,7 @@ object frontHTTPclient {
 
   def stopRecording: Unit = {
     val req = new dom.XMLHttpRequest()
-    req.open("POST", "http://127.0.0.1:8080/record_start")
+    req.open("POST", "http://127.0.0.1:8080/record_stop")
     req.send()
   }
 }

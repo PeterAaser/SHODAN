@@ -21,34 +21,17 @@ object HttpServer {
     commands: Sink[IO,UserCommand],
     debugMessageQueue: Queue[IO,DebugMessage]): HttpService[IO] = {
 
-    val debugMessagesAvailable = debugMessageQueue.size
 
     def cmd(command: UserCommand): IO[Unit] =
       Stream.emit(command).covary[IO].through(commands).run
 
     HttpService {
       case req @ POST -> Root / "connect" => {
-        println("connect. WARNING DOES THE SAME AS STARTMEAME")
         for {
           emit <- cmd(StartMEAME)
           resp <- Ok("Connected")
         } yield (resp)
       }
-      case req @ POST -> Root / "stop" => {
-        println("stop")
-        for {
-          emit <- cmd(StopMEAME)
-          resp <- Ok("Stopped")
-        } yield (resp)
-      }
-      case req @ POST -> Root / "start" => {
-        println("start")
-        for {
-          emit <- cmd(StartMEAME)
-          resp <- Ok("start")
-        } yield (resp)
-      }
-
       case req @ POST -> Root / "db" => {
         println("db")
         for {
@@ -56,7 +39,6 @@ object HttpServer {
           resp <- Ok("start")
         } yield (resp)
       }
-
       case req @ POST -> Root / "agent" => {
         println("agent")
         for {
@@ -68,48 +50,7 @@ object HttpServer {
         println("waveform")
         for {
           emit <- cmd(StartWaveformVisualizer)
-          resp <- Ok("what the fugg xD")
-        } yield (resp)
-      }
-
-      case req @ GET -> Root / "info_waiting" => {
-        println("got info waiting")
-        for {
-          available <- debugMessagesAvailable.get
-          _ = println(s"asked for available, got $available")
-          resp <- Ok(s"$available")
-        } yield (resp)
-      }
-
-      case req @ GET -> Root / "info" => {
-        for {
-          message <- debugMessageQueue.dequeue1
-          resp <- message match {
-            case ChannelTraffic(_,a) => Ok(s"some info yo: ${a}")
-            case _ => Ok("ayy lmao")
-          }
-        } yield (resp)
-      }
-
-      case req @ POST -> Root / "dspstimtest" => {
-        for {
-          emit <- cmd(DspStimTest)
-          resp <- Ok("what the fugg xD")
-        } yield (resp)
-      }
-
-      case req @ POST -> Root / "dspset" => {
-        for {
-          emit <- cmd(DspSet)
-          resp <- Ok("what the fugg xD")
-        } yield (resp)
-      }
-
-
-      case req @ POST -> Root / "dspuploadtest" => {
-        for {
-          emit <- cmd(DspUploadTest)
-          resp <- Ok("what the fugg xD")
+          resp <- Ok("sending some wavez dude")
         } yield (resp)
       }
 
@@ -119,6 +60,40 @@ object HttpServer {
           resp <- Ok("shutting down")
         } yield (resp)
       }
+
+      case req @ POST -> Root / "record_start" => {
+        for {
+          emit <- cmd(DBstartRecord)
+          rest <- Ok("starting recording")
+        } yield (rest)
+      }
+
+      case req @ POST -> Root / "record_stop" => {
+        for {
+          emit <- cmd(DBstopRecord)
+          rest <- Ok("starting recording")
+        } yield (rest)
+      }
+
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+// Debug stuff
+
+      case req @ POST -> Root / "dspstimtest" => {
+        for {
+          emit <- cmd(DspStimTest)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
+      case req @ POST -> Root / "dspuploadtest" => {
+        for {
+          emit <- cmd(DspUploadTest)
+          resp <- Ok("what the fugg xD")
+        } yield (resp)
+      }
+
 
       case req @ POST -> Root / "barf" => {
         for {
@@ -156,7 +131,8 @@ object HttpCommands {
   case object ConfigureMEAME extends UserCommand
 
   case class RunFromDB(experimentId: Int) extends UserCommand
-  case class StoreToDB(comment: String) extends UserCommand
+  case object DBstartRecord extends UserCommand
+  case object DBstopRecord extends UserCommand
   case object Shutdown extends UserCommand
 
   case object DspSet extends UserCommand

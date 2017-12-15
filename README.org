@@ -1,0 +1,91 @@
+* SHODAN
+  SHODAN is a framework for performing reservoir computing.
+
+  Currently SHODAN offers functionality for using reservoir data sent over TCP
+  to control a simple agent, as well as sending input to the reservoir.
+  Database storage and playback is included but still fairly rough.
+
+  While the aim of SHODAN is to offer functionality for any reservoir it is
+  currently only geared towards in vitro neurons sent from the MEAME
+  server using the multichannel systems MEA2100 neural interface.
+
+  A description of the general idea behind SHODAN and can be read here
+  https://github.com/PeterAaser/semproj/blob/master/semesterrapport%20peter%20aaser.pdf
+  
+* Getting started
+** Installing
+   SHODAN is developed and tested on ubuntu 16.04, but should work on most GNU/Linux distros
+   To build SHODAN only sbt (scala build tool) is required. Since the main compilation target
+   of scala is java bytecode you must have a jvm installed in order to run sbt, but apart
+   from that sbt will pull all necessary dependencies, including the scala language itself.
+  
+   After installing sbt and a jvm simply clone SHODAN and go to the top level directory.
+   pulling all the dependencies will take a long while, just let it run to completion. After
+   pulling dependencies you can compile or run in the sbt console, which will pull even more
+   dependencies.
+  
+   The frontend written is scala.js (scala transpiling to js) can be hosted from sbt. By starting
+   sbt with the argument ~fastOptJS::webpack the frontend will be accessible from your browser.
+   Typically I have two sbt sessions, one for the frontend and one for the backend.
+   The default port is 12345, just go to
+   http://localhost:12345/frontend/index.dev.html in your browser (only tested on chrome)
+
+** Getting started with SHODAN
+   SHODAN is a fairly large codebase, so getting started can be quite daunting.
+   A good start is getting familiar with functional streaming. Taking a look at the fs2
+   documentation is a good start.
+   https://github.com/functional-streams-for-scala/fs2/blob/series/0.10/docs/guide.md
+   
+   The 'main' method is located in Launcher.scala, but it contains only one method which
+   starts the server.
+   startShodan is defined in streamAssemblers.scala which collects the necessary components
+   to run the main command loop (actually a 'pipe', but it boils down to the same thing).
+   
+   startSHODAN creates queues, topics, the http server for the frontend, and the rest of the lowlevel infrastructure. After
+   getting the necessary buffers, queues etc ready startSHODAN creates the the main command 
+   loop found in entrypoint.scala.
+   commandPipe in entrypoint.scala is the first place you should look at when you want to
+   get used to SHODAN! commandPipe reads tokens produced by the http server (and by extension
+   the user) and performs actions based on that. Looking at the signature of commandPipe you
+   see it's a pipe transforming UserCommand => IO[Unit]. IO[Unit] is a datastructure capturing 
+   intent, and evaluating these IO actions happen in the startSHODAN function, and by extension
+   from the unsafeRynSync call in the launcher.
+   
+   To recap: In Launcher.scala Assemblers.startSHODAN is called, which instantiates the necessary
+   infrastructure to create the commandPipe and then executes the IO[Unit] actions it produces.
+   commandPipe is where you should start looking.
+
+*** commandPipe
+    The commandpipe is assembled using multiple assembler methods located in streamAssemblers,
+    but luckily looking at the argument list is sufficient for understanding what it does.
+    These arguments are:
+    + topics: 
+      A list of 60 topics. These topics serve as conduits for neuro-data, but they are
+      neither subscribed or published to by default.
+    + frontendAgentSink:
+      A 'sink' which acts as an endpoint for the agent runner. When neuro-data is used to run
+      a simple virtual agent, this is where the state of the agent is sent. Currently this
+      sink can be connected to a websocket to visualize the current state of the agent to the
+      frontend, but it can also for instance be stored to file.
+    + meameFeedbackSink:
+      This is where neuro-stim data going back to MEAME is sent. When the virtual agents sees
+      a wall, this data is sent to the meameFeedbackSink, which in turn is hooked up to the
+      SHODAN http client which requests stimuli via HTTP calls.
+    + rawDataQueue:
+      Like topics, but not demultiplexed. Useful for when we just want the raw data.
+
+    So what exactly IS the command pipe? The command pipe takes in commands and performs actions 
+    on the arguments commandPipe was instantiated with. As an example, look at what happens when
+    a runFromDB token is pulled: First the RunFromDB method is pattern matched with the token.
+    Next, a stream is opened reading from file using sIO.streamFromDatabase(1) where 1 is a
+    hardcoded parameter. Suffice to say this method simply looks up a database recording that is 
+    currently hardcoded. Next, the method returns the call Assemblers.broadcastDataStream.
+    broadcastDataStream takes in both the topics and raw data queue, and returns an IO[Unit].
+    Technically it returns a Stream[IO,Unit], but these are interchangeable.
+    This IO[Unit] represent connecting the data from a database recording into the datatopics and 
+    the raw data. Similarily, when a startSHODAN token is received SHODAN is started, and tcp data
+    is hosed into the topics/raw data queue rather than file data.
+    
+** StreamAssemblers
+   This leads us to where you probably want to go, the streamAssemblers. In both previous examples
+   the result is that we get 

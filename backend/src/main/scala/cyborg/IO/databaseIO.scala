@@ -16,7 +16,7 @@ object databaseIO {
 
 
   // haha nice meme dude!
-  val superdupersecretPassword = "meme"
+  val superdupersecretPassword = "memes"
 
   import doobie.imports._
   val xa = Transactor.fromDriverManager[IO](
@@ -33,7 +33,7 @@ object databaseIO {
   def dbChannelStream(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
     println(s"making stream for experiment $experimentId")
 
-    val data = Stream.eval(doobIO.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
+    val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
       println(s"got data $data")
       val reader = data.resourceType match {
         case CSV => fileIO.readCSV[IO](data.resourcePath)
@@ -47,8 +47,8 @@ object databaseIO {
   }
 
 
-  def dbGetParams(experimentId: Int)(implicit ec: ExecutionContext): IO[Int] = {
-    val params = doobIO.getExperimentParams(experimentId)
+  def dbGetParams(experimentId: Int): IO[Int] = {
+    val params = doobIO.getExperimentParams(experimentId.toLong)
       .transact(xa)
       .map(_.segmentLength)
 

@@ -27,6 +27,10 @@
 **** TODO Verify
 ** TODO Verify and finish file playback.
 *** DONE Add basic user interface support
+*** TODO Figure out how to start and stop recordings
+    Start should be params -> IO[IO[Unit]] perhaps?
+    Outer IO is the start, the inner IO is the finalization which
+    writes metadata to the db etc?
 *** TODO Verify that recording triangle waves from MEAME2 works
 **** TODO Stream to database
 **** TODO Stream from database
@@ -39,6 +43,8 @@
    When testing out the new build file make sure scala js
    actually updates.
 * Later
+** TODO Spec out and properly implement DB
+*** TODO add more todo items
 ** TODO Refactor Feedback pipe
    not critical
 *** TODO figure out how to dequeueAvailable without losing unconsumed
@@ -431,6 +437,11 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    postgres$~/: psql -c 'drop database $db;' -U postgres
    postgres$~/: psql -c 'create database $db;' -U postgres
    postgres$~/: psql -c '\i $db.sql' -d $db -U postgres
+   
+** Some commands
+   \dt to show tables
+   
+   
 
 * About neurons
 ** Filtering

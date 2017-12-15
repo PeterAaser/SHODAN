@@ -11,8 +11,8 @@ object params {
 
   object experiment {
     val totalChannels = 60
-    val samplerate = 10000
-    val segmentLength = 1000
+    val samplerate = 1000
+    val segmentLength = 100
     val maxSpikesPerSec = 50
 
     val minFreq = 0.33

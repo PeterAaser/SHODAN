@@ -23,7 +23,7 @@ object sIO {
 
 
   /**
-    * Stream data to a database from a list of topics yada yada
+    * Writes data to a CSV file. The metadata is stored to database
     */
   def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment], comment: String): Stream[IO, Unit] =
     Stream.eval(databaseIO.createRecordingSink(comment)) flatMap ( sink =>

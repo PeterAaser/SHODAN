@@ -53,8 +53,8 @@ object staging {
               Assemblers.broadcastDataStream(dbStream, topics, rawDataQueue.enqueue).run
             }
 
-            case StoreToDB(comment) =>
-              sIO.streamToDatabase(rawDataQueue.dequeue, comment).run
+            case DBstartRecord =>
+              sIO.streamToDatabase(rawDataQueue.dequeue, "TEST RUN").run
 
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")
