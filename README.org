@@ -95,4 +95,32 @@
    which tokens arrive does not matter (yay!), if agentStart comes before runFromDB the result 
    will be the same.
 
+   All the stream assemblers assemble pipes that rely on the already existing infrastructure of 
+   the commandPipe. They get data from one of the datasources (raw data or topics) and they output 
+   data to one of the endpoints commandPipe has at its disposal. (Or acts as an endpoint/source).
    
+   As an example, let's say we want to filter the data and store that to a database.
+   First we would like to create the filter itself:
+   #+BEGIN_SRC scala
+def myDataFilter[F[_],O]: Pipe[F,Int,O] = ???
+   #+END_SRC
+   myDataFilter is a pipe that takes in integers and returns some output O. In this case O is a
+   type parameter, in your case that's probably not necessary, only use type parameters when the
+   pipe should work for generic data!
+  
+   Next, you need a sink to send the data you've generated in your filter:
+   #+BEGIN_SRC scala
+def myDataStoreSink[F[_],O]: Sink[F,O] = _.through(_.map{ o => println(s"std.out is a database right?, $o) })
+   #+END_SRC
+   
+   Now we have our filter and our storage, so how do we actually get it to run? What generally happens
+   is we pipe data from the topics into the datafilter, and then pipe the output to myDataStoreSink.
+   This operation is represented as a Stream[IO,Unit], which is interchangeable with IO[Unit] in our case.
+   
+   As an example, consider the assembleInputFilter method. One of its arguments is a pipe[IO,Int,Double] which
+   detects spikes.
+   
+* Working on SHODAN
+  Rather than having to connect to MEAME2 testing should be done using throttled data running from the
+  database. This is not implemented in a convenient fashion yet though. Hopefully I can get it done 
+  before xmas...

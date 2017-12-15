@@ -63,7 +63,6 @@ object Assemblers {
     Reads relevant neuro data from a topic list and pipes each channel through a spike
     detector, before aggregating spikes from each channel into ANN input vectors
     */
-  // TODO rename to spike detector something?
   def assembleInputFilter(
     broadcastSource: List[Topic[IO,TaggedSegment]],
     channels: List[Channel],
@@ -99,7 +98,7 @@ object Assemblers {
     source: Stream[IO,TaggedSegment],
     topics: List[Topic[IO,TaggedSegment]],
     rawSink: Sink[IO,TaggedSegment]
-  )(implicit ec: ExecutionContext): Stream[IO,Unit] = {
+  )(implicit ec: EC): Stream[IO,Unit] = {
 
     import params.experiment.totalChannels
 
