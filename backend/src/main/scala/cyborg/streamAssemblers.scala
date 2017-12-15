@@ -4,13 +4,10 @@ import cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.Topic
 import org.http4s.server.Server
-import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
 import cats.effect.Effect
-
-import scala.concurrent.duration._
 
 object Assemblers {
 
@@ -22,7 +19,7 @@ object Assemblers {
     http server
     TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
     */
-  def startSHODAN(implicit ec: ExecutionContext): Stream[IO, Unit] = {
+  def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
     val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
@@ -130,7 +127,7 @@ object Assemblers {
     parametrized with the import params thing because db might have more or less channels
     TODO: Outdated, slated for removal. (just call directly?)
     */
-  def assembleTopics[F[_]: Effect](implicit ec: ExecutionContext): Stream[F,List[Topic[F,TaggedSegment]]] = {
+  def assembleTopics[F[_]: Effect](implicit ec: EC): Stream[F,List[Topic[F,TaggedSegment]]] = {
 
     // hardcoded init. Should be harmless
     createTopics[F,TaggedSegment](60, TaggedSegment((-1,Vector[Int]())))
@@ -144,7 +141,7 @@ object Assemblers {
     dataSource: List[Topic[IO,TaggedSegment]],
     inputChannels: List[Channel],
     frontendAgentObserver: Sink[IO,Agent],
-    feedbackSink: Sink[IO,List[Double]])(implicit ec: ExecutionContext): Stream[IO,Unit] =
+    feedbackSink: Sink[IO,List[Double]])(implicit ec: EC): Stream[IO,Unit] =
   {
 
     import params.experiment._
@@ -176,6 +173,6 @@ object Assemblers {
   }
 
 
-  def assembleMcsFileReader(implicit ec: ExecutionContext): Stream[IO, Unit] =
+  def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
     mcsParser.processRecordings
 }

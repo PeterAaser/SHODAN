@@ -88,4 +88,11 @@
     
 ** StreamAssemblers
    This leads us to where you probably want to go, the streamAssemblers. In both previous examples
-   the result is that we get 
+   the result is that we get neuro-data on both the topics and the raw data queue. Now that the 
+   data is flowing, various data-processing can now utilize that data. When an AgentStart token
+   is received by the commandPipe, the genetic algorithm agent runner is attached to the topics,
+   and will start running the agent with whatever data is coming from the topics. The order in
+   which tokens arrive does not matter (yay!), if agentStart comes before runFromDB the result 
+   will be the same.
+
+   

@@ -8,7 +8,6 @@ import fs2.async.mutable.{ Queue, Topic }
 import fs2.async.mutable.Queue
 
 import cats.effect.IO
-import cats.effect.Sync
 import java.io.IOException
 import scala.concurrent.ExecutionContext
 
