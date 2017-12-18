@@ -7,6 +7,10 @@
   
   Does play back database file records properly, but breaks because it still
   tries to communicate with MEAME2 on stim requests.
+  
+  insertExperiment in doobio returns 1. Is this the amount of inserted records 
+  rather than the new ID? (probably)
+  withUniqueGeneratedKeys??
 
 * Now
 ** TODO Add tests

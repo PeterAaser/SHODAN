@@ -2,6 +2,7 @@ package cyborg
 
 import cats.effect.IO
 import doobie.imports._
+import doobie.postgres.imports._
 
 import fs2._
 
@@ -79,15 +80,16 @@ object doobIO {
 
   def insertNewExperiment(path: Path, comment: String = "No comment atm"): ConnectionIO[Long] = {
 
-    val insertExperiment = sql"INSERT INTO experimentInfo (comment) VALUES ($comment)".update.run
+    import doobie.implicits._
 
-    // println("exploding")
-    // sql"INSERT INTO experimentInfo (id, comment) VALUES ($id, $comment)".update.check.unsafeRunSync()
+    val insertExperiment = for {
+      _ <- sql"INSERT INTO experimentInfo (comment) VALUES ($comment)".update.run
+      id <- sql"select lastval()".query[Long].unique
+    } yield (id)
 
     insertExperiment flatMap { id =>
-      println("or?")
-      insertDataRecording(id, path.toString()) flatMap { _ =>
-        println("hmm")
+      println(s"inserted experiment, the id was $id")
+      insertDataRecording(id.toLong, path.toString()) flatMap { _ =>
         insertParams(id).map(_ => id)
       }}
   }
