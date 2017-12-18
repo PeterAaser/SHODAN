@@ -496,7 +496,43 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    ergonomical, it should not be the responsibility of
    the filter to know when it's done.
 
-  [[file:backend/src/main/scala/cyborg/streamAssemblers.scala::def%20startSHODAN(implicit%20ec:%20ExecutionContext):%20Stream%5BIO,%20Unit%5D%20=%20{][start shodan in stream assemblers]] 
+** Figuring out how to represent state in SHODAN
+   Having a commandPipe seems like a decent approach, but 
+   I don't like how it currently does not really alter its 
+   state inbetween updates.
+   
+*** Problem 1: The frontend does not get updated. 
+    The commandpipe and the frontend does not share a model.
+    I want a react-ish model where state changes in the
+    commandpipe and the actions it is running will automatically 
+    be visible to the frontend.
+    
+*** Problem 2: Commandpipe is essentially stateless.
+    The commandpipe is not in a good state at the moment.
+    Warts such as uns*feRun in StartMEAME and generally finding 
+    it difficult to alter the go function inbetween invocations.
+    
+*** Possible solutions:
+**** Signal
+     commandPipe could simply broadcast to a signal, and each listener 
+     case matches. Possibly multiple listeners can listen to the same 
+     token such that when running from DB and a MEAME token is submitted 
+     then we stop running from DB, and recording finalizes when data 
+     source is switched.
+     
+**** Topic
+     Topics are many in many out, more geared towards streaming mass data 
+     than Signal (which lacks a Sink method). Topic and Signal can both 
+     be implemented in terms of each other for my case, ignoring more 
+     tricky effects wrt asynchronity.
+
+**** More sophisticated pull
+     By keeping the current model the problems above must be resolved.
+     A signal should still be implemented in order to handle failure and/or 
+     interruption of a task, for instance MCS hardware exploding.
+     
+*** Going with signals?
+    Aight check this!
    
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
