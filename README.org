@@ -29,6 +29,12 @@
    Typically I have two sbt sessions, one for the frontend and one for the backend.
    The default port is 12345, just go to
    http://localhost:12345/frontend/index.dev.html in your browser (only tested on chrome)
+   
+   Running an editor supporting ensime is highly encouraged, such as emacs, spacemacs or vim.
+   All documentation is expected to be in the .org format, so your editor must be org capable 
+   if you intend to write and read documentation in your editor.
+   I haven't tried developing SHODAN with a scala specific IDE. It might work well, you can 
+   give it a shot!
 
 ** Getting started with SHODAN
    SHODAN is a fairly large codebase, so getting started can be quite daunting.
@@ -120,7 +126,44 @@ def myDataStoreSink[F[_],O]: Sink[F,O] = _.through(_.map{ o => println(s"std.out
    As an example, consider the assembleInputFilter method. One of its arguments is a pipe[IO,Int,Double] which
    detects spikes.
    
-* Working on SHODAN
-  Rather than having to connect to MEAME2 testing should be done using throttled data running from the
-  database. This is not implemented in a convenient fashion yet though. Hopefully I can get it done 
-  before xmas...
+* Testing
+  In order to get a feel for how SHODAN works streaming data from file is recommended. Currently no MEA 
+  data is available to stream, only triangle waves, but you can perform your own recordings, or convert 
+  older data to CSV (there is a script in the tools-for-fools folder that does this, but it has a bug
+  causing it to create bad recordings that I have not bothered to fix). It also generates metadata based
+  on the folder structure of the recorded data.
+  
+  This necessitates that you actually have a database on your machine. Install postgres on your computer,
+  preferably version 9.6. The base install is sufficient. Once you have installed postgres you can set up
+  the SHODAN database as follows:
+  $: sudo su postgres 
+  $: psql -c 'create database memestorage;' -U postgres
+  $: psql -c '\i datateknikk/SHODAN/memescheme.sql' -d memestorage -U postgres ;;(or wherever you cloned SHODAN to)
+  
+  You can then take a looksie at the database
+  $: psql -d memestorage -U postgres
+  
+  memestorage=# \dt
+                 List of relations
+   Schema |         Name          | Type  |  Owner   
+  --------+-----------------------+-------+----------
+   public | datarecording         | table | postgres
+   public | experimentinfo        | table | postgres
+   public | experimentparams      | table | postgres
+   public | experimentperformedby | table | postgres
+   public | experimentsubject     | table | postgres
+   public | mea                   | table | postgres
+   public | person                | table | postgres
+  (7 rows)
+  
+  #: select * from experimentinfo;
+  memestorage=# select * from experimentinfo;
+   id |    experimenttimestamp     | comment 
+  ----+----------------------------+---------
+    1 | 2017-12-18 14:08:22.958299 | TESTRUN
+
+  et cetera.
+
+* MEAME2, MEAME-DSP 
+  SHODAN interacts with the MEAME-DSP through MEAME2. Some documentation on the DSP is presented in the
+  dsp.org file, but keep in mind the documentation from mcs is a nigh incomprehensible ultra-clusterfuck.

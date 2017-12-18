@@ -5,6 +5,9 @@ import com.github.nscala_time.time.Implicits._
 import cats.effect._
 import cats.effect.IO
 import fs2._
+import utilz._
+
+import scala.concurrent.duration._
 
 import java.io.File
 import java.nio.file.{ Path, Paths }
@@ -49,12 +52,13 @@ object fileIO {
 
 
   // TODO might be perf loss to go from Array to List and all that
-  def readCSV[F[_]: Effect](filePath: Path): Stream[F,Int] = {
+  def readCSV[F[_]: Effect](filePath: Path)(implicit ec: EC, s: Scheduler): Stream[F,Int] = {
     val reader = io.file.readAll[F](filePath, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
       .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
       .through(utilz.chunkify)
+      .through(utilz.throttlerPipe(1000*60, 0.2.second))
 
     reader
   }

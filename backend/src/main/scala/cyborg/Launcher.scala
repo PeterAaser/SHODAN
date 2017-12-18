@@ -9,7 +9,7 @@ object Launcher {
 
     println("wello")
     Assemblers.startSHODAN.run.unsafeRunSync()
-    // scratchpad.play
+    // scratchpad.doobieChecks()
 
   }
 }

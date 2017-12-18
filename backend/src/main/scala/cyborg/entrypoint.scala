@@ -24,7 +24,7 @@ object staging {
     topics: List[Topic[IO,TaggedSegment]],
     frontendAgentSink: Sink[IO,Agent],
     meameFeedbackSink: Sink[IO,List[Double]],
-    rawDataQueue: Queue[IO,TaggedSegment]
+    rawDataTopic: Topic[IO,TaggedSegment]
   )(implicit ec: ExecutionContext): Pipe[IO,UserCommand, IO[Unit]] = {
 
     def go(s: Stream[IO,UserCommand]): Pull[IO, IO[Any], Unit] = {
@@ -37,7 +37,7 @@ object staging {
               // Might finally get a use for the mysterious R parameter from pull
               Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
               val tcpStream = sIO.streamFromTCP(params.experiment.segmentLength)
-              Assemblers.broadcastDataStream(tcpStream, topics, rawDataQueue.enqueue).run
+              Assemblers.broadcastDataStream(tcpStream, topics, rawDataTopic.publish).run
             }
 
             case AgentStart =>
@@ -49,11 +49,12 @@ object staging {
             // TODO hardcoded
             case RunFromDB(id) => {
               val dbStream = sIO.streamFromDatabase(1)
-              Assemblers.broadcastDataStream(dbStream, topics, rawDataQueue.enqueue).run
+              Assemblers.broadcastDataStream(dbStream, topics, rawDataTopic.publish).run
             }
 
             case DBstartRecord =>
-              sIO.streamToDatabase(rawDataQueue.dequeue, "TEST RUN").run
+              sIO.streamToDatabase(rawDataTopic.subscribe(10000), "TESTRUN").run
+              // sIO.streamToFile(rawDataQueue.dequeueAvailable).run
 
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")

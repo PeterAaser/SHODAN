@@ -1,22 +1,18 @@
 * Neste gang
-  Test og debug stim queue
-  Test og debug stim upload
-  Se videre på testing
+  Sjekk at recording og playback fungerer som det skal.
 
 * Doing
-  File playback
+  Id is being set to 1 for all datarecordings, likely hardcoded somewhere
+  Drop DB and start a new one to have something to test with only one record.
   
+  Does play back database file records properly, but breaks because it still
+  tries to communicate with MEAME2 on stim requests.
 
 * Now
-** TODO Write more documentation
-** DONE Stim req system
-*** DONE Implement
-*** DONE Test
-**** DONE Implement logging rig
-**** DONE Debug with logging rig
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
-*** TODO Get hello world test to run
+*** DONE Get hello world test to run
+    sort of, the frontend kinda stopped working... hurr!
 *** TODO Make simple sine wave playback server/harness
 *** TODO Make database playback mock server/harness
    
@@ -33,6 +29,11 @@
     writes metadata to the db etc?
 *** TODO Verify that recording triangle waves from MEAME2 works
 **** TODO Stream to database
+     Had an issue where using a queue would cause displaying and
+     saving data caused the data to get split, rather than duplicated.
+     
+     Now uses topic, which should fix the problem
+     
 **** TODO Stream from database
 *** TODO Specify how I want files parsed and delegate slave labor
 *** TODO Get throttling to work properly
@@ -101,6 +102,12 @@
 *** TODO Refactor HttpClient stuff, get the forest under control.
    
 * Finished
+** DONE Write more documentation
+** DONE Stim req system
+*** DONE Implement
+*** DONE Test
+**** DONE Implement logging rig
+**** DONE Debug with logging rig
 ** DONE Implement stim on MEAME
 ** DONE Fix perf issue with sending data to frontend. It keeps buffering way past shutting down MEAME
   Turns out it was queue segment size being 1
@@ -119,7 +126,6 @@
 **** DONE Implement
 **** DONE Make it work
   
-
 ** DONE Add sine wave generator on MEAME for debugging
   Ended up being sawtooth, no difference really
 
@@ -440,6 +446,29 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    
 ** Some commands
    \dt to show tables
+
+** Doobie pitfalls
+   For the doobie sql string interpolator $ is not simply textual replacement!
+   This means that 
+   #+begin_src scala
+     val aa = "aa"
+     val zip = "ZIP"
+     sql"""
+       INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
+       VALUES (123, $aa, $zip)
+     """.update.check.unsafeRunSync()
+    #+end_src
+
+   is not equal to
+   
+   #+begin_src scala
+    sql"""
+      INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
+      VALUES (123, aa, zip)
+    """.update.check.unsafeRunSync()
+   #+end_src
+
+   However this does not hold for numbers!
    
    
 

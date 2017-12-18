@@ -31,6 +31,16 @@ object sIO {
 
 
   /**
+    * For when we don't really need to log the metadata and just want to store to file
+    */
+  def streamToFile(rawDataStream: Stream[IO,TaggedSegment])(implicit ec: EC): Stream[IO, Unit] = {
+    Stream.eval(fileIO.writeCSV[IO]) flatMap { λ =>
+      rawDataStream.through(_.map(_.data._2)).through(chunkify).through(λ._2)
+    }
+  }
+
+
+  /**
     * Open a TCP connection to stream data from other computer
     * Data is broadcasted to provided topics
     */

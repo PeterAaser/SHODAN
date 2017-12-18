@@ -24,7 +24,7 @@ object Assemblers {
     val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
     val topicsS = assembleTopics[IO]
     val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
-    val taggedSegQueueS = Stream.eval(fs2.async.unboundedQueue[IO,TaggedSegment])
+    val taggedSegTopicS = Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
     // magic hardcoded threshold
     val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
@@ -33,14 +33,14 @@ object Assemblers {
       agentQueueS flatMap {           agentQueue =>
         topicsS flatMap {             topics =>
           debugQueueS flatMap {       debugQueue =>
-            taggedSegQueueS flatMap { taggedSeqQueue =>
+            taggedSegTopicS flatMap { taggedSeqTopic =>
 
               val httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
               val webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-              val webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqQueue.dequeue.through(_.map(_.data._2)).through(chunkify)))
+              val webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data._2)).through(chunkify)))
 
               val agentSink            = agentQueue.enqueue
-              val commandPipe          = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqQueue)
+              val commandPipe          = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqTopic)
 
 
               httpServer flatMap {               server =>

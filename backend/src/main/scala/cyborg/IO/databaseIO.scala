@@ -1,5 +1,6 @@
 package cyborg
 
+import utilz._
 import cats.effect._
 import fs2._
 import fs2.Stream._
@@ -30,8 +31,9 @@ object databaseIO {
   /**
     Gets a resource URI from the database and reads said info
     */
-  def dbChannelStream(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, Int] = {
+  def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
     println(s"making stream for experiment $experimentId")
+    import backendImplicits._
 
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
       println(s"got data $data")
@@ -41,7 +43,6 @@ object databaseIO {
       }
       reader
     }
-
 
     data
   }
