@@ -4,7 +4,7 @@ import scala.concurrent.duration._
 
 import cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.{ Queue, Topic }
+import fs2.async.mutable.Topic
 import fs2.async.mutable.Queue
 
 import cats.effect.IO
@@ -32,6 +32,7 @@ object staging {
         case Some((cmd, tl)) => {
           val action = cmd match {
 
+            // done
             case StartMEAME => {
               // TODO: Figure out how to idiomatically get rid of uns*feRun here
               // Might finally get a use for the mysterious R parameter from pull
@@ -40,18 +41,22 @@ object staging {
               Assemblers.broadcastDataStream(tcpStream, topics, rawDataTopic.publish).run
             }
 
+              // done
             case AgentStart =>
               Assemblers.assembleGA(topics, inputChannels, frontendAgentSink, meameFeedbackSink).run
 
+            // done
             case DspConf =>
               HttpClient.dspConfigure
 
-            // TODO hardcoded
+            // done
             case RunFromDB(id) => {
               val dbStream = sIO.streamFromDatabase(1)
               Assemblers.broadcastDataStream(dbStream, topics, rawDataTopic.publish).run
             }
 
+
+            // done
             case DBstartRecord =>
               sIO.streamToDatabase(rawDataTopic.subscribe(10000), "TESTRUN").run
               // sIO.streamToFile(rawDataQueue.dequeueAvailable).run
@@ -59,18 +64,22 @@ object staging {
             case Shutdown =>
               throw new IOException("Johnny number 5 is not alive")
 
+            // done
             case DspStimTest =>
               HttpClient.dspStimTest
 
+            // done
             case DspUploadTest => for {
               _ <- waveformGenerator.sineWave(0, 100.millis, 200.0)
               _ <- waveformGenerator.sineWave(2, 300.millis, 200.0)
               _ <- waveformGenerator.sineWave(4, 600.millis, 200.0)
             } yield ()
 
+            // done
             case DspBarf =>
               HttpClient.dspBarf
 
+            // done
             case DspDebugReset =>
               HttpClient.dspDebugReset
 

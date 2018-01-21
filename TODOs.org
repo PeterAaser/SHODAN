@@ -1,18 +1,19 @@
 * Neste gang
-  Sjekk at recording og playback fungerer som det skal.
+  Changed the cmd pipe back to for comp in assemblers which can sour everything
+  entrypoint2 needs to be tested. Come up with a real test strategy
 
 * Doing
-  Id is being set to 1 for all datarecordings, likely hardcoded somewhere
-  Drop DB and start a new one to have something to test with only one record.
+  Create start and stop actions for starting db, MEAME and agent
   
-  Does play back database file records properly, but breaks because it still
-  tries to communicate with MEAME2 on stim requests.
   
-  insertExperiment in doobio returns 1. Is this the amount of inserted records 
-  rather than the new ID? (probably)
-  withUniqueGeneratedKeys??
 
 * Now
+** TODO Redo entrypoint
+*** TODO Implement IO actions as described in [[file:backend/src/main/scala/cyborg/entrypoint2.scala::case%20class%20ProgramState(][program state]] 
+**** TODO stop data
+**** TODO stop recording 
+**** TODO stop agent
+     
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
 *** DONE Get hello world test to run
@@ -486,8 +487,10 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 
 * Issues with output from MEAME
   It seems the data corruption issues only happen with low samplerates.
-  At 10000hz the ground is correctly rendered. WHY?
+  With a samplerate of 1khz I get garbage, but at 10khz the channels are correctly rendered, 
+  albeit with the weird overlap artefact.
   Gunnar suggests DSP using only one of its two memory bands. Not too far fetched
+  
 * Dev diary
 ** GA terminates after one evaluation
    Turns out the filter terminated after TicksPerEval,
@@ -532,8 +535,24 @@ ReactDOM.render(React.createElement(Timer), mountNode);
      interruption of a task, for instance MCS hardware exploding.
      
 *** Going with signals?
-    Aight check this!
+    The various methods in assemblers must now return an interrupt action which 
+    can then be stored in the ProgramState case class.
    
+** A better toplevel interface
+   In order to make SHODAN more flexible it is necessary to add support 
+   for handling user actions that change the state of a running program. 
+   In order to do this I have currently settled on a model where a signal 
+   holding a program state is used, which is both read and set by a pipe 
+   for user commands. 
+   The signal has many listeners, and the listeners may alter the signal  
+   state themselves, which leaves open the question about how to handle 
+   cycles in the listener graph etc in a safe manner.
+   While this is of course ultimately undecidable it would be nice to have 
+   at least some measure of static analysis.
+   Another problem with the current approach is the lack of atomicity, i.e it is 
+   possible to set meameRunning to false without actually running the 
+   corresponding IO[Unit] stopData.
+
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
   + Check if all streams are running, not just the head of a stream of streams etc.
