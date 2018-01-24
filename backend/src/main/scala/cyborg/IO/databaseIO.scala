@@ -77,4 +77,14 @@ object databaseIO {
 
   def insertOldExperiment(comment: String, timestamp: DateTime, uri: String): IO[Unit] =
     doobIO.insertOldExperiment(comment, timestamp, uri).transact(xa)
+
+
+  trait Animal
+  trait AnimalWithLegs extends Animal
+  trait AnimalWithBeak extends Animal
+  trait AnimalLayingEggs extends Animal
+
+  def hurr: PartialFunction[Animal, Int] = _ match { case a: AnimalWithBeak => 42 }
+
+
 }

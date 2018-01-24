@@ -8,6 +8,8 @@ import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
 import cats.effect.Effect
+import fs2.async._
+import fs2.async.mutable.Topic
 
 object Assemblers {
 
@@ -20,11 +22,11 @@ object Assemblers {
     TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
-    val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
-    val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
-    val topicsS = assembleTopics[IO]
-    val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
-    val taggedSegTopicS = Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
+    // val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
+    // val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
+    // val topicsS = assembleTopics[IO]
+    // val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
+    // val taggedSegTopicS = Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
     // magic hardcoded threshold
     val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
@@ -113,15 +115,20 @@ object Assemblers {
   /**
     Takes a multiplexed dataSource and a list of topics.
     Demultiplexes the data and publishes data to all channel topics.
+
+    Returns a tuple of the stream and a cancel action
+
     TODO: Should synchronize (e.g at start it should drop until it gets channel 0)
     */
   def broadcastDataStream(
     source: Stream[IO,TaggedSegment],
     topics: List[Topic[IO,TaggedSegment]],
     rawSink: Sink[IO,TaggedSegment]
-  )(implicit ec: EC): Stream[IO,Unit] = {
+  )(implicit ec: EC): IO[InterruptableAction[IO]] = {
 
     import params.experiment.totalChannels
+
+    val interrupted = signalOf[IO,Boolean](false)
 
     def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
@@ -138,7 +145,11 @@ object Assemblers {
       in => go(in).stream.map(Stream.eval).join(totalChannels)
     }
 
-    source.observe(rawSink).through(publishSink(topics))
+    interrupted.map { interruptSignal =>
+      InterruptableAction(
+        interruptSignal.set(true),
+        source.observe(rawSink).through(publishSink(topics)).interruptWhen(interruptSignal.discrete).run)
+    }
   }
 
 

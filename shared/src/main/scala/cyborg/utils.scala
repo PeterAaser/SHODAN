@@ -16,6 +16,8 @@ object utilz {
   case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
 
+  case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit])
+
   def swapMap[A,B](m: Map[A,B]): Map[B,List[A]] =
     m.toList.groupBy(_._2).mapValues(_.map(_._1))
 

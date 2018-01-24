@@ -38,7 +38,8 @@ object staging {
               // Might finally get a use for the mysterious R parameter from pull
               Stream.eval(HttpClient.startMEAMEserver).run.unsafeRunSync()
               val tcpStream = sIO.streamFromTCP(params.experiment.segmentLength)
-              Assemblers.broadcastDataStream(tcpStream, topics, rawDataTopic.publish).run
+              // Assemblers.broadcastDataStream(tcpStream, topics, rawDataTopic.publish).run
+              ???
             }
 
               // done
@@ -52,7 +53,8 @@ object staging {
             // done
             case RunFromDB(id) => {
               val dbStream = sIO.streamFromDatabase(1)
-              Assemblers.broadcastDataStream(dbStream, topics, rawDataTopic.publish).run
+              // Assemblers.broadcastDataStream(dbStream, topics, rawDataTopic.publish).run
+              ???
             }
 
 

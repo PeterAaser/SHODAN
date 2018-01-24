@@ -4,16 +4,34 @@
 
 * Doing
   Create start and stop actions for starting db, MEAME and agent
+  Figure out where and how interrupts should be done. 
   
+  What happens if broadcastDataStream gets interrupted? 
+  What happens to the stream it is consuming, what happens to its 
+  inner streams? A deeper understanding of the fs2 model is probably 
+  necessary here, or a simpler test program with a minimal case
   
+  Add partial functions for various user command/state pairs
+  
+  See last entry in dev diary
 
 * Now
 ** TODO Redo entrypoint
 *** TODO Implement IO actions as described in [[file:backend/src/main/scala/cyborg/entrypoint2.scala::case%20class%20ProgramState(][program state]] 
+    When shut down, a process must: 
+    + notify the UI
+    + set its boolean to false
+    Pausing a recording has been considered but does not make 
+    sense since this would lead to a seemingly fine recording 
+    with a temporal jump.
 **** TODO stop data
+     This stops the broadcaster
 **** TODO stop recording 
 **** TODO stop agent
      
+*** TODO Resetting MEAME
+    Should reset MEAME, turn off agent, recording etc
+    
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
 *** DONE Get hello world test to run
@@ -552,6 +570,57 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    Another problem with the current approach is the lack of atomicity, i.e it is 
    possible to set meameRunning to false without actually running the 
    corresponding IO[Unit] stopData.
+   
+   What is it that I actually want?
+   Ideally I would like to have a language where I could specify constraints such as
+   "If the data acquisition stops, so must any DB recording."
+   "If data acquisition is restarted then recordings should stop"
+   "If data acquisition start is issued when data acquisition is running then a restart is issued"
+   etc...
+   
+*** A start stop class
+    When starting a data broadcast I also want to get an action to stop the broadcast.
+    One way to do this is to change the signature to IO[(IO[Unit],IO[Unit])] but in 
+    this case it is not possible to tell which IO action runs the broadcast and which 
+    stops it. To rectify this I simply made the InterruptableAction case class in utilz.
+    
+*** Doing unrelated things based on input
+    When a RunFromDB token is received we would like to shut down MEAME in addition to 
+    setting up the DB datastream. 
+    In the initial solution I matched for StopMEAME | RunFromDB to run the MEAME shutdown, 
+    but this has the effect that the 
+    
+*** The case for full match
+    It would be useful if we could do a full version of match. In match we want a single value 
+    (which is why non-exhaustive matching is a compiler error with sealed trait, or runtime 
+    error if not)
+    
+    For some sealed ADT A we'd like fullMatch A to return NEL[A] or give a compiler error.
+    Possibly we could allow a fullMatch A to return List[A] instead where the list may be 
+    empty.
+    
+    For now it seems using partial functions is the best way to do this, simply run input 
+    through all the PFs to get a List[Option[Action]] which I fold and collapse to a single 
+    action!
+    
+    PartialFunction may not be what we're after since we run into awkward behavior when using 
+    predicates. 
+    With match we can mix a type match with a predicate (i.e case A if someCondition => ...) 
+    however this is not so easy with the proposed partialFunction approach...
+    
+*** Ideal and real phase decoupling
+    What if user commands simply changes the desired "ideal" state of the program, and it's up
+    to the different components listening to the program state signal to change their state to 
+    reflect this? This way user commands could be idempotent, meaning in order to restart 
+    MEAME you would have to first turn it off, then back on. Is this really desirable?
+    
+*** A case match recursively calling itself until it is resolved?
+    A two-tiered system where the cmd pipe can issue new commands to itself. This fixes the case
+    where a restart is issued. Now the cmd pipe can for instance issue a shutdown then a start 
+    command to itself in the case that it receives a start command when already started (restart).
+    
+    Won't work without semaphores and similar to synchronize between the signal handlers and the 
+    command pipeline. Atm I'm too tired of this mess, so I'm just going to have to be brutally practical tm...
 
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
