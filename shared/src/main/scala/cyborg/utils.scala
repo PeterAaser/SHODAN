@@ -369,4 +369,30 @@ object utilz {
     }
     in => go(0, in).stream
   }
+
+
+  /**
+    Delays execution of an action until the first element is pulled through the sink.
+  */
+  def evalOnFirstElement[F[_],A](action: F[Unit], s: Sink[F,A]): Sink[F,A] = stream =>
+  stream.pull.uncons1.flatMap {
+    case None => Pull.done
+    case Some((hd, tl)) => {
+      Pull.eval(action) >> Pull.output1(hd) >> tl.pull.echo
+    }
+  }.stream.to(s)
+
+  /**
+    Creates a sink that runs an action to create a sink when the first element arrives
+    Thanks wedens!
+    */
+  def createOnFirstElement[F[_],A,B](action: F[A], sf: A => Sink[F,B]): Sink[F,B] = stream =>
+  stream.pull.uncons1.flatMap {
+    case None => Pull.done
+    case Some((hd, tl)) => {
+      Pull.eval(action).flatMap{ a =>
+        Pull.output1((a, Stream.emit(hd) ++ tl))
+      }
+    }
+  }.stream.flatMap { case (a, s) => s.to(sf(a)) }
 }
