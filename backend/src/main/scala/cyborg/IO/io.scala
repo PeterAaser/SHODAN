@@ -25,9 +25,27 @@ object sIO {
   /**
     * Writes data to a CSV file. The metadata is stored to database
     */
-  def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment], comment: String): Stream[IO, Unit] =
-    Stream.eval(databaseIO.createRecordingSink(comment)) flatMap ( sink =>
-      rawDataStream.through(_.map(_.data._2)).through(chunkify).through(sink))
+  def streamToDatabase(
+    rawDataStream: Stream[IO,TaggedSegment],
+    comment: String)
+    (implicit ec: EC): IO[InterruptableAction[IO]] =
+  {
+    import fs2.async._
+    import cats.implicits._
+
+    signalOf[IO,Boolean](false).flatMap { interruptSignal =>
+      databaseIO.createRecordingSink("").map { recordingSink =>
+        InterruptableAction(
+          interruptSignal.set(true) >> recordingSink.finalizer,
+          rawDataStream
+            .through(_.map(_.data._2))
+            .through(chunkify)
+            .through(recordingSink.sink)
+            .interruptWhen(interruptSignal.discrete).run
+        )
+      }
+    }
+  }
 
 
   /**

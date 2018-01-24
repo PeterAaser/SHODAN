@@ -3,17 +3,15 @@
   entrypoint2 needs to be tested. Come up with a real test strategy
 
 * Doing
-  Create start and stop actions for starting db, MEAME and agent
-  Figure out where and how interrupts should be done. 
+  Changing DB recording to add start stop finalize logic as with MEAME start and stop
   
-  What happens if broadcastDataStream gets interrupted? 
-  What happens to the stream it is consuming, what happens to its 
-  inner streams? A deeper understanding of the fs2 model is probably 
-  necessary here, or a simpler test program with a minimal case
+  in utilz the methods evalOnFirstElement and createOnFirstElement have been implemented
+  to make it easier to start and stop database recordings at appropriate times.
   
-  Add partial functions for various user command/state pairs
+  I think recording sink is done now, it gives us a finalizer and a sink now
+  Beware of NYI in doobio
   
-  See last entry in dev diary
+  Read up on semantics of InterruptWhen
 
 * Now
 ** TODO Redo entrypoint
@@ -24,13 +22,14 @@
     Pausing a recording has been considered but does not make 
     sense since this would lead to a seemingly fine recording 
     with a temporal jump.
-**** TODO stop data
-     This stops the broadcaster
-**** TODO stop recording 
-**** TODO stop agent
+**** DONE stop and start data acquisition from MEAME
+**** TODO stop and start data acquisition from database
+**** TODO stop (finalize) and start recording 
+**** TODO stop and start agent
+**** TODO notify UI events
      
-*** TODO Resetting MEAME
-    Should reset MEAME, turn off agent, recording etc
+*** DONE Resetting MEAME
+    Will not implement
     
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
@@ -625,6 +624,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
   + Check if all streams are running, not just the head of a stream of streams etc.
+  + Check for Stream[F,Nothing] >> Stream[F,A]
+    This is wrong, should be Stream[F,Nothing] ++ Stream[F,A]
 ** Previous cases
      
 *** The mystery of the silent topics
@@ -670,3 +671,22 @@ ReactDOM.render(React.createElement(Timer), mountNode);
   
   These frameworks are compatible with each other, typically
   ScalaTest and ScalaCheck are used in conjunction.
+
+* So I wont have to look it up all the goddamn time
+  /**
+    * Creates a stream that depends on a resource allocated by an effect, ensuring the resource is
+    * released regardless of how the stream is used.
+    *
+    * @param r resource to acquire at start of stream
+    * @param use function which uses the acquired resource to generate a stream of effectful outputs
+    * @param release function which returns an effect that releases the resource
+    *
+    * A typical use case for bracket is working with files or network sockets. The resource effect
+    * opens a file and returns a reference to it. The `use` function reads bytes and transforms them
+    * in to some stream of elements (e.g., bytes, strings, lines, etc.). The `release` action closes
+    * the file.
+    */
+    
+ #+begin_src scala
+      def bracket[F[_], R, O](r: F[R])(use: R => Stream[F, O], release: R => F[Unit]): Stream[F, O] = ...
+ #+end_src

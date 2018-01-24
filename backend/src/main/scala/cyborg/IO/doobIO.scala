@@ -94,6 +94,11 @@ object doobIO {
       }}
   }
 
+  def finalizeExperiment(id: Long): ConnectionIO[Long] = {
+    println("WARNING! NYI at finalizeExperiment!!!!!")
+    ???
+  }
+
   import params.experiment._
   import params.StorageParams._
 

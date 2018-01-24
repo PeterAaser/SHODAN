@@ -1,5 +1,6 @@
 package cyborg
 
+import fs2.async.mutable.Signal
 import utilz._
 import cats.effect._
 import fs2._
@@ -59,13 +60,31 @@ object databaseIO {
 
   /**
     Sets up the database stuff and returns a sink for recorded data
+    The sink only gets created at the first received element, thus
+    ensuring that a database recording will only be made once data
+    actually arrives.
     */
-  def createRecordingSink(comment: String): IO[Sink[IO,Int]] = {
-    fileIO.writeCSV[IO] flatMap{ case(path, sink) =>
-      insertNewExperiment(path, comment)
-        .transact(xa)
-        .map(_ => sink)
-    }
+  case class RecordingSink(finalizer: IO[Unit], sink: Sink[IO,Int])
+  def createRecordingSink(comment: String)(implicit ec: EC): IO[RecordingSink] = {
+
+    import fs2.async._
+    import cats.effect.IO
+    import cats.effect._
+    import cats.implicits._
+
+
+    // Action for setting up path, sink and experiment record.
+    // Since experiment record wont be inserted before 1st element
+    // we do not need to keep track of the time in the program.
+    // We also supply a finalizer method that will NYI freeze everything
+    for {
+      finalizer    <- signalOf[IO,IO[Unit]](IO.unit)
+      pathAndSink  <- fileIO.writeCSV[IO]
+      experimentId <- insertNewExperiment(pathAndSink._1, comment).transact(xa)
+      _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
+    } yield (RecordingSink(finalizer.get.flatten, pathAndSink._2))
+
+
   }
 
 
@@ -77,14 +96,6 @@ object databaseIO {
 
   def insertOldExperiment(comment: String, timestamp: DateTime, uri: String): IO[Unit] =
     doobIO.insertOldExperiment(comment, timestamp, uri).transact(xa)
-
-
-  trait Animal
-  trait AnimalWithLegs extends Animal
-  trait AnimalWithBeak extends Animal
-  trait AnimalLayingEggs extends Animal
-
-  def hurr: PartialFunction[Animal, Int] = _ match { case a: AnimalWithBeak => 42 }
 
 
 }
