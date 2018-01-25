@@ -1,17 +1,14 @@
 * Neste gang
-  Changed the cmd pipe back to for comp in assemblers which can sour everything
-  entrypoint2 needs to be tested. Come up with a real test strategy
-
+  ???
+  
 * Doing
-  Changing DB recording to add start stop finalize logic as with MEAME start and stop
-  
-  in utilz the methods evalOnFirstElement and createOnFirstElement have been implemented
-  to make it easier to start and stop database recordings at appropriate times.
-  
-  I think recording sink is done now, it gives us a finalizer and a sink now
   Beware of NYI in doobio
-  
   Read up on semantics of InterruptWhen
+  
+  Add listener for UI events?
+  
+  Set up db playback in entrypoint2
+  
 
 * Now
 ** TODO Redo entrypoint
@@ -25,8 +22,11 @@
 **** DONE stop and start data acquisition from MEAME
 **** DONE stop (finalize) and start recording 
 **** TODO stop and start data playback from DB
+     We will not be doing pausing at the time being
 **** TODO stop and start agent
 **** TODO notify UI events
+     This should be done by adding a listener to the assembler which utilizes
+     programstate.
      
 *** DONE Resetting MEAME
     Will not implement
@@ -45,10 +45,13 @@
 **** TODO Verify
 ** TODO Verify and finish file playback.
 *** DONE Add basic user interface support
-*** TODO Figure out how to start and stop recordings
+*** DONE Figure out how to start and stop recordings
     Start should be params -> IO[IO[Unit]] perhaps?
     Outer IO is the start, the inner IO is the finalization which
     writes metadata to the db etc?
+    
+    This ended up getting a lot more involved actually!
+    
 *** TODO Verify that recording triangle waves from MEAME2 works
 **** TODO Stream to database
      Had an issue where using a queue would cause displaying and
@@ -61,10 +64,6 @@
 *** TODO Get throttling to work properly
 *** TODO Verify correctness
    
-** TODO Redo build file
-   Look at build.sbt.next
-   When testing out the new build file make sure scala js
-   actually updates.
 * Later
 ** TODO Spec out and properly implement DB
 *** TODO add more todo items
@@ -122,6 +121,11 @@
 *** TODO Create specialized stimulus upload
    Let this be handled on the DSP for now...
 *** TODO Refactor HttpClient stuff, get the forest under control.
+   
+** TODO Redo build file
+   Look at build.sbt.next
+   When testing out the new build file make sure scala js
+   actually updates.
    
 * Finished
 ** DONE Write more documentation
@@ -556,70 +560,82 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     can then be stored in the ProgramState case class.
    
 ** A better toplevel interface
-   In order to make SHODAN more flexible it is necessary to add support 
-   for handling user actions that change the state of a running program. 
-   In order to do this I have currently settled on a model where a signal 
-   holding a program state is used, which is both read and set by a pipe 
-   for user commands. 
-   The signal has many listeners, and the listeners may alter the signal  
-   state themselves, which leaves open the question about how to handle 
-   cycles in the listener graph etc in a safe manner.
-   While this is of course ultimately undecidable it would be nice to have 
-   at least some measure of static analysis.
-   Another problem with the current approach is the lack of atomicity, i.e it is 
-   possible to set meameRunning to false without actually running the 
-   corresponding IO[Unit] stopData.
+*** Description
+    In order to make SHODAN more flexible it is necessary to add support 
+    for handling user actions that change the state of a running program. 
+    In order to do this I have currently settled on a model where a signal 
+    holding a program state is used, which is both read and set by a pipe 
+    for user commands. 
+    The signal has many listeners, and the listeners may alter the signal  
+    state themselves, which leaves open the question about how to handle 
+    cycles in the listener graph etc in a safe manner.
+    While this is of course ultimately undecidable it would be nice to have 
+    at least some measure of static analysis.
+    Another problem with the current approach is the lack of atomicity, i.e it is 
+    possible to set meameRunning to false without actually running the 
+    corresponding IO[Unit] stopData.
    
-   What is it that I actually want?
-   Ideally I would like to have a language where I could specify constraints such as
-   "If the data acquisition stops, so must any DB recording."
-   "If data acquisition is restarted then recordings should stop"
-   "If data acquisition start is issued when data acquisition is running then a restart is issued"
-   etc...
+    What is it that I actually want?
+    Ideally I would like to have a language where I could specify constraints such as
+    "If the data acquisition stops, so must any DB recording."
+    "If data acquisition is restarted then recordings should stop"
+    "If data acquisition start is issued when data acquisition is running then a restart is issued"
+    etc...
    
-*** A start stop class
-    When starting a data broadcast I also want to get an action to stop the broadcast.
-    One way to do this is to change the signature to IO[(IO[Unit],IO[Unit])] but in 
-    this case it is not possible to tell which IO action runs the broadcast and which 
-    stops it. To rectify this I simply made the InterruptableAction case class in utilz.
+**** A start stop class
+     When starting a data broadcast I also want to get an action to stop the broadcast.
+     One way to do this is to change the signature to IO[(IO[Unit],IO[Unit])] but in 
+     this case it is not possible to tell which IO action runs the broadcast and which 
+     stops it. To rectify this I simply made the InterruptableAction case class in utilz.
     
-*** Doing unrelated things based on input
-    When a RunFromDB token is received we would like to shut down MEAME in addition to 
-    setting up the DB datastream. 
-    In the initial solution I matched for StopMEAME | RunFromDB to run the MEAME shutdown, 
-    but this has the effect that the 
+**** Doing unrelated things based on input
+     When a RunFromDB token is received we would like to shut down MEAME in addition to 
+     setting up the DB datastream. 
+     In the initial solution I matched for StopMEAME | RunFromDB to run the MEAME shutdown, 
+     but this has the effect that the 
     
-*** The case for full match
-    It would be useful if we could do a full version of match. In match we want a single value 
-    (which is why non-exhaustive matching is a compiler error with sealed trait, or runtime 
-    error if not)
+**** The case for full match
+     It would be useful if we could do a full version of match. In match we want a single value 
+     (which is why non-exhaustive matching is a compiler error with sealed trait, or runtime 
+     error if not)
     
-    For some sealed ADT A we'd like fullMatch A to return NEL[A] or give a compiler error.
-    Possibly we could allow a fullMatch A to return List[A] instead where the list may be 
-    empty.
+     For some sealed ADT A we'd like fullMatch A to return NEL[A] or give a compiler error.
+     Possibly we could allow a fullMatch A to return List[A] instead where the list may be 
+     empty.
     
-    For now it seems using partial functions is the best way to do this, simply run input 
-    through all the PFs to get a List[Option[Action]] which I fold and collapse to a single 
-    action!
+     For now it seems using partial functions is the best way to do this, simply run input 
+     through all the PFs to get a List[Option[Action]] which I fold and collapse to a single 
+     action!
     
-    PartialFunction may not be what we're after since we run into awkward behavior when using 
-    predicates. 
-    With match we can mix a type match with a predicate (i.e case A if someCondition => ...) 
-    however this is not so easy with the proposed partialFunction approach...
+     PartialFunction may not be what we're after since we run into awkward behavior when using 
+     predicates. 
+     With match we can mix a type match with a predicate (i.e case A if someCondition => ...) 
+     however this is not so easy with the proposed partialFunction approach...
     
-*** Ideal and real phase decoupling
-    What if user commands simply changes the desired "ideal" state of the program, and it's up
-    to the different components listening to the program state signal to change their state to 
-    reflect this? This way user commands could be idempotent, meaning in order to restart 
-    MEAME you would have to first turn it off, then back on. Is this really desirable?
+**** Ideal and real phase decoupling
+     What if user commands simply changes the desired "ideal" state of the program, and it's up
+     to the different components listening to the program state signal to change their state to 
+     reflect this? This way user commands could be idempotent, meaning in order to restart 
+     MEAME you would have to first turn it off, then back on. Is this really desirable?
     
-*** A case match recursively calling itself until it is resolved?
-    A two-tiered system where the cmd pipe can issue new commands to itself. This fixes the case
-    where a restart is issued. Now the cmd pipe can for instance issue a shutdown then a start 
-    command to itself in the case that it receives a start command when already started (restart).
+**** A case match recursively calling itself until it is resolved?
+     A two-tiered system where the cmd pipe can issue new commands to itself. This fixes the case
+     where a restart is issued. Now the cmd pipe can for instance issue a shutdown then a start 
+     command to itself in the case that it receives a start command when already started (restart).
     
-    Won't work without semaphores and similar to synchronize between the signal handlers and the 
-    command pipeline. Atm I'm too tired of this mess, so I'm just going to have to be brutally practical tm...
+     Won't work without semaphores and similar to synchronize between the signal handlers and the 
+     command pipeline. Atm I'm too tired of this mess, so I'm just going to have to be brutally practical tm...
+
+*** Resolution
+    The chosen architecture is a commandPipe responsible for reading commands and changing the 
+    ideal program state based on this. 
+    Several listeners discrete stream changes to program state and respond accordingly, modifying 
+    the program state as they go. Definitely not a perfect approach, does not make nasty race 
+    conditions hard to express, but needs to be settled.
+    
+*** Thoughts
+    Some of the issues might stem from stuffing all inputs into a single pipe.
+    Maybe the HTTP server could handle most of it, if not all?
 
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
@@ -672,21 +688,21 @@ ReactDOM.render(React.createElement(Timer), mountNode);
   These frameworks are compatible with each other, typically
   ScalaTest and ScalaCheck are used in conjunction.
 
-* So I wont have to look it up all the goddamn time
-  /**
-    * Creates a stream that depends on a resource allocated by an effect, ensuring the resource is
-    * released regardless of how the stream is used.
-    *
-    * @param r resource to acquire at start of stream
-    * @param use function which uses the acquired resource to generate a stream of effectful outputs
-    * @param release function which returns an effect that releases the resource
-    *
-    * A typical use case for bracket is working with files or network sockets. The resource effect
-    * opens a file and returns a reference to it. The `use` function reads bytes and transforms them
-    * in to some stream of elements (e.g., bytes, strings, lines, etc.). The `release` action closes
-    * the file.
-    */
-    
- #+begin_src scala
+* Signatures I keep having to look up
+** Bracket
+   #+begin_src scala
+    /**
+      * Creates a stream that depends on a resource allocated by an effect, ensuring the resource is
+      * released regardless of how the stream is used.
+      *
+      * @param r resource to acquire at start of stream
+      * @param use function which uses the acquired resource to generate a stream of effectful outputs
+      * @param release function which returns an effect that releases the resource
+      *
+      * A typical use case for bracket is working with files or network sockets. The resource effect
+      * opens a file and returns a reference to it. The `use` function reads bytes and transforms them
+      * in to some stream of elements (e.g., bytes, strings, lines, etc.). The `release` action closes
+      * the file.
+      */
       def bracket[F[_], R, O](r: F[R])(use: R => Stream[F, O], release: R => F[Unit]): Stream[F, O] = ...
- #+end_src
+   #+end_src

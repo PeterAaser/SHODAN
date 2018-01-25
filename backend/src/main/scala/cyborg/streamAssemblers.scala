@@ -22,13 +22,6 @@ object Assemblers {
     TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
-    // val commandQueueS = Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
-    // val agentQueueS = Stream.eval(fs2.async.unboundedQueue[IO,Agent])
-    // val topicsS = assembleTopics[IO]
-    // val debugQueueS = Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
-    // val taggedSegTopicS = Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
-
-    // magic hardcoded threshold
     val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
 
     for {
@@ -51,34 +44,6 @@ object Assemblers {
 
       _ <- commandQueue.dequeue.through(commandPipe)
     } yield ()
-
-    // commandQueueS flatMap {           commandQueue =>
-    //   agentQueueS flatMap {           agentQueue =>
-    //     topicsS flatMap {             topics =>
-    //       debugQueueS flatMap {       debugQueue =>
-    //         taggedSegTopicS flatMap { taggedSeqTopic =>
-
-    //           val httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-    //           val webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-    //           val webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data._2)).through(chunkify)))
-
-    //           val agentSink            = agentQueue.enqueue
-    //           val commandPipe          = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqTopic)
-
-
-    //           httpServer flatMap {               server =>
-    //             webSocketAgentServer flatMap {   wsAgentServer =>
-    //               webSocketVizServer flatMap {   wsVizServer =>
-
-    //                 commandQueue.dequeue.through(commandPipe).map(Stream.eval).join(100)
-    //               }
-    //             }
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
   }
 
 
