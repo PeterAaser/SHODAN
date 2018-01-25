@@ -43,13 +43,13 @@ object Assemblers {
       webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data._2)).through(chunkify)))
 
       agentSink            = agentQueue.enqueue
-      commandPipe          = staging.commandPipe(topics, agentSink, meameFeedbackSink, taggedSeqTopic)
+      commandPipe          = staging2.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
 
       server         <- httpServer
       wsAgentServer  <- webSocketAgentServer
       wsVizServer    <- webSocketVizServer
 
-      _ <- commandQueue.dequeue.through(commandPipe).map(Stream.eval).join(100)
+      _ <- commandQueue.dequeue.through(commandPipe)
     } yield ()
 
     // commandQueueS flatMap {           commandQueue =>

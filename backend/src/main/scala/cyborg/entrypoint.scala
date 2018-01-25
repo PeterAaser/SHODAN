@@ -60,7 +60,8 @@ object staging {
 
             // done
             case DBstartRecord =>
-              sIO.streamToDatabase(rawDataTopic.subscribe(10000), "TESTRUN").run
+              IO.unit
+              // sIO.streamToDatabase(rawDataTopic.subscribe(10000), "TESTRUN").run
               // sIO.streamToFile(rawDataQueue.dequeueAvailable).run
 
             case Shutdown =>
