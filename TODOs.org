@@ -23,8 +23,8 @@
     sense since this would lead to a seemingly fine recording 
     with a temporal jump.
 **** DONE stop and start data acquisition from MEAME
-**** TODO stop and start data acquisition from database
-**** TODO stop (finalize) and start recording 
+**** DONE stop (finalize) and start recording 
+**** TODO stop and start data playback from DB
 **** TODO stop and start agent
 **** TODO notify UI events
      

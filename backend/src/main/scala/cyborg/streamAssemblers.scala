@@ -102,9 +102,9 @@ object Assemblers {
     // This means, if at subscription time, one channel has newer input,
     // this discrepancy will never be resolved and one stream will be permanently ahead
     val spikeChannels = channelStreams
-      .map(_.map(_.data._2))
-      .map(_.through(chunkify))
-      .map(_.through(spikeDetector))
+      .map(_.map(_.data._2)
+             .through(chunkify)
+             .through(spikeDetector))
 
     println("checking if clogged")
 

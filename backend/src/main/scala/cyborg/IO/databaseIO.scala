@@ -72,19 +72,21 @@ object databaseIO {
     import cats.effect._
     import cats.implicits._
 
-
     // Action for setting up path, sink and experiment record.
     // Since experiment record wont be inserted before 1st element
     // we do not need to keep track of the time in the program.
     // We also supply a finalizer method that will NYI freeze everything
-    for {
-      finalizer    <- signalOf[IO,IO[Unit]](IO.unit)
-      pathAndSink  <- fileIO.writeCSV[IO]
-      experimentId <- insertNewExperiment(pathAndSink._1, comment).transact(xa)
-      _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
-    } yield (RecordingSink(finalizer.get.flatten, pathAndSink._2))
+    signalOf[IO,IO[Unit]](IO.unit) map { finalizer =>
 
+      val onFirstElement = for {
+        pathAndSink  <- fileIO.writeCSV[IO]
+        experimentId <- insertNewExperiment(pathAndSink._1, comment).transact(xa)
+        _ = println("on first element for comp running")
+        _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
+      } yield (pathAndSink._2)
 
+      RecordingSink(finalizer.get.flatten, createOnFirstElement(onFirstElement, identity[Sink[IO,Int]]))
+    }
   }
 
 
