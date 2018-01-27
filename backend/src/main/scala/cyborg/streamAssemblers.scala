@@ -61,7 +61,7 @@ object Assemblers {
     val inputTopics = channels.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(100))
 
-    println(s"creating input filter with channels $channels")
+    say(s"creating input filter with channels $channels")
 
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
@@ -71,7 +71,7 @@ object Assemblers {
              .through(chunkify)
              .through(spikeDetector))
 
-    println("checking if clogged")
+    say("checking if clogged")
 
     Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
   }
@@ -98,7 +98,7 @@ object Assemblers {
     def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,IO[Unit],Unit] = {
-        // println("publish sink is running")
+        // say("publish sink is running")
         s.pull.uncons1 flatMap {
           case Some((taggedSeg, tl)) => {
             val idx = taggedSeg.data._1
@@ -137,8 +137,7 @@ object Assemblers {
     dataSource: List[Topic[IO,TaggedSegment]],
     inputChannels: List[Channel],
     frontendAgentObserver: Sink[IO,Agent],
-    feedbackSink: Sink[IO,List[Double]])(implicit ec: EC): Stream[IO,Unit] =
-  {
+    feedbackSink: Sink[IO,List[Double]])(implicit ec: EC): IO[InterruptableAction[IO]] = {
 
     import params.experiment._
     import params.filtering._
@@ -148,10 +147,15 @@ object Assemblers {
 
     val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe
 
-    inputSpikes.through(experimentPipe)
-      .observeAsync(10000)(frontendAgentObserver)
-      .through(_.map((λ: Agent) => {λ.distances}))
-      .through(feedbackSink)
+    signalOf[IO,Boolean](false).map { interruptSignal =>
+      InterruptableAction(
+        interruptSignal.set(true),
+
+        inputSpikes.through(experimentPipe).interruptWhen(interruptSignal.discrete)
+          .observeAsync(10000)(frontendAgentObserver)
+          .through(_.map((λ: Agent) => {λ.distances}))
+          .through(feedbackSink).run)
+    }
   }
 
 

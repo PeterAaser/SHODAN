@@ -1,3 +1,10 @@
+* Thought scratchpad
+  Currently I'm not separating network data broadcasting and interfacing with MEAME.
+  MEAME control (stop and start MEAME) should only perform HTTP calls, then let the 
+  appropriate broadcast actions be run.
+  Thus there should be two actions, broadcast from network (which may or may not have 
+  data) and broadcast from DB (which may also not have data if not initialized)
+
 * Neste gang
   ???
   
@@ -11,26 +18,11 @@
   
 
 * Now
-** TODO Redo entrypoint
-*** TODO Implement IO actions as described in [[file:backend/src/main/scala/cyborg/entrypoint2.scala::case%20class%20ProgramState(][program state]] 
-    When shut down, a process must: 
-    + notify the UI
-    + set its boolean to false
-    Pausing a recording has been considered but does not make 
-    sense since this would lead to a seemingly fine recording 
-    with a temporal jump.
-**** DONE stop and start data acquisition from MEAME
-**** DONE stop (finalize) and start recording 
-**** TODO stop and start data playback from DB
-     We will not be doing pausing at the time being
-**** TODO stop and start agent
-**** TODO notify UI events
-     This should be done by adding a listener to the assembler which utilizes
-     programstate.
-     
-*** DONE Resetting MEAME
-    Will not implement
-    
+** TODO Debug entrypoint2
+*** TODO Broadcasting
+*** TODO MEAME data
+*** TODO File playback
+*** TODO Agent
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
 *** DONE Get hello world test to run
@@ -64,7 +56,9 @@
 *** TODO Get throttling to work properly
 *** TODO Verify correctness
    
+    
 * Later
+** TODO Add UI event firing from entrypoint
 ** TODO Spec out and properly implement DB
 *** TODO add more todo items
 ** TODO Refactor Feedback pipe
@@ -128,6 +122,23 @@
    actually updates.
    
 * Finished
+** DONE Redo entrypoint
+*** DONE Implement IO actions as described in [[file:backend/src/main/scala/cyborg/entrypoint2.scala::case%20class%20ProgramState(][program state]] 
+    When shut down, a process must: 
+    + notify the UI
+    + set its boolean to false
+    Pausing a recording has been considered but does not make 
+    sense since this would lead to a seemingly fine recording 
+    with a temporal jump.
+**** DONE stop and start data acquisition from MEAME
+**** DONE stop (finalize) and start recording 
+**** DONE stop and start data playback from DB
+     We will not be doing pausing at the time being
+**** DONE stop and start agent
+***** DONE make the GA runner stoppable and startable 
+*** DONE Resetting MEAME
+    Will not implement
+    
 ** DONE Write more documentation
 ** DONE Stim req system
 *** DONE Implement
@@ -636,7 +647,7 @@ ReactDOM.render(React.createElement(Timer), mountNode);
 *** Thoughts
     Some of the issues might stem from stuffing all inputs into a single pipe.
     Maybe the HTTP server could handle most of it, if not all?
-
+    
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
   + Check if all streams are running, not just the head of a stream of streams etc.

@@ -125,6 +125,8 @@ object HttpCommands {
   case object StartMEAME extends UserCommand
   case object StopMEAME extends UserCommand
 
+  case object StopData extends UserCommand
+
   case object AgentStart extends UserCommand
   case object WfStart extends UserCommand
   case object StartWaveformVisualizer extends UserCommand

@@ -37,7 +37,6 @@ object webSocketServer {
 
     def route: HttpService[IO] = HttpService[IO] {
       case req @ GET -> Root => {
-        println(s"got ws $req")
         WS[IO](inStream, outSink)
       }
     }

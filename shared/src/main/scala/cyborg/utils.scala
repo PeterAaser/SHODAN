@@ -8,8 +8,14 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import scala.language.higherKinds
+import sourcecode._
 
 object utilz {
+
+  def say(word: Any, modifier: String = "")(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
+    val fname = filename.value.split("/").last
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+  }
 
   type EC = ExecutionContext
   type Channel = Int
