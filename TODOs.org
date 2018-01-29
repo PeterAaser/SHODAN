@@ -4,89 +4,24 @@
   appropriate broadcast actions be run.
   Thus there should be two actions, broadcast from network (which may or may not have 
   data) and broadcast from DB (which may also not have data if not initialized)
+  
+  Is it really so wrong to not always broadcast when MEAME is running though? Maybe for testing?
+  
+  Been thinking more about the broadcaster. What if I make the broadcaster sort of a top level thing 
+  and instead of respawning the broadcaster I let the broadcaster handle that for itself so that 
+  it will be easier to monitor.
+  Perhaps this is prudent for more parts of the codebase, ensure that each component is a persistent 
+  container for its internal streams which may be interrupted and restarted.
 
 * Neste gang
-  ???
   
 * Doing
-  Beware of NYI in doobio
-  Read up on semantics of InterruptWhen
-  
-  Add listener for UI events?
-  
-  Set up db playback in entrypoint2
+  Augmenting the test method. Thinking a little about how to update the UI, flushing pipes et cetera.
+  Looks like we have a clogging of the pipes for DB recording!
   
 
 * Now
-** TODO Debug entrypoint2
-*** TODO Broadcasting
-*** TODO MEAME data
-*** TODO File playback
-*** TODO Agent
-** TODO Add tests
-   Maybe read the chapter on prop testing in the red book?
-*** DONE Get hello world test to run
-    sort of, the frontend kinda stopped working... hurr!
-*** TODO Make simple sine wave playback server/harness
-*** TODO Make database playback mock server/harness
-   
-** TODO Stimulus
-*** TODO Rewrite stimulus.
-**** DONE Write
-    See MEAMEutilz
-**** TODO Verify
-** TODO Verify and finish file playback.
-*** DONE Add basic user interface support
-*** DONE Figure out how to start and stop recordings
-    Start should be params -> IO[IO[Unit]] perhaps?
-    Outer IO is the start, the inner IO is the finalization which
-    writes metadata to the db etc?
-    
-    This ended up getting a lot more involved actually!
-    
-*** TODO Verify that recording triangle waves from MEAME2 works
-**** TODO Stream to database
-     Had an issue where using a queue would cause displaying and
-     saving data caused the data to get split, rather than duplicated.
-     
-     Now uses topic, which should fix the problem
-     
-**** TODO Stream from database
-*** TODO Specify how I want files parsed and delegate slave labor
-*** TODO Get throttling to work properly
-*** TODO Verify correctness
-   
-    
-* Later
 ** TODO Add UI event firing from entrypoint
-** TODO Spec out and properly implement DB
-*** TODO add more todo items
-** TODO Refactor Feedback pipe
-   not critical
-*** TODO figure out how to dequeueAvailable without losing unconsumed
-*** TODO The filter should not be responsible for termination
-**** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
-     Might deadlock or whatever
-    
-** TODO Better handling of parameters
-*** TODO Define requirements
-    'better' is not a requirement, although in its current state it's not
-    100% wrong either. Possibly params could be a signal or some other IO
-    mutable construct, including an isReady IO[Bool].
-    Sort of react-ish way of handling it
-
-** TODO Less unescessary restarts for both SHODAN and MEAME
-*** DONE MEAME
-*** TODO SHODAN
-**** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
-**** TODO UI support
-*** TODO Reset protocol(?)
-    Might not be necessary unless we somehow lose track of an input stream
-    In this scenario we can't demodulate the TCP datastream
-    Have actually managed to trigger this error, so it might be an issue
-
-** TODO Add TCP listening for other users, possibly on specific channels
-   With HTTP
 ** TODO Improve the frontend
 *** TODO Get rid of the annyoing redundant clicks!!
 *** TODO Settings accessible on the frontend
@@ -104,6 +39,49 @@
 **** TODO DSP support
     See refactoring representation element
 
+** TODO Polish file playback
+** TODO MCS file fixerino reduxerino
+** TODO Less unescessary restarts for both SHODAN and MEAME
+*** DONE MEAME
+*** TODO SHODAN
+**** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** TODO UI support
+*** TODO Reset protocol(?)
+    Might not be necessary unless we somehow lose track of an input stream
+    In this scenario we can't demodulate the TCP datastream
+    Have actually managed to trigger this error, so it might be an issue
+
+* Later
+** TODO Stimulus
+*** TODO Rewrite stimulus.
+**** DONE Write
+    See MEAMEutilz
+**** TODO Verify
+** TODO Add tests
+   Maybe read the chapter on prop testing in the red book?
+*** DONE Get hello world test to run
+    sort of, the frontend kinda stopped working... hurr!
+*** TODO Make simple sine wave playback server/harness
+*** TODO Make database playback mock server/harness
+   
+** TODO Spec out and properly implement DB
+*** TODO add more todo items
+** TODO Refactor Feedback pipe
+   not critical
+*** TODO figure out how to dequeueAvailable without losing unconsumed
+*** TODO The filter should not be responsible for termination
+**** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
+     Might deadlock or whatever
+    
+** TODO Better handling of parameters
+*** TODO Define requirements
+    'better' is not a requirement, although in its current state it's not
+    100% wrong either. Possibly params could be a signal or some other IO
+    mutable construct, including an isReady IO[Bool].
+    Sort of react-ish way of handling it
+
+** TODO Add TCP listening for other users, possibly on specific channels
+   With HTTP
 ** TODO Refactor registry representation
 *** DONE Refine register representation.
 *** DONE Check correctness of STG.scala
@@ -122,6 +100,34 @@
    actually updates.
    
 * Finished
+** DONE Verify entrypoint2
+*** DONE Broadcasting
+*** DONE MEAME data
+*** DONE File playback
+    Works, but crashes on empty string in the end
+*** DONE Agent
+** DONE Implement and test finalizing of db recording.
+** DONE Verify and finish file playback.
+*** DONE Add basic user interface support
+*** DONE Figure out how to start and stop recordings
+    Start should be params -> IO[IO[Unit]] perhaps?
+    Outer IO is the start, the inner IO is the finalization which
+    writes metadata to the db etc?
+    
+    This ended up getting a lot more involved actually!
+    
+*** DONE Verify that recording triangle waves from MEAME2 works
+**** DONE Stream to database
+     Had an issue where using a queue would cause displaying and
+     saving data caused the data to get split, rather than duplicated.
+     
+     Now uses topic, which should fix the problem
+     
+**** DONE Stream from database
+*** DONE Get throttling to work properly
+*** DONE Verify correctness
+    Some verification dawg...
+   
 ** DONE Redo entrypoint
 *** DONE Implement IO actions as described in [[file:backend/src/main/scala/cyborg/entrypoint2.scala::case%20class%20ProgramState(][program state]] 
     When shut down, a process must: 
@@ -167,6 +173,8 @@
   Ended up being sawtooth, no difference really
 
 
+  
+* Dropped & Not needed
 
 * how 2 fs2 fra gitter (ikke slett plz)
 Yeah, I do that in too many places
@@ -648,6 +656,33 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     Some of the issues might stem from stuffing all inputs into a single pipe.
     Maybe the HTTP server could handle most of it, if not all?
     
+* FS2 mysteries
+** Termination of unit streams
+   for some F[Unit] we may or may not get a reasonable termination.
+   Consider the following: 
+   val a = IO { println("hello") }
+   val b = IO { read data from a socket and write to a different socket }
+   Obviously a terminates, b does not, but this isn't really apparent in the signatures.
+   This has a tendency to trip me up when using evalMap!
+   
+   val s = Stream(0,1,2,3).repeat.evalMap( z => if(z mod 2) a else b)
+
+   Here I'm thinking that this won't clog, but of course it will because on token 1 we start an 
+   IO action that will not terminate.
+   
+   Typically this ends with me using something silly like
+   
+   (Stream(0,1,2,3).repeat.map( z => if(z mod 2) a else b)).through(_.map(Stream.eval(_))).joinUnbounded
+   
+   This is silly, it would be better if tasks would themselves indicate that they were async or sync,
+   and this certainly exists in fs2 or the cats IO ecosystem!
+   
+   I suppose this is where you need Async, Schedulers, Strategies and more, since you want to have 
+   a strategy for performing async tasks instead of defining the execution strategy at the task creation!
+   
+   
+   
+   
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
   + Check if all streams are running, not just the head of a stream of streams etc.
@@ -683,7 +718,6 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     period was not implemented but the exception was swallowed.
     This should be tested properly, but until then using ??? is very dangerous since NYI 
     errors might be swallowed.
-
 
 * On testing
   Scala has 3 major testing frameworks.

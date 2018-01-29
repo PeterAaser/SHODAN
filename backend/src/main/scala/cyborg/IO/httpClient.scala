@@ -15,6 +15,8 @@ import org.http4s.client.blaze._
 import org.http4s.Uri
 import org.http4s.circe._
 
+import utilz._
+
 
 object HttpClient {
 
@@ -74,7 +76,7 @@ object HttpClient {
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[String] = {
     if(params.samplerate > 1000){
-      println(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
+      say(Console.YELLOW + "[WARN] samplerate possibly too high for MEAME2 currently" + Console.RESET)
     }
     val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
     httpClient.expect[String](req) }

@@ -7,15 +7,15 @@ import doobie.postgres.imports._
 import fs2._
 
 import com.github.nscala_time.time.Imports._
+import com.github.nscala_time.time.Implicits._
+
+import utilz._
+
 import java.nio.file.{ Path, Paths }
 
 object doobIO {
 
-  // val YOLO = databaseIO.xa.yolo
-  // import doobie._, doobie.implicits._
-  // import YOLO._
-
-  case class ExperimentInfo(id: Long, timestamp: DateTime, comment: Option[String])
+  case class ExperimentInfo(id: Long, startTime: DateTime, finishTimep: Option[DateTime], comment: Option[String])
   case class DataRecording(resourcePath: Path, resourceType: FileEncoding)
   case object DataRecording {
     def apply(rpath: String, rtype: String): DataRecording = DataRecording(Paths.get(rpath), parseResourceType(rtype))
@@ -34,21 +34,19 @@ object doobIO {
     case "gzip" => GZIP
     case _ => {
       // cba with Option here...
-      println("uh oh, you fucking dunce")
+      say("uh oh, you fucking dunce, no encoding specified! Going with GZIP for that NYI deadlock")
       GZIP
     }
   }
 
 
   def getExperimentParams(experimentId: Long): ConnectionIO[ExperimentParams] = {
-
+    say("get exp params")
     // sql"""
     //     SELECT *
     //     FROM experimentParams
     //     WHERE experimentId = $experimentId
     //   """.query[ExperimentParams].check.unsafeRunSync()
-
-
     sql"""
         SELECT *
         FROM experimentParams
@@ -59,16 +57,12 @@ object doobIO {
 
   // probably explodes lol
   def getExperimentDataURI(experimentId: Long): ConnectionIO[DataRecording] = {
-    println("get exp uri")
-
-
+    say("get exp uri")
     // sql"""
     //   SELECT *
     //   FROM dataRecording
     //   WHERE experimentId = $experimentId
     // """.query[(Long, String, String)].check.unsafeRunSync()
-
-
     sql"""
       SELECT *
       FROM dataRecording
@@ -79,7 +73,7 @@ object doobIO {
 
 
   def insertNewExperiment(path: Path, comment: String = "No comment atm"): ConnectionIO[Long] = {
-
+    say("insert new experiment")
     import doobie.implicits._
 
     val insertExperiment = for {
@@ -88,29 +82,30 @@ object doobIO {
     } yield (id)
 
     insertExperiment flatMap { id =>
-      println(s"inserted experiment, the id was $id")
+      say(s"inserted experiment, the id was $id")
       insertDataRecording(id.toLong, path.toString()) flatMap { _ =>
         insertParams(id).map(_ => id)
       }}
   }
 
-  def finalizeExperiment(id: Long): ConnectionIO[Long] = {
-    println("WARNING! NYI at finalizeExperiment!!!!!")
-    ???
+  def finalizeExperiment(id: Long): ConnectionIO[Int] = {
+    sql"""
+      UPDATE experimentInfo
+      SET finishTime = now()
+      WHERE id = $id
+    """.update.run
   }
 
   import params.experiment._
   import params.StorageParams._
 
   def insertDataRecording(id: Long, path: String): ConnectionIO[Int] = {
-
-    // println(s"typechecking insert data recording. id is ${id.toInt}")
+    say("insert data recording")
+    // say(s"typechecking insert data recording. id is ${id.toInt}")
     // sql"""
     //   INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
     //   VALUES (${id.toInt}, $path, $storageType)
     // """.update.check.unsafeRunSync()
-
-
     sql"""
       INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
       VALUES (${id.toInt}, $path, $storageType)
@@ -119,12 +114,11 @@ object doobIO {
 
 
   def insertParams(id: Long): ConnectionIO[Int] = {
-    // println("typechecking insert params")
+    say("insert params")
     // sql"""
     //   INSERT INTO experimentParams (experimentid, sampleRate, segmentLength)
     //   VALUES ($id, $samplerate, $segmentLength)
     // """.update.check.unsafeRunSync()
-
     sql"""
       INSERT INTO experimentParams (experimentid, sampleRate, segmentLength)
       VALUES ($id, $samplerate, $segmentLength)
@@ -133,7 +127,7 @@ object doobIO {
 
 
   def getExperimentsByMEA(MEAid: Int): Stream[IO, Long] = {
-    println("warning, calling NYI method, might clog")
+    say("warning, calling NYI method, might clog")
     ???
   }
 
@@ -146,9 +140,9 @@ object doobIO {
     import java.sql.Timestamp
     val ts = new Timestamp(timestamp.getMillis())
 
-    println(s"inserting old experiment with comment $comment, date: $ts")
+    say(s"inserting old experiment with comment $comment, date: $ts")
     val insertInfo = sql"""
-      INSERT INTO experimentInfo (comment, experimentTimeStamp)
+      INSERT INTO experimentInfo (comment, startTime)
       VALUES ($comment, $ts)
     """
 

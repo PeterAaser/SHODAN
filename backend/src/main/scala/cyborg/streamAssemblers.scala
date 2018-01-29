@@ -61,7 +61,7 @@ object Assemblers {
     val inputTopics = channels.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(100))
 
-    say(s"creating input filter with channels $channels")
+    // say(s"creating input filter with channels $channels")
 
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
@@ -70,8 +70,6 @@ object Assemblers {
       .map(_.map(_.data._2)
              .through(chunkify)
              .through(spikeDetector))
-
-    say("checking if clogged")
 
     Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
   }
@@ -90,6 +88,8 @@ object Assemblers {
     topics: List[Topic[IO,TaggedSegment]],
     rawSink: Sink[IO,TaggedSegment]
   )(implicit ec: EC): IO[InterruptableAction[IO]] = {
+
+    // say("Creating a broadcast datastream IO")
 
     import params.experiment.totalChannels
 

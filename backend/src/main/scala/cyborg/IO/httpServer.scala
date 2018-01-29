@@ -1,18 +1,19 @@
 package cyborg
 
+import utilz._
+import fs2._
+import fs2.async.mutable.Queue
+
+import org.http4s.server.middleware._
+import org.http4s._
+import org.http4s.dsl._
+import org.http4s.server.blaze.BlazeBuilder
+
+import cats.effect.IO
+
+import org.http4s.server.Server
+
 object HttpServer {
-  import fs2._
-  import fs2.async.mutable.Queue
-
-  import org.http4s.server.middleware._
-  import org.http4s._
-  import org.http4s.dsl._
-  import org.http4s.server.blaze.BlazeBuilder
-
-  import cats.effect.IO
-
-  import org.http4s.server.Server
-
 
   import HttpCommands._
   import DebugMessages._
@@ -33,26 +34,26 @@ object HttpServer {
         } yield (resp)
       }
       case req @ POST -> Root / "db" => {
-        println("db")
+        say("db")
         for {
           emit <- cmd(RunFromDB(1))
           resp <- Ok("start")
         } yield (resp)
       }
       case req @ POST -> Root / "agent" => {
-        println("agent")
+        say("agent")
         for {
           emit <- cmd(AgentStart)
           resp <- Ok("007 at your service")
         } yield (resp)
       }
-      case req @ POST -> Root / "wf" => {
-        println("waveform")
-        for {
-          emit <- cmd(StartWaveformVisualizer)
-          resp <- Ok("sending some wavez dude")
-        } yield (resp)
-      }
+      // case req @ POST -> Root / "wf" => {
+      //   say("waveform")
+      //   for {
+      //     emit <- cmd(StartWaveformVisualizer)
+      //     resp <- Ok("sending some wavez dude")
+      //   } yield (resp)
+      // }
 
       case req @ POST -> Root / "fuckoff" => {
         for {
@@ -95,7 +96,6 @@ object HttpServer {
         } yield (resp)
       }
 
-
       case req @ POST -> Root / "barf" => {
         for {
           emit <- cmd(DspBarf)
@@ -107,6 +107,31 @@ object HttpServer {
         for {
           emit <- cmd(DspDebugReset)
           resp <- Ok("resetting")
+        } yield (resp)
+      }
+
+      case req @ POST -> Root / "test_stuff" => {
+        for {
+          resp <- Ok("hurr")
+          _    <- IO { say("emitting run from MEAME...") }
+          emit <- cmd(StartMEAME)
+          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+          _    <- IO { say("emitting agent start") }
+          emit <- cmd(AgentStart)
+          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+          _    <- IO { say("emitting agent stop") }
+          emit <- cmd(AgentStop)
+          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+          _    <- IO { say("emitting run from DB") }
+          emit <- cmd(RunFromDB(1))
+          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+          _    <- IO { say("emitting run from MEAME") }
+          emit <- cmd(StartMEAME)
+          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+          _    <- IO { say("emitting agent start") }
+          emit <- cmd(AgentStart)
+          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+          _    <- IO { say("Okay, we're done?") }
         } yield (resp)
       }
     }
@@ -123,28 +148,29 @@ object HttpCommands {
 
   sealed trait UserCommand
   case object StartMEAME extends UserCommand
-  case object StopMEAME extends UserCommand
+  case object StopMEAME  extends UserCommand
 
-  case object StopData extends UserCommand
+  case object StopData   extends UserCommand
 
   case object AgentStart extends UserCommand
-  case object WfStart extends UserCommand
-  case object StartWaveformVisualizer extends UserCommand
+  case object AgentStop  extends UserCommand
 
-  case object ConfigureMEAME extends UserCommand
+  // case object StartWaveformVisualizer extends UserCommand
+  // case object ConfigureMEAME extends UserCommand
 
-  case class RunFromDB(experimentId: Int) extends UserCommand
-  case object DBstartRecord extends UserCommand
-  case object DBstopRecord extends UserCommand
-  case object Shutdown extends UserCommand
+  case class  RunFromDB(experimentId: Int) extends UserCommand
+  case object DBstartRecord                extends UserCommand
+  case object DBstopRecord                 extends UserCommand
 
-  case object DspSet extends UserCommand
+  case object Shutdown                     extends UserCommand
+
+  // Not that relevant now
+  case object DspSet  extends UserCommand
   case object DspConf extends UserCommand
 
-  case object DspStimTest extends UserCommand
+  case object DspStimTest   extends UserCommand
   case object DspUploadTest extends UserCommand // uploading stimulus, not bitfile
-
-  case object DspBarf extends UserCommand
+  case object DspBarf       extends UserCommand
   case object DspDebugReset extends UserCommand
 }
 

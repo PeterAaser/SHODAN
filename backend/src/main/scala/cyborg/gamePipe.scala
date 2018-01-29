@@ -4,6 +4,8 @@ import cats.effect.Effect
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
+import utilz._
+
 object agentPipe {
 
   type ffANNinput = Vector[Double]
@@ -47,7 +49,7 @@ object agentPipe {
     evalSink: Sink[F,Double])(implicit ec: ExecutionContext): Pipe[F,ffANNoutput,Agent] = {
 
 
-    println("running evaluatorPipe")
+    say("running evaluatorPipe")
 
     /**
       Runs an agent through ticksPerEval ticks, recording the closest it was a wall
@@ -60,11 +62,11 @@ object agentPipe {
           case Some((agentInput, tl)) => {
             val nextAgent = Agent.updateAgent(agent, agentInput)
             if (ticks > 0){
-              // println(s"eval pipe evaling $ticks")
+              // say(s"eval pipe evaling $ticks")
               Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             }
             else {
-              println("eval pipe indicates we're done")
+              say("eval pipe indicates we're done")
               Pull.output1(nextAgent) >> Pull.done
             }
           }
@@ -82,7 +84,7 @@ object agentPipe {
               .map(_.distanceToClosest)
               .min
 
-            println("!!!!! eval run outputting an evaluation")
+            say("!!!!! eval run outputting an evaluation")
             Pull.output1(closest) >> Pull.done
           }
           case _ => {

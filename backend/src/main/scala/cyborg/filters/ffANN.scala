@@ -2,6 +2,7 @@ package cyborg
 
 import scala.language.higherKinds
 import scala.util.Random
+import utilz._
 
 object Filters {
 
@@ -13,7 +14,7 @@ object Filters {
 
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
     if(neededWeights != weights.length){
-      println(" ffANN error ")
+      // say(" ffANN error ")
     }
     require(
       neededWeights == weights.length,
@@ -21,7 +22,7 @@ object Filters {
     )
     val neededBias = layout.tail.sum
     if(neededBias != bias.length){
-      println(" ffANN error ")
+      // say(" ffANN error ")
     }
     require(
       neededBias == bias.length,
@@ -67,7 +68,7 @@ object Filters {
 
 
     def randomNetWithLayout(layout: Layout): FeedForward = {
-      println("Created random net with layout")
+      // say("Created random net with layout")
 
       import params.ANN._
 
@@ -128,7 +129,7 @@ object Filters {
 
       def go(run: Int, s: Stream[F, Vector[Double]]): Pull[F,Option[List[Double]],Unit] = {
         if(run == 0){
-          println("ffPipeO returns None")
+          // say("ffPipeO returns None")
           Pull.output1(None)
         }
         else{

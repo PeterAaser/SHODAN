@@ -68,6 +68,12 @@ object frontHTTPclient {
     req.send()
   }
 
+  def tests: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/test_stuff")
+    req.send()
+  }
+
   def startRecording: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/record_start")

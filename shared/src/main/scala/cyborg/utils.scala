@@ -310,7 +310,7 @@ object utilz {
         })
       b
     }
-    println("synchronize called. Might behave weirdly, not tested (lol)")
+    say("synchronize called. Might behave weirdly, not tested (lol)")
     synchStreams
   }
 
@@ -319,11 +319,11 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
-          println(seg.toList.head)
+          say(s"${seg.toList.head}")
           Pull.output(seg) >> go(tl)
         }
         case None => {
-          println("log every nth got None")
+          say("log every nth got None")
           Pull.done
         }
       }
@@ -332,7 +332,7 @@ object utilz {
   }
 
 
-  def logEveryNth[F[_],I](n: Int, say: I => Unit ): Pipe[F,I,I] = {
+  def logEveryNth[F[_],I](n: Int, message: I => Unit ): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
@@ -340,7 +340,7 @@ object utilz {
           Pull.output(seg) >> go(tl)
         }
         case None => {
-          println("log every nth got None")
+          say("log every nth got None")
           Pull.done
         }
       }
@@ -359,7 +359,7 @@ object utilz {
     dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
 
     tickSource(dur).flatMap { _ =>
-      Stream.eval(q.size.get).through(_.map(λ => println(s"Queue with name $name has a size of $λ")))
+      Stream.eval(q.size.get).through(_.map(λ => say(s"Queue with name $name has a size of $λ")))
     }.repeat
   }
 

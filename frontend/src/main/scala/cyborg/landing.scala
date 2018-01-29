@@ -38,7 +38,7 @@ object hurr {
     val testUploadButton = button("upload stimulus test").render
     val barf = button("DSP barf").render
     val reset = button("DSP reset").render
-
+    val tests = button("\"\"\"Test\"\"\"").render
     /**
       Starts SHODAN and connects to MEAME.
       SHODAN is already running, so not really nescessary
@@ -106,6 +106,11 @@ object hurr {
       frontHTTPclient.reset
     }
 
+    tests.onclick = (_: MouseEvent) => {
+      println("resetting debug")
+      frontHTTPclient.tests
+    }
+
     document.getElementById("playground").appendChild(startMEAME)
     document.getElementById("playground").appendChild(startDB)
     document.getElementById("playground").appendChild(startRecord)
@@ -113,6 +118,7 @@ object hurr {
     document.getElementById("playground").appendChild(testStimButton)
     document.getElementById("playground").appendChild(barf)
     document.getElementById("playground").appendChild(reset)
+    document.getElementById("playground").appendChild(tests)
 
 
     document.getElementById("playground").appendChild(agentCanvas)

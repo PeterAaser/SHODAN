@@ -9,6 +9,7 @@ import org.http4s.websocket.WebsocketBits._
 import org.http4s.server.websocket._
 import scodec.Codec
 
+import utilz._
 
 import fs2._
 import fs2.Stream._
@@ -50,7 +51,7 @@ object webSocketServer {
 
     def route: HttpService[IO] = HttpService[IO] {
       case req @ GET -> Root => {
-        println(s"got $req")
+        // println(s"got $req")
         WS[IO](agentInStream, outSink)
       }
     }
@@ -61,14 +62,14 @@ object webSocketServer {
   def webSocketWaveformServer(waveforms: Stream[IO,Array[Int]]) = {
     val service = webSocketWaveformService(waveforms)
     val builder = BlazeBuilder[IO].bindHttp(9091).mountService(service).start
-    println("ws viz server ready")
+    say("ws viz server ready")
     builder
   }
 
   def webSocketAgentServer(agentStream: Stream[IO,Agent]) = {
     val service = webSocketAgentService(agentStream)
     val builder = BlazeBuilder[IO].bindHttp(9092).mountService(service).start
-    println("ws agent server ready")
+    say("ws agent server ready")
     builder
   }
 }

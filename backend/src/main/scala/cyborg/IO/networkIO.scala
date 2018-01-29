@@ -12,6 +12,7 @@ import scala.concurrent.ExecutionContext
 
 import scala.language.higherKinds
 
+import utilz._
 
 object networkIO {
 
@@ -39,7 +40,7 @@ object networkIO {
 
 
   def streamAllChannels[F[_]: Effect](implicit ec: ExecutionContext): Stream[F, Int] = {
-    println(s"streaming from IP: $ip, port: $port")
+    say(s"streaming from IP: $ip, port: $port")
     socketStream[F](port) flatMap { socket =>
       socket.reads(1024*1024).through(utilz.bytesToInts)
     }

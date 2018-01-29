@@ -4,6 +4,8 @@ package cyborg
 import scala.concurrent.duration._
 import scala.math._
 
+import utilz._
+
 
 /**
   An unholy mess of generic and specific logic.
@@ -129,7 +131,7 @@ object waveformGenerator {
         }
       }._1
 
-    println(points)
+    say(points)
 
     case class StimWord(timeBase: Int, repeats: Int, stimValue: Int){
       def invoke: Int = {
@@ -179,8 +181,8 @@ object waveformGenerator {
     )
 
 
-    println(stimWords)
-    println(SBSWords)
+    say(stimWords)
+    say(SBSWords)
 
     val stimResetAddres = 0x920c + (channel*0x20)
     val SBSResetAddres = 0x920c + ((channel+1)*0x20)

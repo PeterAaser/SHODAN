@@ -1,6 +1,5 @@
 package cyborg
 
-import fs2.async.mutable.Signal
 import utilz._
 import cats.effect._
 import fs2._
@@ -8,7 +7,8 @@ import fs2.Stream._
 import cats.effect.IO
 import java.nio.file.Path
 import org.joda.time.DateTime
-import scala.concurrent.ExecutionContext
+
+import utilz._
 
 import cats.effect.IO
 
@@ -33,11 +33,11 @@ object databaseIO {
     Gets a resource URI from the database and reads said info
     */
   def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
-    println(s"making stream for experiment $experimentId")
+    say(s"making stream for experiment $experimentId")
     import backendImplicits._
 
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
-      println(s"got data $data")
+      say(s"got data $data")
       val reader = data.resourceType match {
         case CSV => fileIO.readCSV[IO](data.resourcePath)
         case GZIP => fileIO.readGZIP[IO](data.resourcePath)
@@ -81,7 +81,7 @@ object databaseIO {
       val onFirstElement = for {
         pathAndSink  <- fileIO.writeCSV[IO]
         experimentId <- insertNewExperiment(pathAndSink._1, comment).transact(xa)
-        _ = println("on first element for comp running")
+        _ = say("on first element for comp running")
         _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
       } yield (pathAndSink._2)
 

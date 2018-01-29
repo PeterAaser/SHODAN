@@ -47,7 +47,7 @@ object Feedback {
       This pipe should terminate after running its course
       */
     def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double])(implicit ec: EC): Pipe[F, ReservoirOutput, O] = {
-      println("assembling an evaluator!")
+      // say("assembling an evaluator!")
       reservoirData =>
       reservoirData.through(filter).unNoneTerminate
         .through( createSimRunner() )
@@ -64,7 +64,7 @@ object Feedback {
       evalSink:      Sink[F,Double]
     ): Stream[F,O] = {
 
-      println("loop is running")
+      // say("loop is running")
 
       Stream.eval(filterQueue.dequeue1) flatMap { filter =>
 
