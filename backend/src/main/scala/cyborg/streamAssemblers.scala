@@ -36,7 +36,7 @@ object Assemblers {
       webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data._2)).through(chunkify)))
 
       agentSink            = agentQueue.enqueue
-      commandPipe          = staging2.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
+      commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
 
       server         <- httpServer
       wsAgentServer  <- webSocketAgentServer
