@@ -3,7 +3,7 @@ import Dependencies._
 
 name := "SHODAN"
 
-ensimeJavaFlags in ThisBuild := Seq("-Xss2m", "-Xmx2g", "-XX:MaxMetaspaceSize=2048m")
+// ensimeJavaFlags in ThisBuild := Seq("-Xss2m", "-Xmx2g", "-XX:MaxMetaspaceSize=2048m")
 
 version in ThisBuild := "0.1.0-SNAPSHOT"
 scalaVersion in ThisBuild := "2.12.3"

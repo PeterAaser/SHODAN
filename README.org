@@ -18,6 +18,23 @@
    To build SHODAN only sbt (scala build tool) is required. Since the main compilation target
    of scala is java bytecode you must have a jvm installed in order to run sbt, but apart
    from that sbt will pull all necessary dependencies, including the scala language itself.
+   
+   The only caveat is that you need to add the following to your home directory:
+   ~/.sbt/0.13/global.sbt
+   ~/.sbt/0.13/plugins/build.sbt
+   ~/.sbt/0.13/plugins/plugins.sbt
+   
+   ~/.sbt/0.13/global.sbt contains:
+   resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases"
+   
+   ~/.sbt/0.13/plugins/build.sbt contains:
+   addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC3")
+
+   and
+   ~/.sbt/0.13/plugins/plugins.sbt contains:
+   addSbtPlugin("org.ensime" % "sbt-ensime" % "1.12.15")
+   addSbtPlugin("com.scalapenos" % "sbt-prompt" % "1.0.0")
+   
   
    After installing sbt and a jvm simply clone SHODAN and go to the top level directory.
    pulling all the dependencies will take a long while, just let it run to completion. After

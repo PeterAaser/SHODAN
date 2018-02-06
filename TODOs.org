@@ -20,8 +20,14 @@
   Looks like we have a clogging of the pipes for DB recording!
   
 
-* Now
+* Now 
+** TODO Verify stimuli
+   After this all work necessary for actually performing experiments will be completed.
+** TODO Add logging for agent state for playback   
+** TODO Fix MCS channel duplication bug
+* Later
 ** TODO Add UI event firing from entrypoint
+   Might not be the best way to do this, who knows.
 ** TODO Improve the frontend
 *** TODO Get rid of the annyoing redundant clicks!!
 *** TODO Settings accessible on the frontend
@@ -44,14 +50,14 @@
 ** TODO Less unescessary restarts for both SHODAN and MEAME
 *** DONE MEAME
 *** TODO SHODAN
-**** DONE Other item [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** DONE [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** DONE [[*Redo entrypoint][Redo entrypoint]] 
 **** TODO UI support
 *** TODO Reset protocol(?)
     Might not be necessary unless we somehow lose track of an input stream
     In this scenario we can't demodulate the TCP datastream
     Have actually managed to trigger this error, so it might be an issue
 
-* Later
 ** TODO Stimulus
 *** TODO Rewrite stimulus.
 **** DONE Write
@@ -98,6 +104,7 @@
    Look at build.sbt.next
    When testing out the new build file make sure scala js
    actually updates.
+   
    
 * Finished
 ** DONE Verify entrypoint2
@@ -173,9 +180,9 @@
   Ended up being sawtooth, no difference really
 
 
-  
-* Dropped & Not needed
+* Dropped and/or Not needed
 
+  
 * how 2 fs2 fra gitter (ikke slett plz)
 Yeah, I do that in too many places
 but soon I've got a working version out, then I'm gonna refactor and write good tests and all that jazz while the stable version automagically outputs research data
@@ -734,6 +741,22 @@ ReactDOM.render(React.createElement(Timer), mountNode);
   ScalaTest and ScalaCheck are used in conjunction.
 
 * Signatures I keep having to look up
+** evalMap
+   #+begin_src scala
+    /**
+      * Alias for `flatMap(o => Stream.eval(f(o)))`.
+      *
+      * @example {{{
+      * scala> import cats.effect.IO
+      * scala> Stream(1,2,3,4).evalMap(i => IO(println(i))).compile.drain.unsafeRunSync
+      * res0: Unit = ()
+      * }}}
+      */
+    def evalMap[O2](f: O => F[O2]): Stream[F, O2] =
+      self.flatMap(o => Stream.eval(f(o)))
+
+   #+end_src
+   
 ** Bracket
    #+begin_src scala
     /**
