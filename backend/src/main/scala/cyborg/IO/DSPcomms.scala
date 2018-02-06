@@ -39,7 +39,7 @@ object DspComms {
           } yield ("")
 
           if(shouldUpdate) {
-            // println(s"Sent stim req: $stimReq")
+            // say(s"Sent stim req: $stimReq")
             Pull.output1(update) >> go(clamped,tl)
           }
           else

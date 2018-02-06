@@ -11,8 +11,8 @@ object params {
 
   object experiment {
     val totalChannels = 60
-    val samplerate = 1000
-    val segmentLength = 100
+    val samplerate = 20000
+    val segmentLength = 2000
     val maxSpikesPerSec = 50
 
     val minFreq = 0.33
@@ -172,7 +172,7 @@ object params {
   object StorageParams {
 
     val storageType = "CSV"
-    val toplevelPath = "/home/peteraa/MEAdata"
+    val toplevelPath = "/home/peteraa/MEAdata/"
 
   }
 }

@@ -33,7 +33,7 @@ object webSocketServer {
   def webSocketWaveformService(waveforms: Stream[IO,Array[Int]]) = {
     val inStream: Stream[IO,WebSocketFrame] = {
       waveforms
-        .through(_.map(λ => Binary(toBytes(λ))))
+        .through(_.map(z => Binary(toBytes(z))))
     }
 
     def route: HttpService[IO] = HttpService[IO] {
@@ -47,11 +47,10 @@ object webSocketServer {
 
   def webSocketAgentService(agentStream: Stream[IO,Agent]) = {
     val agentInStream: Stream[IO,WebSocketFrame] =
-      agentStream.map(λ => Binary(Codec.encode(λ).require.toByteArray))
+      agentStream.map(z => Binary(Codec.encode(z).require.toByteArray))
 
     def route: HttpService[IO] = HttpService[IO] {
       case req @ GET -> Root => {
-        // println(s"got $req")
         WS[IO](agentInStream, outSink)
       }
     }

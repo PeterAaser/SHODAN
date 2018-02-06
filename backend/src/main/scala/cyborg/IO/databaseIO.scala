@@ -37,13 +37,14 @@ object databaseIO {
     import backendImplicits._
 
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
-      say(s"got data $data")
+      Stream.eval(doobIO.getExperimentParams(experimentId.toLong)).transact(xa) flatMap { expParams =>
       val reader = data.resourceType match {
-        case CSV => fileIO.readCSV[IO](data.resourcePath)
+        case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.sampleRate)
         case GZIP => fileIO.readGZIP[IO](data.resourcePath)
       }
       reader
     }
+  }
 
     data
   }

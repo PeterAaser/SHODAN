@@ -52,13 +52,14 @@ object fileIO {
 
 
   // TODO might be perf loss to go from Array to List and all that
-  def readCSV[F[_]: Effect](filePath: Path)(implicit ec: EC, s: Scheduler): Stream[F,Int] = {
+  def readCSV[F[_]: Effect](filePath: Path, elementsPerSec: Int)(implicit ec: EC, s: Scheduler): Stream[F,Int] = {
+    say(s"elements per sec set to $elementsPerSec")
     val reader = io.file.readAll[F](filePath, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
       .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
       .through(utilz.chunkify)
-      .through(utilz.throttlerPipe(1000*60, 0.2.second))
+      .through(utilz.throttlerPipe(elementsPerSec*60, 0.05.second))
 
     reader
   }

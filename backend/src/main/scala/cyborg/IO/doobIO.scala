@@ -155,7 +155,7 @@ object doobIO {
       _  <- sql"set datestyle = dmy".update.run
       id <- insertInfo.update.run
       _  <- insertPlaceholderParams(id).update.run
-      _  <- insertDataRecording(id, uri)
+      _  <- insertDataRecording(id.toLong, uri)
     } yield ()
   }
 
