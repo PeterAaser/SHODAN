@@ -1,6 +1,5 @@
 import com.lihaoyi.workbench._
 import Dependencies._
-enablePlugins(WorkbenchPlugin)
 
 name := "SHODAN"
 
@@ -79,6 +78,7 @@ lazy val backend = project.in(file("backend"))
 lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin)
   .enablePlugins(ScalaJSBundlerPlugin)
+  .enablePlugins(WorkbenchPlugin)
   .dependsOn(sharedJS)
   .settings(
     libraryDependencies ++= frontendDeps.value,
