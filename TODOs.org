@@ -21,6 +21,7 @@
   
 
 * Now 
+** TODO MCS csv parser
 ** TODO Verify stimuli
    After this all work necessary for actually performing experiments will be completed.
 ** TODO Add logging for agent state for playback   

@@ -2,11 +2,13 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt._
 
 object Dependencies {
-  val doobieVersion = "0.5.0-M7"
-  val fs2Version = "0.10.0-M6"
+  val doobieVersion = "0.5.0-RC2"
+  val fs2Version = "0.10.0-RC1"
   val scodecVersion = "TODO"
-  val http4sVersion = "0.18.0-M1"
-  val circeVersion = "0.8.0"
+  val http4sVersion = "0.18.0"
+  val circeVersion = "0.9.1"
+  val catsVersion = "1.0.1"
+  val catsEffectVersion = "0.5"
 
 
   val crossDeps = Def.setting(Seq[ModuleID](
@@ -18,7 +20,7 @@ object Dependencies {
 
     "org.scodec" %%% "scodec-bits" % "1.1.2",                      // xvid codec required to play this file
     "org.scodec" %%% "scodec-core" % "1.10.3",
-    "org.typelevel" %%% "cats-core" % "1.0.0-MF",                  // abstract category dork stuff
+    "org.typelevel" %%% "cats-core" % catsVersion,                  // abstract category dork stuff
 
     "org.typelevel" %% "spire" % "0.14.1",                         // math dork stuff
 
@@ -64,10 +66,10 @@ object Dependencies {
     "io.circe" %% "circe-parser" % circeVersion,              // JSON
 
     // Optional for auto-derivation of JSON codecs
-    "io.circe" %% "circe-generic" % "0.9.0-M1",               // JSON
+    "io.circe" %% "circe-generic" % circeVersion,             // JSON
 
     // Optional for string interpolation to JSON model
-    "io.circe" %% "circe-literal" % "0.9.0-M1",               // JSON
+    "io.circe" %% "circe-literal" % circeVersion,             // JSON
 
     "org.http4s" %% "http4s-circe" % http4sVersion,           // JSON
 
@@ -80,7 +82,7 @@ object Dependencies {
 
     "com.github.nscala-time" %% "nscala-time" % "2.16.0",     // Time
 
-    "org.typelevel" %% "cats-effect" % "0.4",                 // IO monad category wank
+    "org.typelevel" %% "cats-effect" % catsEffectVersion,     // IO monad category wank
 
     "co.fs2" %% "fs2-core" % fs2Version,                      // The best library
     "co.fs2" %% "fs2-io"   % fs2Version,                      // The best library
@@ -89,10 +91,5 @@ object Dependencies {
     "org.tpolecat" %% "doobie-postgres"   % doobieVersion,    // Databases. Unironically uses comonads
     "org.tpolecat" %% "doobie-specs2"     % doobieVersion,    // Databases. Unironically uses comonads
     "net.postgis" % "postgis-jdbc" % "2.2.1",                 // Pull this and a lovecraftian error message goes away.
-
-    "org.scodec" %% "scodec-bits" % "1.1.2",                  // xvid codec required to play this file
-    "org.scodec" %% "scodec-core" % "1.10.3",                 // xvid codec required to play this file
-    "org.scodec" %% "scodec-stream" % "1.0.1",                // xvid codec required to play this file
-    "org.scodec" %% "scodec-protocols" % "1.0.2"              // xvid codec required to play this file
   ))
 }

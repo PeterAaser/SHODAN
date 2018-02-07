@@ -43,7 +43,7 @@ object mcsParser {
           case Some((strangz, tl)) => {
             var MEA: Int = -1
             var comment = ""
-            val info = strangz.toVector
+            val info = strangz.force.toVector
             if(info(0) contains "MEA"){
               MEA = info(0).split(":")(1).toInt
               comment = info(1)

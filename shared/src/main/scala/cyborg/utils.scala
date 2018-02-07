@@ -50,7 +50,7 @@ object utilz {
     def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
       s.pull.unconsN(4096, false)flatMap {
         case Some((seg, tl)) => {
-          val chunk = seg.toChunk
+          val chunk = seg.force.toChunk
           val intBuf = Array.ofDim[Int](chunk.size/4)
 
           for(i <- 0 until chunk.size/4){
@@ -70,7 +70,7 @@ object utilz {
             intBuf(i) = asInt
           }
 
-          Pull.output(Chunk.seq(intBuf)) >> go(tl)
+          Pull.output(Chunk.seq(intBuf).toSegment) >> go(tl)
         }
         case None => Pull.done
       }
@@ -88,7 +88,7 @@ object utilz {
       s.pull.uncons flatMap {
         case Some((seg, tl)) => {
 
-          val data = seg.toArray
+          val data = seg.force.toArray
           val bb = java.nio.ByteBuffer.allocate(data.length*4)
           for(ii <- 0 until data.length){
             bb.putInt(data(ii))
@@ -110,7 +110,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,Vector[I],Unit] = {
       s.pull.unconsN(length.toLong, false).flatMap {
         case Some((segment, tl)) => {
-          Pull.output1(segment.toVector) >> go(tl)
+          Pull.output1(segment.force.toVector) >> go(tl)
         }
         case None => Pull.done
       }
@@ -142,7 +142,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,List[I],Unit] = {
       s.pull.unconsN(length.toLong, false).flatMap {
         case Some((segment, tl)) => {
-          Pull.output1(segment.toList) >> go(tl)
+          Pull.output1(segment.force.toList) >> go(tl)
         }
         case None => Pull.done
       }
@@ -186,14 +186,14 @@ object utilz {
     def go(s: Stream[F,I], last: Vector[I]): Pull[F,Vector[I],Unit] = {
       s.pull.unconsN(stepsize.toLong, false).flatMap {
         case Some((seg, tl)) =>
-          Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
+          Pull.output1(seg.force.toVector) >> go(tl, seg.force.toVector.drop(stepsize))
         case None => Pull.done
       }
     }
 
     in => in.pull.unconsN(windowWidth.toLong, false).flatMap {
       case Some((seg, tl)) => {
-        Pull.output1(seg.toVector) >> go(tl, seg.toVector.drop(stepsize))
+        Pull.output1(seg.force.toVector) >> go(tl, seg.force.toVector.drop(stepsize))
       }
       case None => Pull.done
     }.stream
@@ -210,9 +210,9 @@ object utilz {
     def go(s: Stream[F,Int], window: Vector[Int]): Pull[F,Double,Unit] = {
       s.pull.uncons flatMap {
         case Some((seg, tl)) => {
-          val stacked = ((window ++ seg.toVector) zip (seg.toVector)).map(λ => (λ._1 - λ._2))
+          val stacked = ((window ++ seg.force.toVector) zip (seg.force.toVector)).map(λ => (λ._1 - λ._2))
           val scanned = stacked.scanLeft(window.sum)(_+_).map(_.toDouble/windowWidth.toDouble)
-          Pull.output(Chunk.seq(scanned)) >> go(tl, seg.toVector.takeRight(windowWidth))
+          Pull.output(Chunk.seq(scanned).toSegment) >> go(tl, seg.force.toVector.takeRight(windowWidth))
         }
         case None => Pull.done
       }
@@ -220,7 +220,7 @@ object utilz {
 
     in => in.pull.unconsN(windowWidth.toLong).flatMap {
       case Some((seg, tl)) => {
-        Pull.output1(seg.toList.sum.toDouble/windowWidth.toDouble) >> go(tl, seg.toVector)
+        Pull.output1(seg.force.toList.sum.toDouble/windowWidth.toDouble) >> go(tl, seg.force.toVector)
       }
       case None => Pull.done
     }.stream
@@ -319,7 +319,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
-          say(s"${seg.toList.head}")
+          say(s"${seg.force.toList.head}")
           Pull.output(seg) >> go(tl)
         }
         case None => {
@@ -336,7 +336,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
-          say(seg.toList.head)
+          say(seg.force.toList.head)
           Pull.output(seg) >> go(tl)
         }
         case None => {
@@ -369,7 +369,7 @@ object utilz {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
       s.pull.unconsN(segmentLength.toLong, false) flatMap {
         case Some((seg, tl)) => {
-          Pull.output1(TaggedSegment(n, seg.toVector)) >> go((n + 1) % 60, tl)
+          Pull.output1(TaggedSegment(n, seg.force.toVector)) >> go((n + 1) % 60, tl)
         }
         case None => Pull.done
       }

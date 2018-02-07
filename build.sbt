@@ -1,31 +1,28 @@
 import com.lihaoyi.workbench._
 import Dependencies._
+enablePlugins(WorkbenchPlugin)
 
 name := "SHODAN"
 
-// ensimeJavaFlags in ThisBuild := Seq("-Xss2m", "-Xmx2g", "-XX:MaxMetaspaceSize=2048m")
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-version in ThisBuild := "0.1.0-SNAPSHOT"
 scalaVersion in ThisBuild := "2.12.3"
+version in ThisBuild := "0.1.0-SNAPSHOT"
 organization in ThisBuild := "cyborg"
 crossPaths in ThisBuild := false
 scalacOptions in ThisBuild ++= Seq(
-  // "-feature",
-  // "-deprecation",
-  // "-unchecked",
   "-language:implicitConversions",
   "-language:existentials",
   "-language:dynamics",
   "-language:higherKinds",
   "-Xfuture",
+  // "-Ylog-classpath",
   "-Xlint:_,-missing-interpolator,-adapted-args"
 )
 
-resolvers += Resolver.sonatypeRepo("snapshots")
+resolvers += Resolver.sonatypeRepo("releases")
 
 autoCompilerPlugins := true
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-
 
 fork in run := true
 
@@ -72,7 +69,7 @@ lazy val backend = project.in(file("backend"))
     fork in run := true,
     crossLibs(Provided),
 
-    watchSources ++= (sourceDirectory in frontend).value.***.get
+    watchSources ++= (sourceDirectory in frontend).value.get
   )
 
 
@@ -92,8 +89,4 @@ lazy val frontend = project.in(file("frontend"))
       "material-ui" -> "0.15.2"),
     scalaJSUseMainModuleInitializer := true,
     fork in run := true
-
-  ).settings(workbenchSettings:_*)
-  .settings(
-    bootSnippet := "cyborg.Init().main();"
   )

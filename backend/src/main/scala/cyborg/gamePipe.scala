@@ -80,7 +80,7 @@ object agentPipe {
       def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
         s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
           case Some((seg, _)) => {
-            val closest = seg.toList
+            val closest = seg.force.toList
               .map(_.distanceToClosest)
               .min
 

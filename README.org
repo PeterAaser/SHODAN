@@ -28,7 +28,7 @@
    resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases"
    
    ~/.sbt/0.13/plugins/build.sbt contains:
-   addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC3")
+   addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.1")
 
    and
    ~/.sbt/0.13/plugins/plugins.sbt contains:

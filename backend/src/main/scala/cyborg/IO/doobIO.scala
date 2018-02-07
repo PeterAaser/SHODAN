@@ -42,11 +42,6 @@ object doobIO {
 
   def getExperimentParams(experimentId: Long): ConnectionIO[ExperimentParams] = {
     say("get exp params")
-    // sql"""
-    //     SELECT *
-    //     FROM experimentParams
-    //     WHERE experimentId = $experimentId
-    //   """.query[ExperimentParams].check.unsafeRunSync()
     sql"""
         SELECT *
         FROM experimentParams
@@ -58,11 +53,6 @@ object doobIO {
   // probably explodes lol
   def getExperimentDataURI(experimentId: Long): ConnectionIO[DataRecording] = {
     say("get exp uri")
-    // sql"""
-    //   SELECT *
-    //   FROM dataRecording
-    //   WHERE experimentId = $experimentId
-    // """.query[(Long, String, String)].check.unsafeRunSync()
     sql"""
       SELECT *
       FROM dataRecording
@@ -101,11 +91,6 @@ object doobIO {
 
   def insertDataRecording(id: Long, path: String): ConnectionIO[Int] = {
     say("insert data recording")
-    // say(s"typechecking insert data recording. id is ${id.toInt}")
-    // sql"""
-    //   INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
-    //   VALUES (${id.toInt}, $path, $storageType)
-    // """.update.check.unsafeRunSync()
     sql"""
       INSERT INTO dataRecording (experimentId, resourcePath, resourceType)
       VALUES (${id.toInt}, $path, $storageType)
@@ -115,10 +100,6 @@ object doobIO {
 
   def insertParams(id: Long): ConnectionIO[Int] = {
     say("insert params")
-    // sql"""
-    //   INSERT INTO experimentParams (experimentid, sampleRate, segmentLength)
-    //   VALUES ($id, $samplerate, $segmentLength)
-    // """.update.check.unsafeRunSync()
     sql"""
       INSERT INTO experimentParams (experimentid, sampleRate, segmentLength)
       VALUES ($id, $samplerate, $segmentLength)
@@ -132,10 +113,8 @@ object doobIO {
   }
 
 
-  // TODO: Test properly
+  // TODO Test properly
   def insertOldExperiment(comment: String, timestamp: DateTime, uri: String): ConnectionIO[Unit] = {
-    // val fmt = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss")
-    // val timeString = timestamp.toString(fmt)
 
     import java.sql.Timestamp
     val ts = new Timestamp(timestamp.getMillis())

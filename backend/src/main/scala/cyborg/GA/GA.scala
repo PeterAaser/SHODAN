@@ -71,7 +71,7 @@ object GArunner {
         .toList
 
       // say(s"Outputting $pipesPerGeneration pipes")
-      Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _)))) >> go(initNetworks, s)
+      Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))).toSegment) >> go(initNetworks, s)
     }
 
 
@@ -79,10 +79,10 @@ object GArunner {
       evals.pull.unconsN((pipesPerGeneration - 1).toLong, false) flatMap {
         case Some((segment, tl)) => {
           // say("got evaluations")
-          val scoredPipes = ScoredSeq(segment.toList.zip(previous).toVector)
+          val scoredPipes = ScoredSeq(segment.force.toList.zip(previous).toVector)
           val nextPop = generate(scoredPipes)
           val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))
-          Pull.output(Chunk.seq(nextPipes)) >> go(nextPop,tl)
+          Pull.output(Chunk.seq(nextPipes).toSegment) >> go(nextPop,tl)
         }
         case None => {
           // say("uh oh")
@@ -116,7 +116,7 @@ object GArunner {
       s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
         case Some((seg, _)) => {
           // say("Evaluated a performance")
-          val closest = seg.toList
+          val closest = seg.force.toList
             .map(_.distanceToClosest)
             .min
 

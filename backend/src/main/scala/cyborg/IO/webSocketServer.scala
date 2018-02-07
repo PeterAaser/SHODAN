@@ -3,7 +3,7 @@ package cyborg
 import cats.effect.IO
 
 import org.http4s._
-import org.http4s.dsl._
+import org.http4s.dsl.io._
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.websocket.WebsocketBits._
 import org.http4s.server.websocket._
@@ -37,7 +37,7 @@ object webSocketServer {
     }
 
     def route: HttpService[IO] = HttpService[IO] {
-      case req @ GET -> Root => {
+      case GET -> Root => {
         WS[IO](inStream, outSink)
       }
     }
@@ -50,7 +50,7 @@ object webSocketServer {
       agentStream.map(z => Binary(Codec.encode(z).require.toByteArray))
 
     def route: HttpService[IO] = HttpService[IO] {
-      case req @ GET -> Root => {
+      case GET -> Root => {
         WS[IO](agentInStream, outSink)
       }
     }

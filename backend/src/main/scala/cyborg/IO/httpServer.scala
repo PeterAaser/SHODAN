@@ -6,7 +6,7 @@ import fs2.async.mutable.Queue
 
 import org.http4s.server.middleware._
 import org.http4s._
-import org.http4s.dsl._
+import org.http4s.dsl.io._
 import org.http4s.server.blaze.BlazeBuilder
 
 import cats.effect.IO
@@ -26,54 +26,51 @@ object HttpServer {
     def cmd(command: UserCommand): IO[Unit] =
       Stream.emit(command).covary[IO].through(commands).run
 
-    HttpService {
-      case req @ POST -> Root / "connect" => {
+    HttpService[IO] {
+      case POST -> Root / "connect" => {
         for {
           emit <- cmd(StartMEAME)
           resp <- Ok("Connected")
         } yield (resp)
       }
-      case req @ POST -> Root / "db" => {
+      case POST -> Root / "db" => {
         say("db")
         for {
-          emit <- cmd(RunFromDB(1))
+          emit <- cmd(RunFromDB(2))
           resp <- Ok("start")
         } yield (resp)
       }
-      case req @ POST -> Root / "agent" => {
+      case POST -> Root / "agent" => {
         say("agent")
         for {
           emit <- cmd(AgentStart)
           resp <- Ok("007 at your service")
         } yield (resp)
       }
-      // case req @ POST -> Root / "wf" => {
-      //   say("waveform")
-      //   for {
-      //     emit <- cmd(StartWaveformVisualizer)
-      //     resp <- Ok("sending some wavez dude")
-      //   } yield (resp)
-      // }
-
-      case req @ POST -> Root / "fuckoff" => {
+      case POST -> Root / "fuckoff" => {
         for {
           emit <- cmd(Shutdown)
           resp <- Ok("shutting down")
         } yield (resp)
       }
-
-      case req @ POST -> Root / "record_start" => {
+      case POST -> Root / "record_start" => {
         for {
           emit <- cmd(DBstartRecord)
           rest <- Ok("starting recording")
         } yield (rest)
       }
-
-      case req @ POST -> Root / "record_stop" => {
+      case POST -> Root / "record_stop" => {
         for {
           emit <- cmd(DBstopRecord)
           rest <- Ok("starting recording")
         } yield (rest)
+      }
+
+      case GET -> Root / "experiment_ids" => {
+        for {
+          ids  <- databaseIO.getAllExperimentIds
+          resp <- Ok(ids.toString)
+        } yield (resp)
       }
 
 
@@ -82,35 +79,35 @@ object HttpServer {
 //////////////////////////////////////////////////////////
 // Debug stuff
 
-      case req @ POST -> Root / "dspstimtest" => {
+      case POST -> Root / "dspstimtest" => {
         for {
           emit <- cmd(DspStimTest)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
 
-      case req @ POST -> Root / "dspuploadtest" => {
+      case POST -> Root / "dspuploadtest" => {
         for {
           emit <- cmd(DspUploadTest)
           resp <- Ok("what the fugg xD")
         } yield (resp)
       }
 
-      case req @ POST -> Root / "barf" => {
+      case POST -> Root / "barf" => {
         for {
           emit <- cmd(DspBarf)
           resp <- Ok("barfing")
         } yield (resp)
       }
 
-      case req @ POST -> Root / "reset_dsp_debug" => {
+      case POST -> Root / "reset_dsp_debug" => {
         for {
           emit <- cmd(DspDebugReset)
           resp <- Ok("resetting")
         } yield (resp)
       }
 
-      case req @ POST -> Root / "test_stuff" => {
+      case POST -> Root / "test_stuff" => {
         for {
           resp <- Ok("hurr")
           _    <- IO { say("emitting run from MEAME...") }
@@ -195,11 +192,11 @@ object DebugMessages {
     def go(s: Stream[F,_], counter: Int): Pull[F,Unit,Unit] = {
       s.pull.uncons flatMap {
         case Some((seg, tl)) => {
-          if(seg.toVector.size+ counter > passedPerMessage){
-            Pull.eval(f) >> go(tl, (seg.toVector.length + counter) % passedPerMessage)
+          if(seg.force.toVector.size+ counter > passedPerMessage){
+            Pull.eval(f) >> go(tl, (seg.force.toVector.length + counter) % passedPerMessage)
           }
           else{
-            go(tl, (seg.toVector.size + counter))
+            go(tl, (seg.force.toVector.size + counter))
           }
         }
       }

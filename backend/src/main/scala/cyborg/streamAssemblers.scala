@@ -165,8 +165,8 @@ object Assemblers {
   def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
 
     val filtered = rawInputStream
-      .through(mapN(params.waveformVisualizer.blockSize, _.toArray.head)) // downsample
-      .through(mapN(params.waveformVisualizer.wfMsgSize, _.toArray))
+      .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
+      .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
 
     val server = webSocketServer.webSocketWaveformServer(filtered)
     server
