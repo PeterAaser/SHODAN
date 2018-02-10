@@ -38,6 +38,12 @@ object frontHTTPclient {
     req.send()
   }
 
+  def startDBNewest: Unit = {
+    val req = new dom.XMLHttpRequest()
+    req.open("POST", "http://127.0.0.1:8080/dbNewest")
+    req.send()
+  }
+
   def crashSHODAN: Unit = {
     val req = new dom.XMLHttpRequest()
     req.open("POST", "http://127.0.0.1:8080/fuckoff")

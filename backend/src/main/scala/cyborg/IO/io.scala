@@ -38,7 +38,7 @@ object sIO {
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
           rawDataStream
-            .through(_.map(_.data._2))
+            .through(_.map(_.data))
             .through(chunkify)
             .through(recordingSink.sink)
             .interruptWhen(interruptSignal.discrete).run
@@ -53,7 +53,7 @@ object sIO {
     */
   def streamToFile(rawDataStream: Stream[IO,TaggedSegment])(implicit ec: EC): Stream[IO, Unit] = {
     Stream.eval(fileIO.writeCSV[IO]) flatMap { λ =>
-      rawDataStream.through(_.map(_.data._2)).through(chunkify).through(λ._2)
+      rawDataStream.through(_.map(_.data)).through(chunkify).through(λ._2)
     }
   }
 

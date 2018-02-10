@@ -8,8 +8,10 @@ import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
 import cats.effect.Effect
+import cats.effect._
 import fs2.async._
 import fs2.async.mutable.Topic
+import cats.implicits._
 
 object Assemblers {
 
@@ -23,19 +25,18 @@ object Assemblers {
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
     val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
-
-    for {
+    val s = for {
       commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
-      topics         <- assembleTopics[IO]
+      topics         <- assembleTopics.through(vectorizeList(60))
       debugQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
       httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
       webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data._2)).through(chunkify)))
+      webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data)).through(chunkify)))
 
-      agentSink            = agentQueue.enqueue
+      agentSink            = (z: Stream[IO,Agent]) => z.through(agentQueue.enqueue)
       commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
 
       server         <- httpServer
@@ -44,6 +45,7 @@ object Assemblers {
 
       _ <- commandQueue.dequeue.through(commandPipe)
     } yield ()
+    s.handleErrorWith(z => {say(z); throw z})
   }
 
 
@@ -55,23 +57,23 @@ object Assemblers {
     broadcastSource: List[Topic[IO,TaggedSegment]],
     channels: List[Channel],
     spikeDetector: Pipe[IO,Int,Double]
-  ): Stream[IO,ffANNinput] = {
+  )(implicit ec: EC): Stream[IO,ffANNinput] = {
 
     // selects relevant topics and subscribe to them
-    val inputTopics = channels.map(broadcastSource(_))
-    val channelStreams = inputTopics.map(_.subscribe(100))
+    val inputTopics = (channels).toList.map(broadcastSource(_))
+    val channelStreams = inputTopics.map(_.subscribe(10000))
 
-    // say(s"creating input filter with channels $channels")
+    // def busyWork: Sink[IO,Int]
 
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
     // this discrepancy will never be resolved and one stream will be permanently ahead
     val spikeChannels = channelStreams
-      .map(_.map(_.data._2)
+      .map(_.map(_.data)
              .through(chunkify)
              .through(spikeDetector))
 
-    Stream.emit(spikeChannels).covary[IO].through(roundRobin).map(_.toVector)
+    roundRobinL(spikeChannels).covary[IO].map(_.toVector)
   }
 
 
@@ -97,23 +99,34 @@ object Assemblers {
 
     def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
-      def go(s: Stream[IO,TaggedSegment]): Pull[IO,IO[Unit],Unit] = {
-        // say("publish sink is running")
+      def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
           case Some((taggedSeg, tl)) => {
-            val idx = taggedSeg.data._1
-            Pull.output1(topicsV(idx).publish1(taggedSeg)) >> go(tl)
+            val idx = taggedSeg.channel
+            if(idx != -1){
+              Pull.eval(topicsV(idx).publish1(taggedSeg)) >> go(tl)
+            }
+            else go(tl)
           }
+          case None => Pull.done
         }
       }
 
-      in => go(in).stream.map(Stream.eval).join(totalChannels)
+      in => go(in).stream
     }
+
 
     interrupted.map { interruptSignal =>
       InterruptableAction(
         interruptSignal.set(true),
-        source.observe(rawSink).through(publishSink(topics)).interruptWhen(interruptSignal.discrete).run)
+        source
+          .interruptWhen(interruptSignal
+                           .discrete
+                           .through(logEveryNth(1, z => say(s"topics interrept signal was set to $z"))))
+          .observe(rawSink)
+          .through(publishSink(topics))
+          .compile.drain
+      )
     }
   }
 
@@ -123,10 +136,8 @@ object Assemblers {
     parametrized with the import params thing because db might have more or less channels
     TODO: Outdated, slated for removal. (just call directly?)
     */
-  def assembleTopics[F[_]: Effect](implicit ec: EC): Stream[F,List[Topic[F,TaggedSegment]]] = {
-
-    // hardcoded init. Should be harmless
-    createTopics[F,TaggedSegment](60, TaggedSegment((-1,Vector[Int]())))
+  def assembleTopics(implicit ec: EC): Stream[IO,Topic[IO,TaggedSegment]] = {
+    Stream.repeatEval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1,Vector[Int]())))
   }
 
 
@@ -148,13 +159,24 @@ object Assemblers {
     val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe
 
     signalOf[IO,Boolean](false).map { interruptSignal =>
-      InterruptableAction(
-        interruptSignal.set(true),
+      val interruptTask = for {
+        _ <- interruptSignal.set(true)
+      } yield ()
 
-        inputSpikes.through(experimentPipe).interruptWhen(interruptSignal.discrete)
-          .observeAsync(10000)(frontendAgentObserver)
-          .through(_.map((λ: Agent) => {λ.distances}))
-          .through(feedbackSink).run)
+      val runTask = inputSpikes
+        .interruptWhen(interruptSignal
+                         .discrete
+                         .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
+        .through(experimentPipe)
+        .observeAsync(10000)(frontendAgentObserver)
+        .through(_.map((λ: Agent) => {λ.distances}))
+        .through(feedbackSink)
+        .compile.drain
+
+      InterruptableAction(
+        interruptTask,
+        runTask
+      )
     }
   }
 

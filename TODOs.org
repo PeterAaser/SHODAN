@@ -14,10 +14,14 @@
   container for its internal streams which may be interrupted and restarted.
 
 * Neste gang
+  Figure out what is going on with agent causing everything to blow up
+  Line 60 in assemblers
+  
+  Looks like the problem might be in AssembleGA
   
 * Doing
-  Augmenting the test method. Thinking a little about how to update the UI, flushing pipes et cetera.
-  Looks like we have a clogging of the pipes for DB recording!
+  Creating test methods
+  Start with the topics
   
 
 * Now 
@@ -108,6 +112,8 @@
    
    
 * Finished
+** DONE Create minimal repro of scope error 
+   Something about topics is causing shit to go ultra-south...
 ** DONE Verify entrypoint2
 *** DONE Broadcasting
 *** DONE MEAME data

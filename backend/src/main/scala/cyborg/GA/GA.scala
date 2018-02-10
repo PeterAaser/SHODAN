@@ -32,7 +32,7 @@ object GArunner {
     */
   def createSimRunner(implicit ec: EC): () => Pipe[IO, FilterOutput, O] = {
 
-    // say("creating simrunner")
+    say("creating simrunner")
     def simRunner(agent: Agent): Pipe[IO,FilterOutput, Agent] = {
       def go(ticks: Int, agent: Agent, s: Stream[IO,FilterOutput]): Pull[IO,Agent,Unit] = {
         s.pull.uncons1 flatMap {
@@ -70,7 +70,7 @@ object GArunner {
         .map(_ => (Filters.FeedForward.randomNetWithLayout(layout)))
         .toList
 
-      // say(s"Outputting $pipesPerGeneration pipes")
+      say(s"Outputting $pipesPerGeneration pipes")
       Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))).toSegment) >> go(initNetworks, s)
     }
 
@@ -78,14 +78,14 @@ object GArunner {
     def go(previous: List[FeedForward], evals: Stream[IO, Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
       evals.pull.unconsN((pipesPerGeneration - 1).toLong, false) flatMap {
         case Some((segment, tl)) => {
-          // say("got evaluations")
+          say("got evaluations")
           val scoredPipes = ScoredSeq(segment.force.toList.zip(previous).toVector)
           val nextPop = generate(scoredPipes)
           val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))
           Pull.output(Chunk.seq(nextPipes).toSegment) >> go(nextPop,tl)
         }
         case None => {
-          // say("uh oh")
+          say("uh oh")
           Pull.done
         }
       }
@@ -93,7 +93,7 @@ object GArunner {
 
     // Generates a new set of neural networks, no guarantees that they'll be any good...
     def generate(seed: ScoredSeq[FeedForward]): List[FeedForward] = {
-      // say("Generated pipes")
+      say("Generated pipes")
       val freak = mutate(seed.randomSample(1).repr.head._2)
       val rouletteScaled = seed.sort.rouletteScale
       val selectedParents = seed.randomSample(2)
@@ -115,7 +115,7 @@ object GArunner {
     def go(s: Stream[IO,Agent]): Pull[IO,Double,Unit] = {
       s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
         case Some((seg, _)) => {
-          // say("Evaluated a performance")
+          say("Evaluated a performance")
           val closest = seg.force.toList
             .map(_.distanceToClosest)
             .min
@@ -179,7 +179,7 @@ object seqUtils {
 
       // Selections cannot contain elements with a value higher than the highest scoring individual
       val selections = Vector.fill(samples)(Random.nextDouble).sorted.map(_*repr.last._1)
-      // say(selections)
+      say(selections)
 
       def hepler(targets: Vector[Double], animals: Vector[(Double,A)]): Vector[A] =
         targets match {

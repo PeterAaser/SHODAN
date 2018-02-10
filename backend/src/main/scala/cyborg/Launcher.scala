@@ -7,8 +7,10 @@ object Launcher {
   def main(args: Array[String]): Unit = {
 
     say("wello")
-    Assemblers.startSHODAN.run.unsafeRunSync()
-    // scratchpad.doobieChecks()
 
+    say(params.filtering.spikeCooldown)
+    // Assemblers.startSHODAN.compile.drain.unsafeRunSync()
+    scratchpad.doiIt
+    // simpleFeedback.doIt.evalMap(identity).compile.drain.unsafeRunSync()
   }
 }

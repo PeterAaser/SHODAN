@@ -100,7 +100,7 @@ object params {
     def evalFunc: Double => Double = x => x
     val ticksPerEval = 1000 // How many ticks should each run last
 
-    val inputChannels = List(0,1,2)
+    val inputChannels = List(0, 1)
     // val outputChannels = List(3,4,5,6)
 
     val outputChannels = List(List(0,1), List(12,13), List(22), List(29))
@@ -170,9 +170,7 @@ object params {
   }
 
   object StorageParams {
-
     val storageType = "CSV"
     val toplevelPath = "/home/peteraa/MEAdata/"
-
   }
 }

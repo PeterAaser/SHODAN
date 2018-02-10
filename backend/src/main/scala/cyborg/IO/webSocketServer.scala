@@ -61,14 +61,12 @@ object webSocketServer {
   def webSocketWaveformServer(waveforms: Stream[IO,Array[Int]]) = {
     val service = webSocketWaveformService(waveforms)
     val builder = BlazeBuilder[IO].bindHttp(9091).mountService(service).start
-    say("ws viz server ready")
     builder
   }
 
   def webSocketAgentServer(agentStream: Stream[IO,Agent]) = {
     val service = webSocketAgentService(agentStream)
     val builder = BlazeBuilder[IO].bindHttp(9092).mountService(service).start
-    say("ws agent server ready")
     builder
   }
 }

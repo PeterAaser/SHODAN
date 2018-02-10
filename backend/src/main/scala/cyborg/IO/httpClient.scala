@@ -48,8 +48,9 @@ object HttpClient {
     httpClient.expect[RegisterReadResponse](req)
   }
 
-  def stimRequest(stim: StimReq): IO[String] = 
+  def stimRequest(stim: StimReq): IO[String] =
   {
+    say("Doing a stimreq...")
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
     httpClient.expect[String](req)
   }

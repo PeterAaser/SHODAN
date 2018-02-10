@@ -30,7 +30,8 @@ object hurr {
     val visualizerCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
     val startMEAME = button("MEAME").render
-    val startDB = button("DB").render
+    val startDB = button("DB rec 2").render
+    val startDBNewest = button("Newest DB").render
     val startRecord = button("start recording").render
     val stopRecord = button("stop recording").render
     val crash = button("stop SHODAN").render
@@ -58,6 +59,12 @@ object hurr {
       frontHTTPclient.startWaveformStream(visualizerCanvas)
       frontHTTPclient.startAgentStream(agentCanvas)
       frontHTTPclient.startDB
+    }
+    startDBNewest.onclick = (_: MouseEvent) => {
+      println("DB button clicked")
+      frontHTTPclient.startWaveformStream(visualizerCanvas)
+      frontHTTPclient.startAgentStream(agentCanvas)
+      frontHTTPclient.startDBNewest
     }
 
 
@@ -113,6 +120,7 @@ object hurr {
 
     document.getElementById("playground").appendChild(startMEAME)
     document.getElementById("playground").appendChild(startDB)
+    document.getElementById("playground").appendChild(startDBNewest)
     document.getElementById("playground").appendChild(startRecord)
     document.getElementById("playground").appendChild(crash)
     document.getElementById("playground").appendChild(testStimButton)

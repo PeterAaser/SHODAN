@@ -1,26 +1,9 @@
 package cyborg
 
 import fs2._
+import utilz._
 
 object spikeDetector {
-
-  def singleSpikeDetectorPipe[F[_]](f: Vector[Int] => Boolean): Pipe[F,Vector[Int],Boolean] = {
-    def go(s: Stream[F,Vector[Int]]): Pull[F,Boolean,Unit] = {
-      s.pull.uncons1 flatMap {
-        case Some((v, tl)) =>
-          Pull.output1(f(v)) >> go(tl)
-        case None => Pull.done
-      }
-    }
-    in => go(in).stream
-  }
-
-  def simpleDetector(datapoints: Vector[Int]): Boolean = {
-    val voltageThreshold = 10000
-    val spikeThreshold = 100
-    (datapoints count (math.abs(_) > voltageThreshold)) > spikeThreshold
-  }
-
 
   /**
     operates on blocks of input of the size of a spike + refactory period (i.e input is blocked
@@ -31,9 +14,10 @@ object spikeDetector {
     */
   def spikeDetectorPipe[F[_]](sampleRate: Int, threshold: Int): Pipe[F, Int, Double] = s => {
 
-    import params.experiment._
+    import params.experiment.maxSpikesPerSec
 
-    val spikeCooldown = (samplerate/maxSpikesPerSec) // should be a function of sample rate
+    val spikeCooldown = (sampleRate/maxSpikesPerSec)
+    say(spikeCooldown)
 
     /**
       spikeCooldownTimer: The refactory period between two spikes
@@ -45,6 +29,7 @@ object spikeDetector {
       def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F, Boolean, Unit] = {
         s.pull.unconsN(spikeCooldown.toLong) flatMap {
           case Some((seg, tl)) => {
+            say("spike detecting")
             val flattened = seg.force.toVector
             val refactored = flattened.drop(spikeCooldownTimer)
             val index = refactored.indexOf((λ: Boolean) => λ)
@@ -60,14 +45,14 @@ object spikeDetector {
               Pull.output1(true) >> go(nextCooldown, tl)
             }
           }
+          case None => Pull.done
         }
       }
       in => go(0, in).stream
     }
 
 
-    s
-      .through(_.map(_ > threshold))
+    s.through(_.map(_ > threshold))
       .through(spikeDetector)
       .through(_.map(λ => (if(λ) 1 else 0)))
       .through(utilz.fastMovingAverage(10))

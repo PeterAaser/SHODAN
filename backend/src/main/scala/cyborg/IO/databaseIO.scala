@@ -16,6 +16,7 @@ import doobIO._
 
 object databaseIO {
 
+  import backendImplicits._
 
 
   // haha nice meme dude!
@@ -35,19 +36,49 @@ object databaseIO {
     */
   def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
     say(s"making stream for experiment $experimentId")
-    import backendImplicits._
 
     val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
       Stream.eval(doobIO.getExperimentParams(experimentId.toLong)).transact(xa) flatMap { expParams =>
-      val reader = data.resourceType match {
-        case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.sampleRate)
-        case GZIP => fileIO.readGZIP[IO](data.resourcePath)
+        say(s"Playing record with parameters:")
+        say(s"id:             ${expParams.id}")
+        say(s"samplerate:     ${expParams.sampleRate}")
+        say(s"segment length: ${expParams.segmentLength}")
+        val reader = data.resourceType match {
+          case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.sampleRate)
+          case GZIP => fileIO.readGZIP[IO](data.resourcePath)
+        }
+        reader
       }
-      reader
     }
-  }
 
     data
+  }
+
+  def newestRecordingId(implicit ec: EC): IO[Long] =
+    getNewestExperimentId.transact(xa)
+
+  def newestRecording(implicit ec: EC): Stream[IO, Int] = {
+    say(s"making stream for newest experiment")
+
+    val newest = getNewestExperimentId.transact(xa)
+
+    Stream.eval(newest) flatMap{ experimentId =>
+      say(s"playing experiment with id $experimentId")
+      val data = Stream.eval(doobIO.getExperimentDataURI(experimentId.toLong)).transact(xa) flatMap { (data: DataRecording) =>
+        Stream.eval(doobIO.getExperimentParams(experimentId.toLong)).transact(xa) flatMap { expParams =>
+          say(s"Playing record with parameters:")
+          say(s"id:             ${expParams.id}")
+          say(s"samplerate:     ${expParams.sampleRate}")
+          say(s"segment length: ${expParams.segmentLength}")
+          val reader = data.resourceType match {
+            case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.sampleRate)
+            case GZIP => fileIO.readGZIP[IO](data.resourcePath)
+          }
+          reader
+        }
+      }
+      data
+    }
   }
 
 

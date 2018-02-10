@@ -15,7 +15,7 @@ import java.nio.file.{ Path, Paths }
 
 object doobIO {
 
-  case class ExperimentInfo(id: Long, startTime: DateTime, finishTimep: Option[DateTime], comment: Option[String])
+  case class ExperimentInfo(id: Long, startTime: DateTime, finishTime: Option[DateTime], comment: Option[String])
   case class DataRecording(resourcePath: Path, resourceType: FileEncoding)
   case object DataRecording {
     def apply(rpath: String, rtype: String): DataRecording = DataRecording(Paths.get(rpath), parseResourceType(rtype))
@@ -37,6 +37,16 @@ object doobIO {
       say("uh oh, you fucking dunce, no encoding specified! Going with GZIP for that NYI deadlock")
       GZIP
     }
+  }
+
+
+  def getNewestExperimentId: ConnectionIO[Long] = {
+    sql"""
+      SELECT (id)
+      FROM experimentInfo
+      ORDER BY startTime DESC
+      LIMIT 1
+    """.query[Long].unique
   }
 
 

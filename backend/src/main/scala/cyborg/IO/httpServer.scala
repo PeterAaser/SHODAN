@@ -40,6 +40,13 @@ object HttpServer {
           resp <- Ok("start")
         } yield (resp)
       }
+      case POST -> Root / "dbNewest" => {
+        say("db")
+        for {
+          emit <- cmd(RunFromDBNewest)
+          resp <- Ok("start newest")
+        } yield (resp)
+      }
       case POST -> Root / "agent" => {
         say("agent")
         for {
@@ -156,6 +163,7 @@ object HttpCommands {
   // case object ConfigureMEAME extends UserCommand
 
   case class  RunFromDB(experimentId: Int) extends UserCommand
+  case object RunFromDBNewest              extends UserCommand
   case object DBstartRecord                extends UserCommand
   case object DBstopRecord                 extends UserCommand
 

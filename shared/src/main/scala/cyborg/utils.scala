@@ -19,7 +19,7 @@ object utilz {
 
   type EC = ExecutionContext
   type Channel = Int
-  case class TaggedSegment(data: (Channel, Vector[Int])) extends AnyVal
+  case class TaggedSegment(channel: Channel, data: Vector[Int])
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
 
   sealed trait Stoppable[F[_]] { def interrupt: F[_] }
@@ -89,6 +89,7 @@ object utilz {
         case Some((seg, tl)) => {
 
           val data = seg.force.toArray
+          say("done")
           val bb = java.nio.ByteBuffer.allocate(data.length*4)
           for(ii <- 0 until data.length){
             bb.putInt(data(ii))
@@ -186,14 +187,16 @@ object utilz {
     def go(s: Stream[F,I], last: Vector[I]): Pull[F,Vector[I],Unit] = {
       s.pull.unconsN(stepsize.toLong, false).flatMap {
         case Some((seg, tl)) =>
-          Pull.output1(seg.force.toVector) >> go(tl, seg.force.toVector.drop(stepsize))
+          val forced = seg.force.toVector
+          Pull.output1(forced) >> go(tl, forced.drop(stepsize))
         case None => Pull.done
       }
     }
 
     in => in.pull.unconsN(windowWidth.toLong, false).flatMap {
       case Some((seg, tl)) => {
-        Pull.output1(seg.force.toVector) >> go(tl, seg.force.toVector.drop(stepsize))
+        val forced = seg.force.toVector
+        Pull.output1(forced) >> go(tl, forced.drop(stepsize))
       }
       case None => Pull.done
     }.stream
@@ -210,7 +213,7 @@ object utilz {
     def go(s: Stream[F,Int], window: Vector[Int]): Pull[F,Double,Unit] = {
       s.pull.uncons flatMap {
         case Some((seg, tl)) => {
-          val stacked = ((window ++ seg.force.toVector) zip (seg.force.toVector)).map(λ => (λ._1 - λ._2))
+          val stacked = ((window ++ seg.force.toVector) zip (seg.force.toVector)).map(z => (z._1 - z._2))
           val scanned = stacked.scanLeft(window.sum)(_+_).map(_.toDouble/windowWidth.toDouble)
           Pull.output(Chunk.seq(scanned).toSegment) >> go(tl, seg.force.toVector.takeRight(windowWidth))
         }
@@ -231,20 +234,15 @@ object utilz {
     Creates a list containing num topics of type T
     Requires an initial message init.
     */
-  def createTopics[F[_]: Effect,T](num: Int, init: T)(implicit ec: ExecutionContext): Stream[F,List[Topic[F,T]]] = {
+  def createTopics[F[_]: Effect,T](init: T)(implicit ec: ExecutionContext): Stream[F,Topic[F,T]] = {
     val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
-
-    // TODO
-    // should be until, not to?? Guess it doesn't matter since we just take, could just be
-    // an iter -> repeatEval?
-
-    // TODO wrong number of params??
-    val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F].repeat /: (0 to num)){
-      (acc: Stream[F,Topic[F,T]], _) => {
-        Stream.eval(topicTask) ++ acc
-      }
-    }
-    topicStream.through(utilz.vectorizeList(num))
+    // val topicStream: Stream[F,Topic[F,T]] = (Stream[Topic[F,T]]().covary[F].repeat /: (0 to num)){
+    //   (acc: Stream[F,Topic[F,T]], _) => {
+    //     Stream.eval(topicTask) ++ acc
+    //   }
+    // }
+    // topicStream.through(utilz.vectorizeList(num))
+    Stream.repeatEval(topicTask)
   }
 
 
@@ -286,7 +284,7 @@ object utilz {
       a.zipWith(b)(_::_)
     }
     val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
-    streams.foldLeft(mpty)((λ,µ) => zip2List(µ,λ))
+    streams.foldRight(mpty)((z,u) => zip2List(z,u))
   }
 
 
@@ -301,12 +299,12 @@ object utilz {
       */
     def synchStreams(streams: Stream[F,List[Stream[F,TaggedSegment]]]) = {
       val a: Stream[F, Seq[TaggedSegment]] = roundRobin(streams)
-      val b = a flatMap (λ =>
+      val b = a flatMap (z =>
         {
-          val tags = λ.map(_.data._1)
+          val tags = z.map(_.channel)
           val largest = tags.max
           val diffs = tags.map(largest - _)
-          streams.map(λ => λ.zip(diffs).map(λ => λ._1.drop(λ._2.toLong).map(λ => λ.data._2)))
+          streams.map(z => z.zip(diffs).map(z => z._1.drop(z._2.toLong).map(z => z.data)))
         })
       b
     }
@@ -336,7 +334,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
-          say(seg.force.toList.head)
+          say(message(seg.force.toList.head))
           Pull.output(seg) >> go(tl)
         }
         case None => {
@@ -359,7 +357,7 @@ object utilz {
     dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
 
     tickSource(dur).flatMap { _ =>
-      Stream.eval(q.size.get).through(_.map(λ => say(s"Queue with name $name has a size of $λ")))
+      Stream.eval(q.size.get).through(_.map(z => say(s"Queue with name $name has a size of $z")))
     }.repeat
   }
 
@@ -403,6 +401,4 @@ object utilz {
       }
     }
   }.stream.flatMap { case (a, s) => s.to(sf(a)) }
-
-
 }

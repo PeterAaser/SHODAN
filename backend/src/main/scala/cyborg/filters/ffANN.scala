@@ -114,7 +114,9 @@ object Filters {
       def go(s: Stream[F, Vector[Double]]): Pull[F,List[Double],Unit] = {
         s.pull.uncons1 flatMap {
           case Some((seg, tl)) => {
+            say("hello?")
             val outputs = net.feed(seg.toList)
+            say("dunnit")
             Pull.output1(outputs) >> go(tl)
           }
           case None => Pull.done
@@ -129,7 +131,6 @@ object Filters {
 
       def go(run: Int, s: Stream[F, Vector[Double]]): Pull[F,Option[List[Double]],Unit] = {
         if(run == 0){
-          // say("ffPipeO returns None")
           Pull.output1(None)
         }
         else{
