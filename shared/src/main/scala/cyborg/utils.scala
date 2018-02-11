@@ -1,5 +1,7 @@
 package cyborg
 
+import cats.{ Functor, Monad }
+import cats.implicits._
 import fs2._
 import fs2.async.mutable.{ Queue, Topic }
 import cats.effect.Effect
@@ -8,6 +10,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import scala.language.higherKinds
+import scala.reflect.ClassTag
 import sourcecode._
 
 object utilz {
@@ -285,6 +288,49 @@ object utilz {
     }
     val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
     streams.foldRight(mpty)((z,u) => zip2List(z,u))
+  }
+
+  def roundRobinQ[F[_]: Effect : Functor,I:ClassTag](streams: List[Stream[F,I]])(implicit ec: EC): Stream[F,List[I]] = {
+
+    val numStreams = streams.size
+    val elementsPerDeq = 20
+
+    Stream.repeatEval(fs2.async.boundedQueue[F,Vector[I]](100)).through(vectorize(numStreams)) flatMap { qs =>
+      Stream.eval(fs2.async.boundedQueue[F,List[I]](10)) flatMap { outQueue =>
+
+        val inputTasks = (qs zip streams).map{ case(q, s) => s.through(vectorize(elementsPerDeq)).through(q.enqueue).compile.drain }
+        val inputTask = Stream.emits(inputTasks).map(Stream.eval(_)).join(numStreams)
+
+        val arr = Array.ofDim[I](elementsPerDeq, numStreams)
+
+        def outputFillTask: F[Unit] = {
+
+          def unloader(idx: Int): F[Unit] = {
+            if(idx == numStreams)
+              loader(0)
+            else {
+              outQueue.enqueue1(arr(idx).toList) >> unloader(idx + 1)
+            }
+          }
+
+          def loader(idx: Int): F[Unit] = {
+            if(idx == numStreams) {
+              unloader(0)
+            }
+            else {
+              (qs(idx).dequeue1 map { xs: Vector[I] =>
+                 for(i <- 0 until elementsPerDeq){
+                   arr(i)(idx) = xs(i) // TODO <--- her var du
+                 }
+               }) >> loader(idx + 1)
+            }
+          }
+          loader(0)
+        }
+
+        outQueue.dequeue.concurrently(inputTask).concurrently(Stream.eval(outputFillTask))
+      }
+    }
   }
 
 
