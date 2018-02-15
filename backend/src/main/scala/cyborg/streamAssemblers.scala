@@ -73,7 +73,7 @@ object Assemblers {
              .through(chunkify)
              .through(spikeDetector))
 
-    roundRobinL(spikeChannels).covary[IO].map(_.toVector)
+    roundRobinQ(spikeChannels).covary[IO].map(_.toVector)
   }
 
 
