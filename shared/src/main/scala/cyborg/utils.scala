@@ -1,5 +1,6 @@
 package cyborg
 
+import cats.effect.Async
 import fs2._
 import fs2.async.mutable.{ Queue, Topic }
 import cats.effect.Effect
@@ -401,4 +402,12 @@ object utilz {
       }
     }
   }.stream.flatMap { case (a, s) => s.to(sf(a)) }
+
+
+  def evalMapAsync[F[_]: Effect,I,O](f: I => F[O])(implicit ec: EC): Pipe[F,I,O] =
+    s => s.through(_.map(z => Stream.eval(f(z)))).joinUnbounded
+
+  def evalMapAsyncBounded[F[_]: Effect,I,O](n: Int)(f: I => F[O])(implicit ec: EC): Pipe[F,I,O] =
+    s => s.through(_.map(z => Stream.eval(f(z)))).join(n)
+
 }
