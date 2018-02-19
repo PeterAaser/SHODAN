@@ -177,9 +177,12 @@ object staging {
                   _ <- waveformGenerator.sineWave(2, 300.millis, 200.0)
                   _ <- waveformGenerator.sineWave(4, 600.millis, 200.0)
                 } yield ()
-                case DspBarf => HttpClient.dspBarf.void
-                case DspDebugReset => HttpClient.dspDebugReset.void
-                case DspConf => HttpClient.dspConfigure.void
+                // case DspBarf => HttpClient.dspBarf.void
+                // case DspDebugReset => HttpClient.dspDebugReset.void
+                // case DspConf => HttpClient.dspConfigure.void
+                case DspBarf => IO.unit
+                case DspDebugReset => IO.unit
+                case DspConf => IO.unit
 
                 case Shutdown => {
                   say("Johnny number five is not alive")

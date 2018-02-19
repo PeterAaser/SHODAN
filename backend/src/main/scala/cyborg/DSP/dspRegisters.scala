@@ -13,33 +13,32 @@ object DspRegisters {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)
   }
 
-
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ///// STG
   val MAIL_BASE          = (0x1000)
-  val WRITE_REQ_ID       = (MAIL_BASE + 0xc)
-  val WRITE_ACK_ID       = (MAIL_BASE + 0x10)
-  val WRITE_ADDRESS      = (MAIL_BASE + 0x14)
-  val WRITE_VALUE        = (MAIL_BASE + 0x18)
+  val MAIL_BASE_END      = (0x1FFC)
 
-  val READ_REQ_ID        = (MAIL_BASE + 0x1c)
-  val READ_ACK_ID        = (MAIL_BASE + 0x20)
-  val READ_ADDRESS       = (MAIL_BASE + 0x24)
-  val READ_VALUE         = (MAIL_BASE + 0x28)
+  val INSTRUCTION_ID     = (0x1000)
 
-  val DEBUG1             = (MAIL_BASE + 0x2c)
-  val DEBUG2             = (MAIL_BASE + 0x30)
-  val DEBUG3             = (MAIL_BASE + 0x34)
-  val DEBUG4             = (MAIL_BASE + 0x38)
-  val DEBUG5             = (MAIL_BASE + 0x3c)
-  val DEBUG6             = (MAIL_BASE + 0x40)
-  val DEBUG7             = (MAIL_BASE + 0x44)
-  val DEBUG8             = (MAIL_BASE + 0x48)
-  val DEBUG9             = (MAIL_BASE + 0x4c)
+  val INSTRUCTION_TYPE   = (0x1004)
 
-  val WRITTEN_ADDRESS    = (MAIL_BASE + 0x50)
-  val COUNTER            = (MAIL_BASE + 0x54)
-  val PING_SEND          = (MAIL_BASE + 0x58)
-  val PING_READ          = (MAIL_BASE + 0x5c)
-  val CLEAR              = (MAIL_BASE + 0x60)
+  val STIM_QUEUE_BASE    = (0x1008)
+  val STIM_QUEUE_RUNNING = (STIM_QUEUE_BASE + 0x0)
+
+  val STIM_QUEUE_GROUP   = (STIM_QUEUE_BASE + 0x4)
+  val STIM_QUEUE_PERIOD  = (STIM_QUEUE_BASE + 0x8)
+  val STIM_QUEUE_ELEC0   = (STIM_QUEUE_BASE + 0xc)
+  val STIM_QUEUE_ELEC1   = (STIM_QUEUE_BASE + 0x10)
+
+  val SLOW_MODE_BASE     = (STIM_QUEUE_BASE + 0x14)
+  val SLOW_MODE_SETTING  = (SLOW_MODE_BASE  + 0x0)
+  val SLOW_MODE_FACTOR   = (SLOW_MODE_BASE  + 0x4)
+
+  val LOG_START          = (0x1100)
+  val LOG_END            = (0x1F00)
+  val LOG_ENTRIES        = (0x1FF0)
 
   ////////////////////////////////////////
   ////////////////////////////////////////

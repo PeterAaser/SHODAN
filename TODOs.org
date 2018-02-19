@@ -20,11 +20,14 @@
   Looks like the problem might be in AssembleGA
   
 * Doing
-  Creating test methods
-  Start with the topics
-  
+  Remove primitive DSP requests
 
 * Now 
+** TODO Redo DSP requests  
+   Currently all auxillary DSP functionality from MEAME is disabled.
+*** TODO DSP barf log
+*** TODO Consider re-adding auxillary methods (reset and upload)
+*** TODO Stimulus call
 ** TODO MCS csv parser
 ** TODO Verify stimuli
    After this all work necessary for actually performing experiments will be completed.
@@ -34,6 +37,7 @@
 ** TODO Add logging for agent state for playback   
 ** TODO Fix MCS channel duplication bug
 * Later
+** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Add UI event firing from entrypoint
    Might not be the best way to do this, who knows.
 ** TODO Improve the frontend

@@ -25,8 +25,8 @@ object HttpClient {
   import DspRegisters._
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
-  case class StimReq(periods: List[Int])
-  case class StimGroupRequest(group: Int, electrodes: List[Int], period: Int)
+  // case class StimReq(periods: List[Int])
+  // case class StimGroupRequest(group: Int, electrodes: List[Int], period: Int)
   case class DspFuncCall(func: Int, argAddrs: List[Int], argVals: List[Int])
 
   val httpClient = PooledHttp1Client[IO]()
@@ -34,9 +34,9 @@ object HttpClient {
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
   implicit val regReadCodec = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  implicit val StimCodec = jsonOf[IO, StimReq]
-  implicit val DSPconfigCodec = jsonOf[IO, DSPconf]
-  implicit val sgrCodec = jsonOf[IO, StimGroupRequest]
+  // implicit val StimCodec = jsonOf[IO, StimReq]
+  // implicit val DSPconfigCodec = jsonOf[IO, DSPconf]
+  // implicit val sgrCodec = jsonOf[IO, StimGroupRequest]
   implicit val dspCallCodec = jsonOf[IO, DspFuncCall]
 
   // DSP
@@ -48,7 +48,7 @@ object HttpClient {
 
   def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
   {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/readreg"), regs.asJson)
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/read"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req)
   }
 
@@ -59,42 +59,29 @@ object HttpClient {
     httpClient.expect[String](req)
   }
 
-  def stimRequest(stim: StimReq): IO[String] =
-  {
-    say("Doing a stimreq...")
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), stim.asJson)
-    httpClient.expect[String](req)
-  }
-
-  def stimGroupRequest(stim: StimGroupRequest): IO[String] =
-  {
-    say("Doing a group stim req...")
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimGroupReq"), stim.asJson)
-    httpClient.expect[String](req)
-  }
-
   // Uploads bitfile etc
-  def dspConnect: IO[Unit] =
-    httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
+  // def dspConnect: IO[Unit] =
+  //   httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
 
   // Configures uploaded bitfile
-  def dspConfigure: IO[String] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), DspComms.defaultDSPconfig.asJson)
-    httpClient.expect[String](req)
-  }
+  // def dspConfigure: IO[String] =
+  // {
+  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), DspComms.defaultDSPconfig.asJson)
+  //   httpClient.expect[String](req)
+  // }
 
-  def dspBarf: IO[String] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/barf"))
-    httpClient.expect[String](req)
-  }
+  // def dspBarf: IO[String] =
+  // {
+  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/barf"))
+  //   httpClient.expect[String](req)
+  // }
 
-  def dspDebugReset: IO[String] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/reset_debug"))
-    httpClient.expect[String](req)
-  }
+  // def dspDebugReset: IO[String] =
+  // {
+  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/reset_debug"))
+  //   httpClient.expect[String](req)
+  // }
+
 
 
   // DAQ

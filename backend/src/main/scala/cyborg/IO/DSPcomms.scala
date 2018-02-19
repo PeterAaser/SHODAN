@@ -10,7 +10,7 @@ import utilz._
 
 object DspComms {
 
-  case class DSPconf(electrodeConfs: List[List[Int]])
+  // case class DSPconf(electrodeConfs: List[List[Int]])
 
   import fs2._
 
@@ -34,7 +34,8 @@ object DspComms {
 
           val stimReq = createStimReq(clamped)
           val update = for {
-            _ <- stimRequest(stimReq)
+            // _ <- stimRequest(stimReq)
+            _ <- IO.unit
           } yield ("")
 
           if(shouldUpdate) {
@@ -63,5 +64,5 @@ object DspComms {
     in => init(in).stream.flatMap(Stream.eval).drain.join(100)
   }
 
-  val defaultDSPconfig = DSPconf(params.GA.outputChannelsBits)
+  // val defaultDSPconfig = DSPconf(params.GA.outputChannelsBits)
 }
