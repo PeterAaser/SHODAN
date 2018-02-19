@@ -29,7 +29,7 @@ object spikeDetector {
       def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F, Boolean, Unit] = {
         s.pull.unconsN(spikeCooldown.toLong) flatMap {
           case Some((seg, tl)) => {
-            say("spike detecting")
+            // say("spike detecting")
             val flattened = seg.force.toVector
             val refactored = flattened.drop(spikeCooldownTimer)
             val index = refactored.indexOf((λ: Boolean) => λ)

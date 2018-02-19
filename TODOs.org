@@ -28,6 +28,9 @@
 ** TODO MCS csv parser
 ** TODO Verify stimuli
    After this all work necessary for actually performing experiments will be completed.
+*** Implement stim group on backend
+*** Create test cases
+*** Verify stimuli upload
 ** TODO Add logging for agent state for playback   
 ** TODO Fix MCS channel duplication bug
 * Later
@@ -670,6 +673,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     Some of the issues might stem from stuffing all inputs into a single pipe.
     Maybe the HTTP server could handle most of it, if not all?
     
+** A bug in fs2
+   TODO write about it
 * FS2 mysteries
 ** Termination of unit streams
    for some F[Unit] we may or may not get a reasonable termination.

@@ -170,7 +170,8 @@ object staging {
 
                 case AgentStart if !stateNow.agentRunning => state.set( stateNow.copy( agentRunning = true ))
 
-                case DspStimTest => HttpClient.dspStimTest.void
+                // case DspStimTest => HttpClient.dspStimTest.void
+                case DspStimTest => dspStimTest.squareWaveUploadTest
                 case DspUploadTest => for {
                   _ <- waveformGenerator.sineWave(0, 100.millis, 200.0)
                   _ <- waveformGenerator.sineWave(2, 300.millis, 200.0)

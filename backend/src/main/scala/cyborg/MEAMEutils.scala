@@ -212,4 +212,18 @@ object waveformGenerator {
     uploadWave(period, channel, generator)
 
   }
+
+  def squareWave(
+    channel: Int,
+    lowDuration: FiniteDuration,
+    period: FiniteDuration,
+    offset: mV,
+    amplitude: mV): IO[Unit] = {
+
+    val z: mV = 0
+
+    def generator(t: FiniteDuration) = offset + (if (t > lowDuration) amplitude else (z))
+
+    uploadWave(period, channel, generator)
+  }
 }

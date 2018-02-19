@@ -9,8 +9,6 @@ object Launcher {
     say("wello")
 
     say(params.filtering.spikeCooldown)
-    // Assemblers.startSHODAN.compile.drain.unsafeRunSync()
-    scratchpad.doiIt
-    // simpleFeedback.doIt.evalMap(identity).compile.drain.unsafeRunSync()
+    Assemblers.startSHODAN.compile.drain.unsafeRunSync()
   }
 }

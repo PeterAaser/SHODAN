@@ -116,27 +116,31 @@ object HttpServer {
 
       case POST -> Root / "test_stuff" => {
         for {
+          emit <- cmd(DspStimTest)
           resp <- Ok("hurr")
-          _    <- IO { say("emitting run from MEAME...") }
-          emit <- cmd(StartMEAME)
-          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
-          _    <- IO { say("emitting agent start") }
-          emit <- cmd(AgentStart)
-          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
-          _    <- IO { say("emitting agent stop") }
-          emit <- cmd(AgentStop)
-          _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
-          _    <- IO { say("emitting run from DB") }
-          emit <- cmd(RunFromDB(1))
-          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
-          _    <- IO { say("emitting run from MEAME") }
-          emit <- cmd(StartMEAME)
-          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
-          _    <- IO { say("emitting agent start") }
-          emit <- cmd(AgentStart)
-          _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
-          _    <- IO { say("Okay, we're done?") }
         } yield (resp)
+        // for {
+        //   resp <- Ok("hurr")
+        //   _    <- IO { say("emitting run from MEAME...") }
+        //   emit <- cmd(StartMEAME)
+        //   _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+        //   _    <- IO { say("emitting agent start") }
+        //   emit <- cmd(AgentStart)
+        //   _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+        //   _    <- IO { say("emitting agent stop") }
+        //   emit <- cmd(AgentStop)
+        //   _    <- IO { say("waiting 5 sec..."); Thread.sleep(5000) }
+        //   _    <- IO { say("emitting run from DB") }
+        //   emit <- cmd(RunFromDB(1))
+        //   _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+        //   _    <- IO { say("emitting run from MEAME") }
+        //   emit <- cmd(StartMEAME)
+        //   _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+        //   _    <- IO { say("emitting agent start") }
+        //   emit <- cmd(AgentStart)
+        //   _    <- IO { say("waiting 10 sec..."); Thread.sleep(10000) }
+        //   _    <- IO { say("Okay, we're done?") }
+        // } yield (resp)
       }
     }
   }
@@ -195,7 +199,7 @@ object DebugMessages {
     passedPerMessage: Int,
     debugChannel: Sink[F, DebugMessage])(implicit ec: ExecutionContext): Pipe[F,I,I] = {
 
-    val f = Stream.emit(msg).covary[F].through(debugChannel).run
+    val f = Stream.emit(msg).covary[F].through(debugChannel).compile.drain
 
     def go(s: Stream[F,_], counter: Int): Pull[F,Unit,Unit] = {
       s.pull.uncons flatMap {

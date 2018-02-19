@@ -16,7 +16,6 @@ object DspComms {
 
   def stimuliRequestSink(tolerance: Double)(implicit ec: EC): Sink[IO,List[Double]] = {
 
-
     def go(prev: List[Double], s: Stream[IO,List[Double]]): Pull[IO,IO[String],Unit] = {
       s.pull.uncons1 flatMap {
         case Some((seg,tl)) => {
