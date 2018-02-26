@@ -4,19 +4,16 @@ package cyborg
 import cats.effect.IO
 import cats.effect._
 
-import HttpClient._
 import MEAMEutilz._
 import utilz._
 
 object DspComms {
 
-  // case class DSPconf(electrodeConfs: List[List[Int]])
-
   import fs2._
 
   def stimuliRequestSink(tolerance: Double)(implicit ec: EC): Sink[IO,List[Double]] = {
 
-    def go(prev: List[Double], s: Stream[IO,List[Double]]): Pull[IO,IO[String],Unit] = {
+    def go(prev: List[Double], s: Stream[IO,List[Double]]): Pull[IO,IO[Unit],Unit] = {
       s.pull.uncons1 flatMap {
         case Some((seg,tl)) => {
 
@@ -32,15 +29,10 @@ object DspComms {
             (diffExceedsThreshHold || sensorOutOfRange)
           }
 
-          val stimReq = createStimReq(clamped)
-          val update = for {
-            // _ <- stimRequest(stimReq)
-            _ <- IO.unit
-          } yield ("")
+          val stimReq = DspCalls.createStimRequests(clamped)
 
           if(shouldUpdate) {
-            // say(s"Sent stim req: $stimReq")
-            Pull.output1(update) >> go(clamped,tl)
+            Pull.output1(stimReq) >> go(clamped,tl)
           }
           else
             go(prev,tl)
@@ -50,7 +42,7 @@ object DspComms {
     }
 
 
-    def init(s: Stream[IO,List[Double]]): Pull[IO,IO[String],Unit] = {
+    def init(s: Stream[IO,List[Double]]): Pull[IO,IO[Unit],Unit] = {
       s.pull.uncons1 flatMap {
         case Some((seg,tl)) => {
           go(seg, tl)
@@ -63,6 +55,4 @@ object DspComms {
 
     in => init(in).stream.flatMap(Stream.eval).drain.join(100)
   }
-
-  // val defaultDSPconfig = DSPconf(params.GA.outputChannelsBits)
 }

@@ -2,7 +2,6 @@ package cyborg
 
 import fs2.async.mutable.Signal
 import java.io.IOException
-import scala.concurrent.duration._
 import cats.implicits._
 
 import cyborg.wallAvoid.Agent
@@ -149,47 +148,51 @@ object staging {
               say(s"got action token guy named $c")
               c match {
 
-                case StartMEAME    => state.modify( _.copy( meameRunning    = true      )).void
-                case StopMEAME     => state.modify( _.copy( meameRunning    = false     )).void
+                case StartMEAME =>
+                  state.modify( _.copy( meameRunning = true )).void
 
-                case DBstartRecord => state.modify( _.copy( dbRecording     = true      )).void
-                case DBstopRecord  => state.modify( _.copy( dbRecording     = false     )).void
+                case StopMEAME =>
+                  state.modify( _.copy( meameRunning = false )).void
 
-                case RunFromDB(id) => state.modify( _.copy( playbackRunning = true,
-                                                            playbackId      = id.toLong )).void
+                case DBstartRecord =>
+                  state.modify( _.copy( dbRecording = true )).void
 
-                case RunFromDBNewest => for {
-                  newest <- databaseIO.newestRecordingId
-                  _      <- state.modify( _.copy( playbackRunning = true,
-                                                  playbackId      = newest
-                                         )).void
-                } yield ()
+                case DBstopRecord =>
+                  state.modify( _.copy( dbRecording = false )).void
 
-                case StopData      => state.modify( _.copy( playbackRunning = false,
-                                                            meameRunning    = false     )).void
+                case RunFromDB(id) =>
+                  state.modify( _.copy( playbackRunning = true,
+                                        playbackId      = id.toLong )).void
 
-                case AgentStart if !stateNow.agentRunning => state.set( stateNow.copy( agentRunning = true ))
+                case RunFromDBNewest =>
+                  for {
+                    newest <- databaseIO.newestRecordingId
+                    _      <- state.modify( _.copy( playbackRunning = true,
+                                                    playbackId      = newest)).void
+                  } yield ()
 
-                // case DspStimTest => HttpClient.dspStimTest.void
-                case DspStimTest => dspStimTest.squareWaveUploadTest
-                case DspUploadTest => for {
-                  _ <- waveformGenerator.sineWave(0, 100.millis, 200.0)
-                  _ <- waveformGenerator.sineWave(2, 300.millis, 200.0)
-                  _ <- waveformGenerator.sineWave(4, 600.millis, 200.0)
-                } yield ()
-                // case DspBarf => HttpClient.dspBarf.void
-                // case DspDebugReset => HttpClient.dspDebugReset.void
-                // case DspConf => HttpClient.dspConfigure.void
-                case DspBarf => IO.unit
-                case DspDebugReset => IO.unit
-                case DspConf => IO.unit
+                case StopData =>
+                  state.modify( _.copy( playbackRunning = false,
+                                        meameRunning    = false )).void
+
+                case AgentStart if !stateNow.agentRunning =>
+                  state.set( stateNow.copy( agentRunning = true ))
+
+                case DspBarf =>
+                  DspLog.printDspLog
+
+                case DspUploadTest => {
+                  say("Doing the upload thingy now")
+                  dspStimTest.squareWaveUploadTest
+                }
 
                 case Shutdown => {
                   say("Johnny number five is not alive")
                   throw new IOException("Johnny number 5 is not alive")
                 }
 
-                case _ => IO( say(Console.RED + s"UNSUPPORTED ACTION ISSUED\n$c" + Console.RESET) )
+                case _ =>
+                  IO( say(Console.RED + s"UNSUPPORTED ACTION ISSUED\n$c" + Console.RESET) )
               }
             }
           }.map(Stream.eval).joinUnbounded

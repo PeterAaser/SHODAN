@@ -38,6 +38,7 @@ object webSocketServer {
 
     def route: HttpService[IO] = HttpService[IO] {
       case GET -> Root => {
+        say("wf ws stream")
         WS[IO](inStream, outSink)
       }
     }
@@ -51,6 +52,7 @@ object webSocketServer {
 
     def route: HttpService[IO] = HttpService[IO] {
       case GET -> Root => {
+        say("agent ws stream")
         WS[IO](agentInStream, outSink)
       }
     }

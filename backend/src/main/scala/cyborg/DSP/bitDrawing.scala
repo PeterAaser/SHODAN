@@ -11,6 +11,13 @@ object BitDrawing {
     val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
     pad + l
   }
+  def as32BinarySpaced (source: Int): String = {
+    val l  = source.toBinaryString
+    val padLen = 32 - l.size
+    val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
+    val s = pad + l
+    s.take(8) + " " + s.drop(8).take(8) + " " + s.drop(16).take(8) + " " + s.drop(24).take(8)
+  }
   def asHex(f: Field, b: Bits): String = "0x" + b.b.toHexString
   def asBin(f: Field, b: Bits): String = {
     "0b" + asNdigitBinary(b.b, f.size)

@@ -127,6 +127,7 @@ object hurr {
     document.getElementById("playground").appendChild(barf)
     document.getElementById("playground").appendChild(reset)
     document.getElementById("playground").appendChild(tests)
+    document.getElementById("playground").appendChild(testUploadButton)
 
 
     document.getElementById("playground").appendChild(agentCanvas)

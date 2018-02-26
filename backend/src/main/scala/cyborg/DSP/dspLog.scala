@@ -10,29 +10,11 @@ import DspRegisters._
 
 object DspLog {
 
-  // log ID -> name map
-  val logMap = Map(
-    1  -> "DAC_STATE_CHANGE",
-    2  -> "CONF",
-    3  -> "CONF_RESET",
-    4  -> "CONF_START",
-    5  -> "TRIGGER",
-    6  -> "STATE_EN_ELEC",
-    7  -> "STATE_DAC_SEL",
-    8  -> "STATE_MODE",
-    9  -> "BOOKING",
-    10 -> "READ_STIM",
-    11 -> "COMMS_READ_REQ",
-    12 -> "BOOKING_FOUND",
-    13 -> "STIMULUS_WRITE")
-
-
-
   def parseStimulus(logEntry: List[Int]): String =
-    s"stimulus entry:\n ${logEntry(0)} <- ${logEntry(1)}\tstimulus.c: ${logEntry(2)}"
+    s"stimulus entry:\n 0x${logEntry(0).toHexString.toUpperCase()} <- 0x${logEntry(1).toHexString.toUpperCase()} - 0b${BitDrawing.as32BinarySpaced(logEntry(1))}\tstimulus.c: ${logEntry(2)}\n-------\n\n"
 
-  val logHandlers = Map(
-    13 -> parseStimulus _
+  val logHandlers = Map[Int, (List[Int] => String)](
+    13 -> parseStimulus
   )
 
 
@@ -67,13 +49,13 @@ object DspLog {
       case _ => descriptions
     }
 
-    helper(log, List[String]())
+    helper(log, List[String]()).reverse
   }
 
 
   def printLog(log: List[Int]): String = {
     val entries = readLog(log)
-    s"DSP log with ${entries.size} entries:" + entries.mkString("\n", "\n------\n\n", "\n")
+    s"DSP log with ${entries.size} entries:" + entries.mkString("\n", "\n------\n\n\n", "\n")
   }
 
 

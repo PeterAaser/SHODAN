@@ -16,29 +16,42 @@ import io.circe.literal._
 import io.circe.generic.auto._
 import io.circe.syntax._
 
+
 import utilz._
 
 object HttpClient {
 
-  import DspComms._
-  import twiddle._
   import DspRegisters._
 
   case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
-  // case class StimReq(periods: List[Int])
-  // case class StimGroupRequest(group: Int, electrodes: List[Int], period: Int)
-  case class DspFuncCall(func: Int, argAddrs: List[Int], argVals: List[Int])
+  case class DspFuncCall(func: Int, args: List[(Int, Int)])
+  object DspFuncCall {
+    def apply(func: Int, args: (Int,Int)*): DspFuncCall = {
+      DspFuncCall(func, args.toList)
+    }
+  }
+
+  // don't have to read the docs if you just make an ugly hack
+  case class DspFCS(func: Int, argAddrs: List[Int], argVals: List[Int])
+  implicit val DspFCSCodec = jsonOf[IO, DspFCS]
+  import io.circe.{ Encoder, Json }
+  implicit val encodeFoo: Encoder[DspFuncCall] = new Encoder[DspFuncCall] {
+    final def apply(a: DspFuncCall): Json = {
+      val (addrs, words) = a.args.unzip
+      DspFCS(a.func, addrs, words).asJson
+    }
+  }
 
   val httpClient = PooledHttp1Client[IO]()
   implicit val regSetCodec = jsonOf[IO, RegisterSetList]
   implicit val DAQdecoder = jsonOf[IO, DAQparams]
   implicit val regReadCodec = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  // implicit val StimCodec = jsonOf[IO, StimReq]
-  // implicit val DSPconfigCodec = jsonOf[IO, DSPconf]
-  // implicit val sgrCodec = jsonOf[IO, StimGroupRequest]
   implicit val dspCallCodec = jsonOf[IO, DspFuncCall]
 
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
   // DSP
   def setRegistersRequest(regs: RegisterSetList): IO[String] =
   {
@@ -46,44 +59,26 @@ object HttpClient {
     httpClient.expect[String](req)
   }
 
+
   def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
   {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/read"), regs.asJson)
     httpClient.expect[RegisterReadResponse](req)
   }
 
-  def dspCall(call: DspFuncCall): IO[String] =
+
+  def dspCall(call: Int, args: (Int,Int)*): IO[String] =
   {
-    say("Firing dsp call")
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/call"), call.asJson)
+    val funcCall = DspFuncCall(call, args.toList)
+    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/call"), funcCall.asJson)
     httpClient.expect[String](req)
   }
 
-  // Uploads bitfile etc
-  // def dspConnect: IO[Unit] =
-  //   httpClient.expect[Unit](POST(Uri.uri("http://129.241.201.110:8888/DSP/connect")))
-
-  // Configures uploaded bitfile
-  // def dspConfigure: IO[String] =
-  // {
-  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/stimreq"), DspComms.defaultDSPconfig.asJson)
-  //   httpClient.expect[String](req)
-  // }
-
-  // def dspBarf: IO[String] =
-  // {
-  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/barf"))
-  //   httpClient.expect[String](req)
-  // }
-
-  // def dspDebugReset: IO[String] =
-  // {
-  //   val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/reset_debug"))
-  //   httpClient.expect[String](req)
-  // }
 
 
-
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[String] =
   {
@@ -98,25 +93,16 @@ object HttpClient {
     httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/start")))
 
   def stopDAQrequest: IO[String] =
-    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/stopDAQ")))
+    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/stop")))
 
 
 
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
   // Auxillary
-  def dspStimTest: IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/stimtest")))
-
   def meameConsoleLog(s: String): IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/logmsg"), s))
-
-  def dspTest: IO[String] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/DSP/dsptest")))
-
-  def readRegistersDirect(regs: RegisterReadList): IO[RegisterReadResponse] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/dump"), regs.asJson)
-    httpClient.expect[RegisterReadResponse](req)
-  }
+    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/aux/logmsg"), s))
 
 
   import params.experiment._

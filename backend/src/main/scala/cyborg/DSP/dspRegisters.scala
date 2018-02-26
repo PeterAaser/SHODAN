@@ -33,8 +33,7 @@ object DspRegisters {
   val STIM_QUEUE_ELEC1   = (STIM_QUEUE_BASE + 0x10)
 
   val SLOW_MODE_BASE     = (STIM_QUEUE_BASE + 0x14)
-  val SLOW_MODE_SETTING  = (SLOW_MODE_BASE  + 0x0)
-  val SLOW_MODE_FACTOR   = (SLOW_MODE_BASE  + 0x4)
+  val SLOW_MODE_FACTOR   = (SLOW_MODE_BASE  + 0x0)
 
   val LOG_START          = (0x1100)
   val LOG_END            = (0x1F00)

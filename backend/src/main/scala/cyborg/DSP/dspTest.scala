@@ -12,19 +12,25 @@ import HttpClient._
 
 object dspStimTest {
 
-  val stim1 = StimGroupRequest(0, (0 until 20).toList, 5000)
-  val stim2 = StimGroupRequest(1, List(22, 24, 26, 28, 30), 8000)
-  val stim3 = StimGroupRequest(2, (40 until 50).toList, 2000)
-  val stim4 = StimGroupRequest(3, (51 until 60).toList, 1000)
+  // val stim1 = StimGroupRequest(0, (0 until 20).toList, 5000)
+  // val stim2 = StimGroupRequest(1, List(22, 24, 26, 28, 30), 8000)
+  // val stim3 = StimGroupRequest(2, (40 until 50).toList, 2000)
+  // val stim4 = StimGroupRequest(3, (51 until 60).toList, 1000)
 
-  val call1 = DspFuncCall(1, List(0x104, 0x108), List(0x200, 0x204))
-  val call2 = DspFuncCall(2, List(0x104, 0x108, 0x10c), List(0x200, 0x204, 0x20c))
+  val call1 = dspCall(1,
+                          0x104 -> 0x108,
+                          0x200 -> 0x204)
+
+  val call2 = dspCall(2,
+                          0x104 -> 0x200,
+                          0x108 -> 0x204,
+                          0x10c -> 0x20c)
 
   def funcCallTest: IO[Unit] = {
 
     for {
-      _ <- dspCall(call1)
-      _ <- dspCall(call2)
+      _ <- call1
+      _ <- call2
     } yield()
   }
 

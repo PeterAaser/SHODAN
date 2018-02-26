@@ -14,28 +14,15 @@
   container for its internal streams which may be interrupted and restarted.
 
 * Neste gang
-  Figure out what is going on with agent causing everything to blow up
-  Line 60 in assemblers
-  
-  Looks like the problem might be in AssembleGA
+  Figure out what's up with agent viz
+  Get SQ to work
+  Take a look at what is causing SHODAN to clog? Maybe go back to the old roundrobin?
   
 * Doing
-  Remove primitive DSP requests
-
+  
 * Now 
-** TODO Redo DSP requests  
-   Currently all auxillary DSP functionality from MEAME is disabled.
-*** TODO DSP barf log
-*** TODO Consider re-adding auxillary methods (reset and upload)
-*** TODO Stimulus call
-** TODO MCS csv parser
-** TODO Verify stimuli
-   After this all work necessary for actually performing experiments will be completed.
-*** Implement stim group on backend
-*** Create test cases
-*** Verify stimuli upload
-** TODO Add logging for agent state for playback   
-** TODO Fix MCS channel duplication bug
+** TODO Make the new stim-queue work properly
+     
 * Later
 ** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Add UI event firing from entrypoint
@@ -70,11 +57,6 @@
     In this scenario we can't demodulate the TCP datastream
     Have actually managed to trigger this error, so it might be an issue
 
-** TODO Stimulus
-*** TODO Rewrite stimulus.
-**** DONE Write
-    See MEAMEutilz
-**** TODO Verify
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
 *** DONE Get hello world test to run
@@ -119,6 +101,20 @@
    
    
 * Finished
+** DONE Stimulus
+*** DONE Rewrite stimulus.
+**** DONE Write
+    See MEAMEutilz
+**** DONE Verify
+   
+** DONE Redo Stim requests to use groups
+   se på dspcomms
+** DONE Redo DSP requests  
+   Currently all auxillary DSP functionality from MEAME is disabled.
+*** DONE DSP barf log
+*** DONE Consider re-adding auxillary methods (reset and upload)
+    Not a DSP request, this is a more general MEAME req
+*** DONE Stimulus call
 ** DONE Create minimal repro of scope error 
    Something about topics is causing shit to go ultra-south...
 ** DONE Verify entrypoint2

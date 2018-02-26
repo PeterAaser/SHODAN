@@ -24,8 +24,8 @@ object Assemblers {
     TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
-    val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
     // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
+    val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
     val s = for {
       commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
@@ -74,7 +74,7 @@ object Assemblers {
              .through(chunkify)
              .through(spikeDetector))
 
-    roundRobinQ(spikeChannels).covary[IO].map(_.toVector)
+    roundRobinL(spikeChannels).covary[IO].map(_.toVector)
   }
 
 

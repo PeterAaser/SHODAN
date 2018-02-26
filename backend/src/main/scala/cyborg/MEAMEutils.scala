@@ -1,6 +1,7 @@
 package cyborg
 
 
+import cats.effect.IO
 import scala.concurrent.duration._
 import scala.math._
 
@@ -78,12 +79,6 @@ object MEAMEutilz {
   def toTickPeriod(d: Double): Int = {
     val period = (1.0/d)
     (period*params.experiment.DSPticksPerSecond).toInt
-  }
-
-  import HttpClient.StimReq
-
-  def createStimReq(dists: List[Double]): StimReq = {
-    StimReq((dists.map(toFreq)).map(toTickPeriod))
   }
 }
 
@@ -187,8 +182,8 @@ object waveformGenerator {
     val stimResetAddres = 0x920c + (channel*0x20)
     val SBSResetAddres = 0x920c + ((channel+1)*0x20)
 
-    val stimReset = RegisterSetList(List((stimResetAddres, 0x0)))
-    val SBSReset = RegisterSetList(List((SBSResetAddres, 0x0)))
+    val stimReset = RegisterSetList(List(0x0 -> stimResetAddres))
+    val SBSReset = RegisterSetList(List(0x0 -> SBSResetAddres))
     val stimUploads = RegisterSetList(stimWords.map(λ => (λ.invoke, channelAddress)))
     val SBSUploads = RegisterSetList(SBSWords.map(λ => (λ.invoke, channelAddress + 4)))
 
