@@ -35,9 +35,9 @@ object Assemblers {
 
       httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
       webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(10000).through(_.map(_.data)).through(chunkify)))
+      webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(100).through(_.map(_.data)).through(chunkify)))
 
-      agentSink            = (z: Stream[IO,Agent]) => z.through(agentQueue.enqueue)
+      agentSink            = agentQueue.enqueue
       commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
 
       server         <- httpServer
@@ -169,7 +169,7 @@ object Assemblers {
                          .discrete
                          .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
         .through(experimentPipe)
-        .observeAsync(10000)(frontendAgentObserver)
+        .observe(frontendAgentObserver)
         .through(_.map((λ: Agent) => {λ.distances}))
         .through(feedbackSink)
         .compile.drain

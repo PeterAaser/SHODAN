@@ -186,6 +186,11 @@ object staging {
                   dspStimTest.squareWaveUploadTest
                 }
 
+                case DspStimTest => {
+                  say("Firing off stim test")
+                  DspCalls.test
+                }
+
                 case Shutdown => {
                   say("Johnny number five is not alive")
                   throw new IOException("Johnny number 5 is not alive")

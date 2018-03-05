@@ -11,8 +11,9 @@ object params {
 
   object experiment {
     val totalChannels = 60
-    val samplerate = 20000
-    val segmentLength = 2000
+    val samplerate = 10000
+    val segmentLength = 1000
+
     val maxSpikesPerSec = 50
 
     val minFreq = 0.33
@@ -66,7 +67,7 @@ object params {
   object filtering {
 
     val MAGIC_THRESHOLD = 1000
-    val layout = List(2,3,2) // Layout of the neural network
+    val layout = List(2,2) // Layout of the neural network
     val movingAverageRetention = 10 // should depend on samplerate
 
     val spikeCooldown = experiment.samplerate/experiment.maxSpikesPerSec
@@ -146,12 +147,16 @@ object params {
     val reducedSegmentLength = experiment.segmentLength/blockSize
 
     val maxVal = 1300
-    val wfMsgSize = 1200
+    val wfMsgSize = reducedSegmentLength*60
     val sixtyFPSrefreshRate = 17  //every 17 ms
     val thirtyFPSrefreshRate = 33 //every 33 ms
     val dataPointsReceivedPerSec = 60*(pointsPerSec/blockSize)
 
     val wfMsgSentPerSecond = dataPointsReceivedPerSec/wfMsgSize
+
+
+    println(s"with wf msg size = $wfMsgSize and reduced segment length = $reducedSegmentLength \nwe get ${wfMsgSize/reducedSegmentLength} segments per message")
+    println(s"${(wfMsgSize/reducedSegmentLength)%60}")
 
     def printMe(): Unit = {
       println(Console.MAGENTA)

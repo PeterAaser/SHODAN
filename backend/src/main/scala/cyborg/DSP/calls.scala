@@ -8,18 +8,25 @@ import cats.implicits._
 import cats.effect.implicits._
 import cats.effect._
 import DspRegisters._
+import scala.concurrent.duration._
+import utilz._
 
 
 object DspCalls {
 
   val DUMP               = 1 // not implemented
   val RESET              = 2 // not implemented
-  val STIM_REQUEST       = 3
+  val STIM_GROUP_REQUEST = 3
   val STIM_DEBUG         = 4 // not implemented
   val START_STIM_QUEUE   = 5
   val STOP_STIM_QUEUE    = 6
   val SLOW_MODE          = 7
-  val STIM_GROUP_REQUEST = 8
+  val STIM_REQUEST       = 8
+  val ENABLE_STIM_GROUP  = 9
+
+  implicit class FiniteDurationDSPext(t: FiniteDuration) {
+    def toDSPticks = (t.toMicros/20).toInt
+  }
 
 
   // Alters the period of a stim group
@@ -65,10 +72,37 @@ object DspCalls {
     requests.sequence_
   }
 
-
   def startStimQueue: IO[Unit] =
     dspCall(START_STIM_QUEUE).void
 
   def stopStimQueue: IO[Unit] =
     dspCall(STOP_STIM_QUEUE).void
+
+
+  def enableStimGroup(sgIdx: Int): IO[Unit] =
+    dspCall(ENABLE_STIM_GROUP,
+            sgIdx -> STIM_QUEUE_TOGGLE_SG,
+            1     -> STIM_QUEUE_TOGGLE_VAL).void
+
+
+  def disableStimGroup(sgIdx: Int): IO[Unit] =
+    dspCall(ENABLE_STIM_GROUP,
+            sgIdx -> STIM_QUEUE_TOGGLE_SG,
+            0     -> STIM_QUEUE_TOGGLE_VAL).void
+
+
+  def test: IO[Unit] = {
+    for {
+      _ <- stimRequest(0, 3.second.toDSPticks, List(0))
+      // _ <- stimRequest(0, 3.second.toDSPticks, List(2))
+      _ <- IO { Thread.sleep(1000) }
+      _ <- startStimQueue
+      _ <- IO { Thread.sleep(1000) }
+      _ <- enableStimGroup(0)
+      _ <- IO { Thread.sleep(10000) }
+      _ <- stopStimQueue
+      _ <- IO { Thread.sleep(1000) }
+      _ <- DspLog.printDspLog
+    } yield()
+  }
 }

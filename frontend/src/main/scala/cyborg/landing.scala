@@ -40,6 +40,7 @@ object hurr {
     val barf = button("DSP barf").render
     val reset = button("DSP reset").render
     val tests = button("\"\"\"Test\"\"\"").render
+
     /**
       Starts SHODAN and connects to MEAME.
       SHODAN is already running, so not really nescessary
@@ -50,7 +51,6 @@ object hurr {
       frontHTTPclient.startSHODAN
     }
 
-
     /**
       Starts running data from SHODANs database
       */
@@ -60,13 +60,13 @@ object hurr {
       frontHTTPclient.startAgentStream(agentCanvas)
       frontHTTPclient.startDB
     }
+
     startDBNewest.onclick = (_: MouseEvent) => {
       println("DB button clicked")
       frontHTTPclient.startWaveformStream(visualizerCanvas)
       frontHTTPclient.startAgentStream(agentCanvas)
       frontHTTPclient.startDBNewest
     }
-
 
     startRecord.onclick = (_: MouseEvent) => {
       println("Starting a database recording")

@@ -30,6 +30,15 @@ object webSocketServer {
     bb.array()
   }
 
+  def agentToBytes(a: Agent): Array[Byte] = {
+    val bb = java.nio.ByteBuffer.allocate(4*4)
+    bb.putInt(a.loc.x.toInt)
+    bb.putInt(a.loc.y.toInt)
+    bb.putInt((a.heading*10000).toInt)
+    bb.putInt(a.degreesFieldOfView)
+    bb.array()
+  }
+
   def webSocketWaveformService(waveforms: Stream[IO,Array[Int]]) = {
     val inStream: Stream[IO,WebSocketFrame] = {
       waveforms
@@ -48,7 +57,8 @@ object webSocketServer {
 
   def webSocketAgentService(agentStream: Stream[IO,Agent]) = {
     val agentInStream: Stream[IO,WebSocketFrame] =
-      agentStream.map(z => Binary(Codec.encode(z).require.toByteArray))
+      agentStream
+        .through(_.map(λz => Binary(agentToBytes(λz))))
 
     def route: HttpService[IO] = HttpService[IO] {
       case GET -> Root => {

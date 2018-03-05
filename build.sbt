@@ -14,9 +14,11 @@ scalacOptions in ThisBuild ++= Seq(
   "-language:existentials",
   "-language:dynamics",
   "-language:higherKinds",
-  "-Xfuture",
-  // "-Ylog-classpath",
-  "-Xlint:_,-missing-interpolator,-adapted-args"
+  "-Xfuture"
+  // "-Yno-predef",   // no automatic import of Predef (removes irritating implicits)
+)
+scalacOptions in ThisBuild --= Seq(
+  "-Ywarn-unused"
 )
 
 resolvers += Resolver.sonatypeRepo("releases")

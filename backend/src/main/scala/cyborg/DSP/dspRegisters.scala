@@ -20,11 +20,12 @@ object DspRegisters {
   val MAIL_BASE          = (0x1000)
   val MAIL_BASE_END      = (0x1FFC)
 
-  val INSTRUCTION_ID     = (0x1000)
+  val SLAVE_INSTRUCTION_ID     = (0x1000)
+  val MASTER_INSTRUCTION_ID     = (0x1004)
 
-  val INSTRUCTION_TYPE   = (0x1004)
+  val INSTRUCTION_TYPE   = (0x1008)
 
-  val STIM_QUEUE_BASE    = (0x1008)
+  val STIM_QUEUE_BASE    = (0x100c)
   val STIM_QUEUE_RUNNING = (STIM_QUEUE_BASE + 0x0)
 
   val STIM_QUEUE_GROUP   = (STIM_QUEUE_BASE + 0x4)
@@ -32,7 +33,10 @@ object DspRegisters {
   val STIM_QUEUE_ELEC0   = (STIM_QUEUE_BASE + 0xc)
   val STIM_QUEUE_ELEC1   = (STIM_QUEUE_BASE + 0x10)
 
-  val SLOW_MODE_BASE     = (STIM_QUEUE_BASE + 0x14)
+  val STIM_QUEUE_TOGGLE_SG  = (STIM_QUEUE_BASE + 0x14)
+  val STIM_QUEUE_TOGGLE_VAL = (STIM_QUEUE_BASE + 0x18)
+
+  val SLOW_MODE_BASE     = (STIM_QUEUE_BASE + 0x1c)
   val SLOW_MODE_FACTOR   = (SLOW_MODE_BASE  + 0x0)
 
   val LOG_START          = (0x1100)

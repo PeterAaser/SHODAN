@@ -67,7 +67,8 @@ object waveformVisualizer {
       topRowWithCoords ::: middleRowsWithCoords ::: botRowWithCoords
 
 
-    val groupSize = wfMsgSize/60
+    // val groupSize = wfMsgSize/60
+    val groupSize = params.waveformVisualizer.reducedSegmentLength
     var running = false
 
     scalajs.js.timers.setInterval(50) {
@@ -87,7 +88,7 @@ object waveformVisualizer {
     def gogo(data: Array[Int]): Unit = {
       clear()
       val chopped = data.grouped(groupSize).zipWithIndex.toList
-      chopped.foreach(λ => drawToPixelArray(λ._1, λ._2))
+      chopped.foreach(λ => drawToPixelArray(λ._1, λ._2 % 60))
       renderer.fillStyle = "yellow"
       drawPixelArrays()
       drawGrid()

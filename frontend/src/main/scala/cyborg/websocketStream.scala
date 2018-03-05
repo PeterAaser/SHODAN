@@ -1,15 +1,13 @@
 package cyborg
 
-import scala.scalajs.js.typedarray.{ DataView, TypedArrayBuffer }
-import scodec._
-import scodec.bits._
-
 import scala.scalajs.js
+import scala.scalajs.js.typedarray.DataView
 
 import org.scalajs.dom.raw._
+import scodec.Codec
+import scodec.bits.BitVector
 
-import wallAvoid.Agent
-
+import utilz._
 
 object websocketStream {
 
@@ -23,23 +21,26 @@ object websocketStream {
 
   def createWaveformWs(controller: waveformVisualizer.WFVisualizerControl): Unit = {
 
-    println(s"creating new waveform websocket with $rawDataWsUri")
+    import params.waveformVisualizer.wfMsgSize
+
+    say(s"creating new waveform websocket with $rawDataWsUri")
     val ws = new WebSocket(rawDataWsUri)
-    println(s"created $ws")
-    println(s"ws url was ${ws.url}")
+    say(s"created $ws")
+    say(s"ws url was ${ws.url}")
 
     var counter = 0
 
     ws.onopen = (event: Event) => {
-      println("opening waveform WebSocket. YOLO")
+      say("opening waveform WebSocket. YOLO")
     }
 
     ws.binaryType = "arraybuffer"
     ws.onmessage = (event: MessageEvent) => {
+      say("spam")
       val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
       val memelord = new DataView(jsData)
-      val buf: Array[Int] = Array.ofDim(1200)
-      for(ii <- 0 until 1200) {
+      val buf: Array[Int] = Array.ofDim(wfMsgSize)
+      for(ii <- 0 until wfMsgSize) {
         buf(ii) = memelord.getInt32(ii*4)
       }
 
@@ -57,22 +58,27 @@ object websocketStream {
   def createAgentWsQueue(controller: Visualizer.VisualizerControl): Unit = {
 
 
-    println(s"creating new agent websocket with $agentWsUri")
+    say(s"creating new agent websocket with $agentWsUri")
     val ws = new WebSocket(agentWsUri)
-    println(s"created $ws")
-    println(s"ws url was ${ws.url}")
+    say(s"created $ws")
+    say(s"ws url was ${ws.url}")
 
     ws.onopen = (event: Event) => {
-      println("opening agent WebSocket. YOLO")
+      say("opening agent WebSocket. YOLO")
     }
 
     ws.binaryType = "arraybuffer"
     ws.onmessage = (event: MessageEvent) => {
+      say("got agent yo")
       val jsData = event.data.asInstanceOf[js.typedarray.ArrayBuffer]
-      val jsData2 = TypedArrayBuffer.wrap(jsData)
-      val bits: BitVector = BitVector(jsData2)
-      val decoded = Codec.decode[Agent](bits).require
-      controller.newestAgent = decoded.value
+      val memelord = new DataView(jsData)
+      val buf: Array[Int] = Array.ofDim(4)
+      for(ii <- 0 until 4) {
+        buf(ii) = memelord.getInt32(ii*4)
+      }
+      val coord = wallAvoid.Coord(buf(0).toDouble, buf(1).toDouble)
+      val agent = wallAvoid.Agent(coord, buf(2).toDouble/10000, buf(3))
+      controller.newestAgent = agent
     }
   }
 }

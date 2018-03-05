@@ -8,7 +8,7 @@ object Launcher {
 
     say("wello")
 
-    say(params.filtering.spikeCooldown)
+    params.printParams()
     Assemblers.startSHODAN.compile.drain.unsafeRunSync()
   }
 }

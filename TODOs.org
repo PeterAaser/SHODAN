@@ -14,15 +14,17 @@
   container for its internal streams which may be interrupted and restarted.
 
 * Neste gang
-  Figure out what's up with agent viz
-  Get SQ to work
-  Take a look at what is causing SHODAN to clog? Maybe go back to the old roundrobin?
+  Fix logging of sq internal state.
+  Implement state views in log reader.
   
 * Doing
   
 * Now 
 ** TODO Make the new stim-queue work properly
      
+** TODO Add more log parsing methods
+** TODO unfuckulate agent serializing
+   currently doing it in a fugly manner since scodec stopped working for some reason.
 * Later
 ** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Add UI event firing from entrypoint
@@ -101,6 +103,8 @@
    
    
 * Finished
+** DONE fix segment length issue.
+   ups...
 ** DONE Stimulus
 *** DONE Rewrite stimulus.
 **** DONE Write

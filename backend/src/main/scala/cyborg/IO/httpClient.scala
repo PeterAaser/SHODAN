@@ -37,7 +37,7 @@ object HttpClient {
   import io.circe.{ Encoder, Json }
   implicit val encodeFoo: Encoder[DspFuncCall] = new Encoder[DspFuncCall] {
     final def apply(a: DspFuncCall): Json = {
-      val (addrs, words) = a.args.unzip
+      val (words, addrs) = a.args.unzip
       DspFCS(a.func, addrs, words).asJson
     }
   }

@@ -5,3 +5,7 @@ rm -rf backend/target/
 rm -rf frontend/target/
 rm -rf shared/.js/target/
 rm -rf shared/.jvm/target/
+rm -rf ~/.ivy2
+rm -rf ~/.coursier
+rm -rf ~/.sbt/1.0/plugins/project/
+rm -rf ~/.sbt/1.0/plugins/target/

@@ -3,7 +3,7 @@ import sbt._
 
 object Dependencies {
   val doobieVersion = "0.5.0-RC2"
-  val fs2Version = "0.10.1"
+  val fs2Version = "0.10.2"
   val scodecVersion = "TODO"
   val http4sVersion = "0.18.0"
   val circeVersion = "0.9.1"
