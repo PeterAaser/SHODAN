@@ -23,7 +23,7 @@ object HttpClient {
 
   import DspRegisters._
 
-  case class DAQparams(samplerate: Int, segmentLength: Int, selectChannels: List[Int])
+  case class DAQparams(samplerate: Int, segmentLength: Int)
   case class DspFuncCall(func: Int, args: List[(Int, Int)])
   object DspFuncCall {
     def apply(func: Int, args: (Int,Int)*): DspFuncCall = {
@@ -107,16 +107,11 @@ object HttpClient {
 
   import params.experiment._
 
-  def startMEAMEserver: IO[String] = {
-    val daqParams = DAQparams(samplerate, segmentLength, List(1,2,3))
-    connectDAQrequest(daqParams).attempt flatMap {
-      case Left(e) => IO.pure("Something went wrong when connecting to the DAQ")
-      case Right(_) => startDAQrequest.attempt flatMap {
-        case Left(e) => IO.pure(s"Something went wrong when connection to the DAQ.\n$e")
-        case Right(resp) => {
-          IO.pure(s"Looks like we're good. resp was $resp")
-        }
-      }
-    }
+  def startMEAMEserver: IO[Unit] = {
+    val daqParams = DAQparams(samplerate, segmentLength)
+    for {
+      _ <- connectDAQrequest(daqParams)
+      _ <- startDAQrequest
+    } yield ()
   }
 }

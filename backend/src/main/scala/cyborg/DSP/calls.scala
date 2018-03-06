@@ -93,8 +93,9 @@ object DspCalls {
 
   def test: IO[Unit] = {
     for {
+      _ <- waveformGenerator.squareWave(0, 0.4.second, 0.8.second, 0, 4000)
+      _ <- IO { Thread.sleep(1000) }
       _ <- stimRequest(0, 3.second.toDSPticks, List(0))
-      // _ <- stimRequest(0, 3.second.toDSPticks, List(2))
       _ <- IO { Thread.sleep(1000) }
       _ <- startStimQueue
       _ <- IO { Thread.sleep(1000) }

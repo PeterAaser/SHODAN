@@ -13,19 +13,27 @@
   Perhaps this is prudent for more parts of the codebase, ensure that each component is a persistent 
   container for its internal streams which may be interrupted and restarted.
 
+  
 * Neste gang
-  Fix logging of sq internal state.
-  Implement state views in log reader.
   
 * Doing
   
 * Now 
-** TODO Make the new stim-queue work properly
-     
-** TODO Add more log parsing methods
-** TODO unfuckulate agent serializing
-   currently doing it in a fugly manner since scodec stopped working for some reason.
+** TODO Investigate spark
+** TODO Less unescessary restarts for both SHODAN and MEAME
+*** DONE MEAME
+*** TODO SHODAN
+**** DONE [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** DONE [[*Redo entrypoint][Redo entrypoint]] 
+**** TODO UI support
+*** TODO Reset protocol(?)
+    Might not be necessary unless we somehow lose track of an input stream
+    In this scenario we can't demodulate the TCP datastream
+    Have actually managed to trigger this error, so it might be an issue
+
 * Later
+** TODO unfuckulate agent serializing
+   go back to scodec or circe
 ** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Add UI event firing from entrypoint
    Might not be the best way to do this, who knows.
@@ -48,17 +56,6 @@
 
 ** TODO Polish file playback
 ** TODO MCS file fixerino reduxerino
-** TODO Less unescessary restarts for both SHODAN and MEAME
-*** DONE MEAME
-*** TODO SHODAN
-**** DONE [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
-**** DONE [[*Redo entrypoint][Redo entrypoint]] 
-**** TODO UI support
-*** TODO Reset protocol(?)
-    Might not be necessary unless we somehow lose track of an input stream
-    In this scenario we can't demodulate the TCP datastream
-    Have actually managed to trigger this error, so it might be an issue
-
 ** TODO Add tests
    Maybe read the chapter on prop testing in the red book?
 *** DONE Get hello world test to run
@@ -82,8 +79,6 @@
     mutable construct, including an isReady IO[Bool].
     Sort of react-ish way of handling it
 
-** TODO Add TCP listening for other users, possibly on specific channels
-   With HTTP
 ** TODO Refactor registry representation
 *** DONE Refine register representation.
 *** DONE Check correctness of STG.scala
@@ -103,6 +98,13 @@
    
    
 * Finished
+** DONE Add TCP listening for other users, possibly on specific channels
+   it aint pretty though...
+   
+** DONE Make the new stim-queue work properly
+** DONE Add more log parsing methods
+** DONE unfuckulate agent serializing
+   currently doing it in a fugly manner since scodec stopped working for some reason.
 ** DONE fix segment length issue.
    ups...
 ** DONE Stimulus

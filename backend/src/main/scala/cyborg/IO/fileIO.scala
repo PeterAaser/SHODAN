@@ -111,4 +111,3 @@ object fileIO {
     Stream.emit(s).covary[F].through(text.utf8Encode).through(io.file.writeAll(path))
   }
 }
-

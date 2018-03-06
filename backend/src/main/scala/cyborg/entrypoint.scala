@@ -59,14 +59,25 @@ object staging {
     def handleMEAMEstateChange(state: Signal[IO,ProgramState])(implicit ec: EC): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.meameRunning)).changes.tail map { start =>
         say(s"handle meame state change with new state $start")
-        if(start) for {
-          s         <- HttpClient.startMEAMEserver
-          tcp       =  sIO.streamFromTCP(params.experiment.segmentLength)
-          broadcast <- Assemblers.broadcastDataStream(tcp, topics, rawDataTopic.publish)
-          _         <- state.modify(_.copy(stopData = broadcast.interrupt))
-          _         <- state.modify(_.copy(dbRecording = false))
-          _         <- broadcast.action
-        } yield ()
+        if(start) {
+          HttpClient.startMEAMEserver.attempt flatMap{ e =>
+            e match {
+              case Left(_) => for {
+                _         <- state.modify(_.copy( meameRunning = false))
+                _         <- IO { say("MEAME not responding") }
+              } yield ()
+
+              case Right(_) => for {
+                _         <- IO { say("MEAME responding") }
+                tcp       =  sIO.streamFromTCP(params.experiment.segmentLength)
+                broadcast <- Assemblers.broadcastDataStream(tcp, topics, rawDataTopic.publish)
+                _         <- state.modify(_.copy(stopData = broadcast.interrupt))
+                _         <- state.modify(_.copy(dbRecording = false))
+                _         <- broadcast.action
+              } yield ()
+            }
+          }
+        }
         else for {
           s         <- state.get
           _         <- s.stopData
@@ -79,17 +90,17 @@ object staging {
 
     def handleRecordingStateChange(state: Signal[IO,ProgramState])(implicit ec: EC): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.dbRecording)).changes.tail map { start =>
-         say(s"handle recording state change with new state $start")
-         if(start) for {
-           record <- sIO.streamToDatabase(rawDataTopic.subscribe(10000),"")
-           _      <- state.modify(_.copy(stopRecording = record.interrupt))
-           _      <- record.action
-         } yield ()
-         else for {
-           s      <- state.get
-           _      <- s.stopRecording
-           _      <- state.modify(_.copy(stopRecording = IO { say("Running no op action stop recording from handle recording state change")} ))
-         } yield ()
+        say(s"handle recording state change with new state $start")
+        if(start) for {
+          record <- sIO.streamToDatabase(rawDataTopic.subscribe(10000),"")
+          _      <- state.modify(_.copy(stopRecording = record.interrupt))
+          _      <- record.action
+        } yield ()
+        else for {
+          s      <- state.get
+          _      <- s.stopRecording
+          _      <- state.modify(_.copy(stopRecording = IO { say("Running no op action stop recording from handle recording state change")} ))
+        } yield ()
       }
 
       tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
@@ -180,11 +191,6 @@ object staging {
 
                 case DspBarf =>
                   DspLog.printDspLog
-
-                case DspUploadTest => {
-                  say("Doing the upload thingy now")
-                  dspStimTest.squareWaveUploadTest
-                }
 
                 case DspStimTest => {
                   say("Firing off stim test")

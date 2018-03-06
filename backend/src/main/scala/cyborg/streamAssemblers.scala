@@ -44,7 +44,7 @@ object Assemblers {
       wsAgentServer  <- webSocketAgentServer
       wsVizServer    <- webSocketVizServer
 
-      _ <- commandQueue.dequeue.through(commandPipe)
+      _ <- commandQueue.dequeue.through(commandPipe).concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
     } yield ()
     s.handleErrorWith(z => {say(z); throw z})
   }
@@ -91,10 +91,6 @@ object Assemblers {
     topics: List[Topic[IO,TaggedSegment]],
     rawSink: Sink[IO,TaggedSegment]
   )(implicit ec: EC): IO[InterruptableAction[IO]] = {
-
-    // say("Creating a broadcast datastream IO")
-
-    import params.experiment.totalChannels
 
     val interrupted = signalOf[IO,Boolean](false)
 
