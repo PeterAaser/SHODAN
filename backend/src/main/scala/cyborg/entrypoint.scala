@@ -30,8 +30,8 @@ object staging {
     stopRecording   : IO[Unit],
     agentRunning    : Boolean,
     stopAgent       : IO[Unit],
-
   )
+
   import cats.kernel.Eq
   implicit val eqPS: Eq[ProgramState] = Eq.fromUniversalEquals
 

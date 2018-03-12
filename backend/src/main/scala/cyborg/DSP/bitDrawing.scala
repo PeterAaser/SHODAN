@@ -1,6 +1,7 @@
 package cyborg
 
 import twiddle._
+import utilz._
 
 object BitDrawing {
 

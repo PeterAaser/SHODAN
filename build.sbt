@@ -1,94 +1,166 @@
-import com.lihaoyi.workbench._
-import Dependencies._
+import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.remote.DesiredCapabilities
 
-name := "SHODAN"
+name := "shodan"
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+inThisBuild(Seq(
+  version := "0.1.0-SNAPSHOT",
+  scalaVersion := Dependencies.versionOfScala,
+  organization := "cyborg",
+  scalacOptions ++= Seq(
+    "-feature",
+    "-deprecation",
+    "-unchecked",
+    "-language:implicitConversions",
+    "-language:existentials",
+    "-language:dynamics",
+    "-Xfuture",
+    // "-Xfatal-warnings",
+    // "-Xlint:_,-missing-interpolator,-adapted-args"
+  ),
+))
 
-scalaVersion in ThisBuild := "2.12.3"
-version in ThisBuild := "0.1.0-SNAPSHOT"
-organization in ThisBuild := "cyborg"
-crossPaths in ThisBuild := false
-scalacOptions in ThisBuild ++= Seq(
-  "-language:implicitConversions",
-  "-language:existentials",
-  "-language:dynamics",
-  "-language:higherKinds",
-  "-Xfuture"
-  // "-Yno-predef",   // no automatic import of Predef (removes irritating implicits)
+val TestAndCompileDep = "test->test;compile->compile"
+
+// Custom SBT tasks
+val copyAssets = taskKey[Unit]("Copies all assets to the target directory.")
+val cssDir = settingKey[File]("Target for `compileCss` task.")
+val compileCss = taskKey[Unit]("Compiles CSS files.")
+val compileStatics = taskKey[File](
+  "Compiles JavaScript files and copies all assets to the target directory."
 )
-scalacOptions in ThisBuild --= Seq(
-  "-Ywarn-unused"
+val compileAndOptimizeStatics = taskKey[File](
+  "Compiles and optimizes JavaScript files and copies all assets to the target directory."
 )
 
-resolvers += Resolver.sonatypeRepo("releases")
-
-autoCompilerPlugins := true
-
-fork in run := true
-
-
-/**
-  collect shared dependencies from Dependencies.scala
-  */
-def crossLibs(configuration: Configuration) = {
-  libraryDependencies ++= crossDeps.value.map(_ % configuration)
+// Settings for JS tests run in browser
+val browserCapabilities: DesiredCapabilities = {
+  // requires ChromeDriver: https://sites.google.com/a/chromium.org/chromedriver/
+  val capabilities = DesiredCapabilities.chrome()
+  capabilities.setCapability(ChromeOptions.CAPABILITY, {
+    val options = new ChromeOptions()
+    options.addArguments("--headless", "--disable-gpu")
+    options
+  })
+  capabilities
 }
 
+// Reusable settings for all modules
+val commonSettings = Seq(
+  moduleName := "shodan-" + moduleName.value,
+)
 
-/**
-  Root of the project, basically aggregates shared, front and back
-  */
-lazy val SHODAN = project.in(file("."))
-  .aggregate(sharedJS, sharedJVM, frontend, backend)
+// Reusable settings for modules compiled to JS
+val commonJSSettings = Seq(
+  emitSourceMaps in Compile := true,
+  // enables scalajs-env-selenium plugin
+  Test / jsEnv := new SeleniumJSEnv(browserCapabilities),
+)
+
+lazy val root = project.in(file("."))
+  .aggregate(sharedJS, sharedJVM, frontend, backend, packager)
   .dependsOn(backend)
   .settings(
     publishArtifact := false,
-    fork in run := true,
-    mainClass in Compile := Some("cyborg.Launcher")
+    Compile / mainClass := Some("cyborg.backend.Launcher")
   )
 
-
-lazy val shared = crossProject.crossType(CrossType.Pure).in(file("shared"))
+lazy val shared = crossProject
+  .crossType(CrossType.Pure).in(file("shared"))
+  .settings(commonSettings)
+  .jsSettings(commonJSSettings)
   .settings(
-    fork in run := true,
-    crossLibs(Provided)
+    libraryDependencies ++= Dependencies.crossDeps.value,
+    libraryDependencies ++= Dependencies.crossTestDeps.value
   )
-
 
 lazy val sharedJVM = shared.jvm
 lazy val sharedJS = shared.js
 
-
-/**
-  Honestly I have no fucking clue what any of this stuff does
-  */
-lazy val backend = project.in(file("backend"))
-  .dependsOn(sharedJVM)
+val frontendWebContent = "UdashStatics/WebContent"
+lazy val frontend = project.in(file("frontend"))
+  .enablePlugins(ScalaJSPlugin) // enables Scala.js plugin in this module
+  .dependsOn(sharedJS % TestAndCompileDep)
+  .settings(commonSettings)
+  .settings(commonJSSettings)
   .settings(
-    libraryDependencies ++= backendDeps.value,
-    fork in run := true,
-    crossLibs(Provided),
+    libraryDependencies ++= Dependencies.frontendDeps.value,
+    jsDependencies ++= Dependencies.frontendJSDeps.value, // native JS dependencies
 
-    watchSources ++= (sourceDirectory in frontend).value.get
+    // Make this module executable in JS
+    Compile / mainClass := Some("cyborg.frontend.JSLauncher"),
+    scalaJSUseMainModuleInitializer := true,
+
+    // Implementation of custom tasks defined above
+    copyAssets := {
+      IO.copyDirectory(
+        sourceDirectory.value / "main/assets",
+        target.value / frontendWebContent / "assets"
+      )
+      IO.copyFile(
+        sourceDirectory.value / "main/assets/index.html",
+        target.value / frontendWebContent / "index.html"
+      )
+    },
+
+    // Compiles CSS files and put them in the target directory
+    cssDir := (Compile / fastOptJS / target).value / frontendWebContent / "styles",
+    compileCss := Def.taskDyn {
+      val dir = (Compile / cssDir).value
+      val path = dir.absolutePath
+      dir.mkdirs()
+      (backend / Compile / runMain).toTask(s" cyborg.backend.css.CssRenderer $path false")
+    }.value,
+
+    // Compiles JS files without full optimizations
+    compileStatics := { (Compile / fastOptJS / target).value / "UdashStatics" },
+    compileStatics := compileStatics.dependsOn(
+      Compile / fastOptJS, Compile / copyAssets, Compile / compileCss
+    ).value,
+
+    // Compiles JS files with full optimizations
+    compileAndOptimizeStatics := { (Compile / fullOptJS / target).value / "UdashStatics" },
+    compileAndOptimizeStatics := compileAndOptimizeStatics.dependsOn(
+      Compile / fullOptJS, Compile / copyAssets, Compile / compileCss
+    ).value,
+
+    // Target files for Scala.js plugin
+    Compile / fastOptJS / artifactPath :=
+      (Compile / fastOptJS / target).value /
+        frontendWebContent / "scripts" / "frontend.js",
+    Compile / fullOptJS / artifactPath :=
+      (Compile / fullOptJS / target).value /
+        frontendWebContent / "scripts" / "frontend.js",
+    Compile / packageJSDependencies / artifactPath :=
+      (Compile / packageJSDependencies / target).value /
+        frontendWebContent / "scripts" / "frontend-deps.js",
+    Compile / packageMinifiedJSDependencies / artifactPath :=
+      (Compile / packageMinifiedJSDependencies / target).value /
+        frontendWebContent / "scripts" / "frontend-deps.js"
   )
 
-
-/**
-  Same as above. I dunno man
-  */
-lazy val frontend = project.in(file("frontend"))
-  .enablePlugins(ScalaJSPlugin)
-  .enablePlugins(ScalaJSBundlerPlugin)
-  .enablePlugins(WorkbenchPlugin)
-  .dependsOn(sharedJS)
+lazy val backend = project.in(file("backend"))
+  .dependsOn(sharedJVM % TestAndCompileDep)
+  .settings(commonSettings)
   .settings(
-    libraryDependencies ++= frontendDeps.value,
-    crossLibs(Compile),
-    npmDependencies in Compile ++= Seq(
-      "react" -> "15.6.1",
-      "react-dom" -> "15.6.1",
-      "material-ui" -> "0.15.2"),
-    scalaJSUseMainModuleInitializer := true,
-    fork in run := true
+    libraryDependencies ++= Dependencies.backendDeps.value,
+    Compile / mainClass := Some("cyborg.backend.Launcher"),
+  )
+
+lazy val packager = project
+  .in(file("packager"))
+  .dependsOn(backend)
+  .enablePlugins(JavaServerAppPackaging)
+  .settings(commonSettings)
+  .settings(
+    normalizedName := "shodan",
+    Compile / mainClass := (backend / Compile / mainClass).value,
+
+    // add frontend statics to the package
+    Universal / mappings ++= {
+      import Path.relativeTo
+      val frontendStatics = (frontend / Compile / compileAndOptimizeStatics).value
+      (frontendStatics.allPaths --- frontendStatics) pair relativeTo(frontendStatics.getParentFile)
+    },
   )

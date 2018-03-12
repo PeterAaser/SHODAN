@@ -31,6 +31,8 @@
     In this scenario we can't demodulate the TCP datastream
     Have actually managed to trigger this error, so it might be an issue
 
+** TODO Investigate MEAME data
+   possibly fixed by changing channelsInBlock stuff
 * Later
 ** TODO unfuckulate agent serializing
    go back to scodec or circe
@@ -95,7 +97,6 @@
    Look at build.sbt.next
    When testing out the new build file make sure scala js
    actually updates.
-   
    
 * Finished
 ** DONE Add TCP listening for other users, possibly on specific channels

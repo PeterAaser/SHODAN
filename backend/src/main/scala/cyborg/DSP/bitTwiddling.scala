@@ -1,6 +1,6 @@
 package cyborg
 
-import scala.math.Ordered.orderingToOrdered
+import utilz._
 
 object twiddle {
 

@@ -3,15 +3,17 @@ package cyborg
 import cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.Topic
-import org.http4s.server.Server
 import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
 import cats.effect.Effect
+import cats.effect.Sync
 import cats.effect._
 import fs2.async._
 import fs2.async.mutable.Topic
 import cats.implicits._
+
+// import cyborg.backend.server.ApplicationServer._
 
 object Assemblers {
 
@@ -30,19 +32,15 @@ object Assemblers {
       commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
       topics         <- assembleTopics.through(vectorizeList(60))
-      debugQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,DebugMessages.DebugMessage])
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
-      httpServer           = Stream.eval(HttpServer.SHODANserver(commandQueue.enqueue, debugQueue))
-      webSocketAgentServer = Stream.eval(webSocketServer.webSocketAgentServer(agentQueue.dequeue))
-      webSocketVizServer   = Stream.eval(assembleWebsocketVisualizer(taggedSeqTopic.subscribe(100).through(_.map(_.data)).through(chunkify)))
+      rpcServer            = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend)
 
       agentSink            = agentQueue.enqueue
       commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
 
-      server         <- httpServer
-      wsAgentServer  <- webSocketAgentServer
-      wsVizServer    <- webSocketVizServer
+      frontend       <- rpcServer
+      _              <- Stream.eval(frontend.start)
 
       _ <- commandQueue.dequeue.through(commandPipe).concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
     } yield ()
@@ -181,17 +179,18 @@ object Assemblers {
   /**
     Takes in the raw dataStream before separating to topics for perf reasons
     */
-  def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
+  // def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
 
-    val filtered = rawInputStream
-      .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
-      .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
+  //   val filtered = rawInputStream
+  //     .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
+  //     .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
 
-    val server = webSocketServer.webSocketWaveformServer(filtered)
-    server
-  }
+  //   val server = webSocketServer.webSocketWaveformServer(filtered)
+  //   server
+  // }
 
 
   def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
-    mcsParser.processRecordings
+   mcsParser.processRecordings
+
 }

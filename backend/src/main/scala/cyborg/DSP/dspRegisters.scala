@@ -1,4 +1,7 @@
 package cyborg
+
+import utilz._
+
 object DspRegisters {
 
   import twiddle._
