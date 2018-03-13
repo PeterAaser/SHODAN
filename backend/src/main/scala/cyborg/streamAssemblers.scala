@@ -6,8 +6,6 @@ import fs2.async.mutable.Topic
 import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
-import cats.effect.Effect
-import cats.effect.Sync
 import cats.effect._
 import fs2.async._
 import fs2.async.mutable.Topic
@@ -29,12 +27,15 @@ object Assemblers {
     // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
     val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
     val s = for {
-      commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,HttpCommands.UserCommand])
+      commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,ControlTokens.UserCommand])
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
       topics         <- assembleTopics.through(vectorizeList(60))
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
-      rpcServer            = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend)
+      rpcServer            = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
+                                           commandQueue,
+                                           agentQueue.dequeue,
+                                           taggedSeqTopic))
 
       agentSink            = agentQueue.enqueue
       commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)

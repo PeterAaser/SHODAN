@@ -1,15 +1,9 @@
 package cyborg.shared.rpc.client
 
-// import cyborg.shared.rpc.client.chat.ChatNotificationsRPC
-// import io.udash.rpc._
+import cyborg._
 
-// @RPC
-// trait MainClientRPC {
-//   def chat(): ChatNotificationsRPC
-// }
-
-// object MainClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[MainClientRPC]
-
+import cyborg.wallAvoid.{ Agent, Coord }
+import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
 
 import io.udash.rpc._
 
@@ -19,5 +13,9 @@ import io.udash.rpc._
 @RPC
 trait MainClientRPC {
   def pongPush(id: Int): Unit
+  def wfPush(data: Array[Int]): Unit
+  def agentPush(agent: Agent): Unit
 }
-object MainClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[MainClientRPC]
+
+// object MainClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[MainClientRPC] {}
+// object MainClientRPC {}

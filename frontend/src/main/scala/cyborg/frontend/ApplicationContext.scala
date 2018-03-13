@@ -41,6 +41,8 @@ import cyborg.frontend.routing._
 import io.udash._
 import io.udash.rpc.DefaultServerRPC
 
+import cyborg.sharedImplicits._
+
 import cyborg._
 
 object Context {

@@ -1,20 +1,48 @@
 package cyborg.backend.server
 
 import cyborg._
+import fs2._
+import fs2.async.mutable.Queue
+import fs2.async.mutable.Topic
 import utilz._
 
 import cyborg.backend.rpc.ServerRPCendpoint
 import cyborg.shared.rpc.server.MainServerRPC
 import cats.effect._
+import cyborg.wallAvoid.Agent
 
 object ApplicationServer {
+
+
+  def waveformSink: Sink[IO,TaggedSegment] = {
+
+    def sendData: Sink[IO,Array[Int]] = {
+      def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
+        s.pull.unconsN(100, false) flatMap {
+          case Some((segment, tl)) => ???
+          case None => Pull.done
+        }
+      }
+      go(_).stream
+    }
+
+    in => in.through(_.map(_.data)).through(chunkify)
+      .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
+      .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
+      .through(sendData)
+  }
+
 
   case class RPCserver(s: org.eclipse.jetty.server.Server){
     def start: IO[Unit] = IO { s.start() }
     def stop: IO[Unit] = IO { s.stop() }
   }
 
-  def assembleFrontend(implicit ec: EC): IO[RPCserver] = {
+  def assembleFrontend(
+    userQ: Queue[IO,ControlTokens.UserCommand],
+    agent: Stream[IO,Agent],
+    waveForms: Topic[IO,TaggedSegment]
+    )(implicit ec: EC): IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
     import org.eclipse.jetty.server.Server
@@ -27,7 +55,7 @@ object ApplicationServer {
     def createAtmosphereHolder()(implicit ec: EC) = {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
-          new ServerRPCendpoint()(clientId, ec)
+          new ServerRPCendpoint(userQ)(clientId, ec)
         )
       )
 

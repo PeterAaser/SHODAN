@@ -20,7 +20,7 @@ import JsDom.all._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter) extends FinalView with CssView {
+class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter) extends ContainerView with CssView {
 
   say("hi")
 
@@ -49,9 +49,8 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
 
   override def getTemplate: Modifier = {
     div(
-      ForceBootstrap(
-        mainButtons()
-      )
+      mainButtons(),
+      childViewContainer
     ),
   }
 }
