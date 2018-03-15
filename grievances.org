@@ -1,0 +1,98 @@
+* The short list
+  +Better documentation, exaple code for configuring the DSP to stimulate electrodes.
+  +Error diagnostics on the DSP so I can at least know why it stops working
+  +Support for linux
+
+* API
+  The API is a smorgasbord of anti-patterns.
+  Consider the API for configuring the data-acquisition device in the CMcsUsbListNet.
+  The steps that needs to be taken are as follows:
+
+  Set the dataformat to SampleSizeNet.SampleSize32Signed
+  #+begin_src csharp
+      dataAcquisitionDevice.SetDataMode(DataModeEnumNet.dmSigned32bit, 0);
+  #+end_src
+
+  Collect data about channel layout
+  #+begin_src csharp
+      int ana, digi, che, tim, block;
+      dataAcquisitionDevice.GetChannelLayout(out ana, out digi, out che, out tim, out block, 0);
+  #+end_src
+
+  Configure requested data
+  #+begin_src csharp
+      bool[] selectedChannels = new bool[block*2];
+      for (int i = 0; i < block*2; i++){ selectedChannels[i] = true; } // hurr
+
+
+      bool[] nChannels         = selectedChannels;
+      int queueSize            = 640000;
+      int threshold            = segmentLength;
+      SampleSizeNet sampleSize = dataFormat;
+      int ChannelsInBlock      = block;
+
+      dataAcquisitionDevice.SetSelectedData
+        (nChannels,
+         queueSize,
+         threshold,
+         sampleSize,
+         ChannelsInBlock);
+  #+end_src
+
+  Contrast this to what I am actually trying to achieve: Getting data from a set of channels.
+  The Actual API should reflect this, with a signature that addresses the users concerns, not 
+  the underlying implementation. Consider the following API:
+
+  #+begin_src csharp
+  void goodAPI(uint[] selectedChannels,
+               meaSamplerates samplerate,
+               Action<int,int,int> onReceivedData)
+  #+end_src
+
+  This is all the information I care about as a user, exposing all the implementation details serves
+  no purpose as the device will only produce the correct data with one configuration.
+
+  This is a reoccuring theme, the API exposes an incredible amount of methods, where very few have good 
+  documentation (see attached file)
+
+* Documentation
+  The API is not good, and the documentation does not help. First of all the API
+  is contained in some proprietary windows format (chm) that is not only
+  completely useless on a GNU/Linux or OSX machine, but it also utterly fail at
+  being useful when run on a windows computer.
+  
+  What's worse is the supplied exaple, a monstrosity that contains 9 programs for the price of one
+  (plus your sanity) thanks to creative use of #ifdef. Here some code is commented out, the user-
+  interface and configuration code is all mixed in a single file, and the example actually fails to
+  work on MEA2100 (see provided exaple, taken verbatim from the mcsUsb download)
+
+* The DSP
+  The DSP is a little used feature, but that is a product of lacking documentation and missing APIs.
+  The supplied manual does not contain descriptions on how to DO things. When I read it I am looking
+  for information on how to upload stimuli, or how to trigger certain electrodes. Instead the manual
+  simply describes the system, leaving it up to the user to figure out how it all relates and how to
+  achieve simple goals.
+
+  Needless to say, the exaple code is an abomination, and simple things like providing printing info 
+  to the host system is absent.
+
+* Broken stuff
+  The DSP frequently breaks, forcing a powercycle. Why this happens is completely unknown, as no 
+  error message is provided. One culprit seems to be not disconnecting from the device by the host
+  C# program (which is also very awkward, as per the API section). However the issue still happens 
+  when not developing on the DSP.
+
+  a personal favorite is how the DSP upload API silently fails if no file is found. That issue
+  took me days to track down...
+
+* Windows
+  I know it's a tecnological challenge to add support for Linux, but it would be nice to offer tools 
+  for developing on linux, for instance makefiles for the DSP so I wouldn't have to use that atrocity
+  of an IDE inflicted upon mankind by texas instruments. My workflow is to develop on my linux system
+  which synchronizes the code with the actual windows lab computer, then using remote desktop protocol
+  to manually click the compile button like some utter pedestrian.
+
+* Tools in general
+  Data management is terrible. For managing data a relational database should be used, storing metadata,
+  allowing users to query data such as "all records performed by Ola on MEA 3 between june and july with
+  length of 10 minutes and longer". I have implemented this, but it should be a standard feature. 

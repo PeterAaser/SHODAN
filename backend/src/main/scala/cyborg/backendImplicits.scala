@@ -11,7 +11,6 @@ object backendImplicits {
   import java.util.concurrent.Executors
 
   implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  //                                                                                                        hehe
   implicit val Sch : Scheduler = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(16, threadFactoryFactoryProxyBeanFactory.mkThreadFactory("scheduler", daemon = true)))
 }
 

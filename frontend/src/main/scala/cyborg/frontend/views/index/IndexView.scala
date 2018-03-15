@@ -70,6 +70,7 @@ class IndexViewPresenter(model: ModelProperty[IndexModel]) extends Presenter[Ind
     }
 
     Context.serverRpc.pingPush(123)
+    Context.applicationInstance.goTo(LiveState)
   }
 
   def onPlaybackClick(btn: UdashButton) =
