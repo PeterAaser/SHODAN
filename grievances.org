@@ -1,7 +1,7 @@
 * The short list
-  +Better documentation, exaple code for configuring the DSP to stimulate electrodes.
-  +Error diagnostics on the DSP so I can at least know why it stops working
-  +Support for linux
+  + Better documentation, exaple code for configuring the DSP to stimulate electrodes.
+  + Error diagnostics on the DSP so I can at least know why it stops working
+  + Support for linux
 
 * API
   The API is a smorgasbord of anti-patterns.
