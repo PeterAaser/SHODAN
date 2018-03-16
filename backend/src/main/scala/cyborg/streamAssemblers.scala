@@ -3,6 +3,7 @@ package cyborg
 import cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.Topic
+import _root_.io.udash.rpc.ClientId
 import scala.language.higherKinds
 import utilz._
 import cats.effect.IO
@@ -32,10 +33,15 @@ object Assemblers {
       topics         <- assembleTopics.through(vectorizeList(60))
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
+      waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
+      agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
+
       rpcServer            = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                            commandQueue,
                                            agentQueue.dequeue,
-                                           taggedSeqTopic))
+                                           taggedSeqTopic,
+                                           agentListeners,
+                                           waveformListeners))
 
       agentSink            = agentQueue.enqueue
       commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
@@ -97,6 +103,7 @@ object Assemblers {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
+
           case Some((taggedSeg, tl)) => {
             val idx = taggedSeg.channel
             if(idx != -1){

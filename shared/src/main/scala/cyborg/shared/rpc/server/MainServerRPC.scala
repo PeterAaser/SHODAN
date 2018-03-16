@@ -11,7 +11,10 @@ import cyborg._
 trait MainServerRPC {
   def ping(id: Int): Future[Int]
   def pingPush(id: Int): Unit
-  // def queryMeameState: Future[ProgramStateDescription]
+  def registerWaveform: Unit
+  def unregisterWaveform: Unit
+  def registerAgent: Unit
+  def unregisterAgent: Unit
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

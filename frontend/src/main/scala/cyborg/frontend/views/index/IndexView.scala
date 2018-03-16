@@ -56,8 +56,6 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
 }
 
 
-
-
 class IndexViewPresenter(model: ModelProperty[IndexModel]) extends Presenter[IndexState.type] {
 
   import cyborg.frontend.Context

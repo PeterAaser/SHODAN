@@ -13,9 +13,11 @@ import io.udash.rpc._
 @RPC
 trait MainClientRPC {
   def pongPush(id: Int): Unit
-  def wfPush(data: Array[Int]): Unit
+  def wf(): WfClientRPC
   def agentPush(agent: Agent): Unit
 }
 
-// object MainClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[MainClientRPC] {}
-// object MainClientRPC {}
+@RPC
+trait WfClientRPC {
+  def wfPush(data: Array[Int]): Unit
+}

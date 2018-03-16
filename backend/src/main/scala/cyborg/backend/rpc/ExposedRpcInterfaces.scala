@@ -6,6 +6,7 @@ package cyborg.backend.rpc
 ////////////////////////////////////////
 
 import cyborg.wallAvoid.Coord
+import fs2.async.Ref
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
@@ -31,7 +32,10 @@ object ClientRPChandle {
 }
 
 
-class ServerRPCendpoint(userQ: Queue[IO,ControlTokens.UserCommand])(implicit ci: ClientId, ec: EC) extends MainServerRPC {
+class ServerRPCendpoint(userQ: Queue[IO,ControlTokens.UserCommand],
+                        wfListeners: Ref[IO,List[ClientId]],
+                        agentListeners: Ref[IO,List[ClientId]])
+                       (implicit ci: ClientId, ec: EC) extends MainServerRPC {
 
   implicit val coordCodec: GenCodec[Coord] = GenCodec.materialize
   implicit val agentCodec: GenCodec[Agent] = GenCodec.materialize
@@ -42,11 +46,24 @@ class ServerRPCendpoint(userQ: Queue[IO,ControlTokens.UserCommand])(implicit ci:
   }
 
 
+  override def registerWaveform: Unit =
+    wfListeners.modify(ci :: _).unsafeRunSync()
+
+  override def unregisterWaveform: Unit =
+    wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+
+  override def registerAgent: Unit =
+    agentListeners.modify(ci :: _).unsafeRunSync()
+
+  override def unregisterAgent: Unit =
+    agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+
+
   override def pingPush(id: Int): Unit = {
     val enq = userQ.enqueue1(ControlTokens.StopMEAME)
     val a = Agent(Coord(1.2, 1.3), 1.0, 100)
-    ClientRPChandle(ci).agentPush(a)
-    enq.unsafeRunAsync(_ => IO.unit)
+    ClientRPChandle(ci).wf().wfPush(Array(1,2,3))
+    enq.unsafeRunAsync(_ => ())
     TimeUnit.SECONDS.sleep(1)
     ClientRPChandle(ci).pongPush(id)
   }

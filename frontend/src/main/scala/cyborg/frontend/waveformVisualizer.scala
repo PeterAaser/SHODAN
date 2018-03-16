@@ -3,11 +3,11 @@ package cyborg
 import org.scalajs.dom
 import org.scalajs.dom.html
 
+import cyborg.frontend.services.rpc.RPCService
+
 object waveformVisualizer {
 
-  class WFVisualizerControl(
-    canvas: html.Canvas,
-    val dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
+  class WFVisualizerControl(canvas: html.Canvas, dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
 
     import params.waveformVisualizer._
 
