@@ -1,11 +1,14 @@
 package cyborg.backend.server
 
 import cyborg._
+import cyborg.RPCmessages._
+import utilz._
+
 import fs2._
 import fs2.async.Ref
+import fs2.async.mutable.Signal
 import fs2.async.mutable.Queue
 import fs2.async.mutable.Topic
-import utilz._
 
 import cyborg.backend.rpc.ServerRPCendpoint
 import cyborg.shared.rpc.server.MainServerRPC
@@ -15,27 +18,45 @@ import _root_.io.udash.rpc._
 
 object ApplicationServer {
 
-  def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
+
+
+  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,TaggedSegment]] = {
+
     import cyborg.backend.rpc.ClientRPChandle
-    listeners.get map { λl => λl.foreach{ λc => ClientRPChandle(λc).wf().wfPush(wf) }}
-  }
 
-
-  def waveformSink(listeners: Ref[IO, List[ClientId]])(implicit ec: EC): Sink[IO,TaggedSegment] = {
     def sendData: Sink[IO,Array[Int]] = {
+
+      // Gets listeners, pushes waveform to each listener.
+      def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
+        listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
+      }
+
       def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
           case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners: Ref[IO, List[ClientId]])) >> go(tl)
           case None => Pull.done
         }
       }
+
       go(_).stream
     }
 
-    in => in.through(_.map(_.data)).through(chunkify)
-      .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
-      .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
-      .through(sendData)
+    import params.waveformVisualizer.pointsPerMessage
+
+    getConf map { conf =>
+
+      val pointsPerSec = conf.experimentSettings.samplerate
+      val pointsNeededPerSec = 200
+
+      val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
+
+      say(s"Created a waveform sink with $conf")
+      in => in.through(_.map(_.data)).through(chunkify)
+        .through(downsampler)
+        .through(mapN(pointsPerMessage, _.force.toArray))
+        .through(sendData)
+
+    }
   }
 
 
@@ -45,11 +66,13 @@ object ApplicationServer {
   }
 
   def assembleFrontend(
-    userQ: Queue[IO,ControlTokens.UserCommand],
-    agent: Stream[IO,Agent],
-    waveForms: Topic[IO,TaggedSegment],
-    agentListeners: Ref[IO,List[ClientId]],
-    waveformListeners: Ref[IO,List[ClientId]],
+    userQ             : Queue[IO,UserCommand],
+    agent             : Stream[IO,Agent],
+    waveForms         : Topic[IO,TaggedSegment],
+    agentListeners    : Ref[IO,List[ClientId]],
+    waveformListeners : Ref[IO,List[ClientId]],
+    state             : Signal[IO,ProgramState],
+    conf              : Signal[IO,Setting.FullSettings],
     )(implicit ec: EC): IO[RPCserver] = {
 
     import _root_.io.udash.rpc._

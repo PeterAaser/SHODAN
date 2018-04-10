@@ -5,6 +5,7 @@ import twiddle._
 import STG._
 import DspRegisters._
 import utilz._
+import bonus._
 import shapeless._
 import BitDrawing._
 

@@ -15,47 +15,34 @@
 
   
 * Neste gang
-  
+
 * Doing
   
 * Now 
-** TODO Investigate spark
-** TODO Less unescessary restarts for both SHODAN and MEAME
-*** DONE MEAME
-*** TODO SHODAN
-**** DONE [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
-**** DONE [[*Redo entrypoint][Redo entrypoint]] 
-**** TODO UI support
-*** TODO Reset protocol(?)
-    Might not be necessary unless we somehow lose track of an input stream
-    In this scenario we can't demodulate the TCP datastream
-    Have actually managed to trigger this error, so it might be an issue
-
+** TODO Figure out how to better handle reporting equipment failure
+** TODO Prune shared state, separate static and dynamic settings
+** TODO Find time library that plays well with psql and the jvm/js boundary
 ** TODO Investigate MEAME data
    possibly fixed by changing channelsInBlock stuff
-* Later
-** TODO unfuckulate agent serializing
-   go back to scodec or circe
-** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
-** TODO Add UI event firing from entrypoint
-   Might not be the best way to do this, who knows.
 ** TODO Improve the frontend
-*** TODO Get rid of the annyoing redundant clicks!!
+*** DONE Get rid of the annyoing redundant clicks!!
 *** TODO Settings accessible on the frontend
-*** TODO Make a spec before randomly writing a lot of code
-*** TODO Redo basic UI
+*** DONE Redo basic UI
    Added react, now to learn using it. Ish
 
-*** TODO Add functionality for making a recording
+*** DONE Add functionality for making a recording
 **** TODO UI elements
 **** TODO Backend support
 
-*** TODO Functionality for stim protocols?
+*** DONE Functionality for stim protocols?
 **** TODO UI elements
 **** TODO MEAME support?
 **** TODO DSP support
     See refactoring representation element
 
+    
+* Later
+** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Polish file playback
 ** TODO MCS file fixerino reduxerino
 ** TODO Add tests
@@ -93,12 +80,26 @@
    Let this be handled on the DSP for now...
 *** TODO Refactor HttpClient stuff, get the forest under control.
    
-** TODO Redo build file
+    
+* Finished
+** DONE Remove visualizers dependency on experiment parameters
+   Sending wf data should be done with packets of data. The currently used 
+   implementation had to work with a raw byte array. Not so fun...
+** DONE Less unescessary restarts for both SHODAN and MEAME
+*** DONE MEAME
+*** DONE SHODAN
+**** DONE [[*Chunk all data from TCP for easier restarts etc][Chunk Incoming]]
+**** DONE [[*Redo entrypoint][Redo entrypoint]] 
+**** DONE UI support
+
+** DONE Redo build file
    Look at build.sbt.next
    When testing out the new build file make sure scala js
    actually updates.
    
-* Finished
+** DONE unfuckulate agent serializing
+   go back to scodec or circe
+** DONE Convert all configurable top level methods to be under IO to facilitate Signal of Conf
 ** DONE Add TCP listening for other users, possibly on specific channels
    it aint pretty though...
    
@@ -390,81 +391,6 @@ amazing
 PeterAaser @PeterAaser 16:09
 we should totally find out what it is and find a way to incorporate it into the fs2 docs
 
-* React
-  < is for tags and tag attributes (<.div and <div looks similar)
-  ^ is for attributes since it's concise
-
-  underscore seemingly indicates we don't want to care about renderscope
-
-  render_P: ((String) => VDomElement)                                  => Step4
-  renderP:  ((RenderScope[String, Unit, Unit], String) => VDomElement) => Step4
-
-  the renderScope is typically passed as $ (which is a legal identifier in scala, who knew)
-
-  props: basically function argument for a UI component
-  state: stuff that changes which a component may or may not react to (?)
-
-* React Code scalajs vs js
-#+begin_src js
-  class ProductCategoryRow extends React.Component {
-    render() {
-      return (
-        <tr>
-          <td style={{fontWeight: 'bold'}}>{this.props.category}</td>
-        </tr>
-      );
-    }
-  }
-#+end_src
-
-  translates to
-
-#+begin_src scala
-  val ProductCategoryRow_ = ScalaComponent.builder[String]("ProductCategoryRow")
-    .render_P(category => <.tr(<.th(^.colSpan := 2, category)))
-    .build
-#+end_src
-
-  The takeaway is that the render_P expects a string from a prop which the js version
-  does more explicitly
-  Also the scala version is very terse with the < and ^ notation, maybe we can afford
-  more linebreaks, keeping in mind that the js version also has to close...
-
-** More
-#+begin_src js
-class Timer extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      secondsElapsed: 0
-    };
-    this.tick = this.tick.bind(this);
-  }
-
-  tick() {
-    this.setState({secondsElapsed: this.state.secondsElapsed + 1});
-  }
-
-  componentDidMount() {
-    this.interval = setInterval(this.tick, 1000);
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.interval);
-  }
-
-  render() {
-    return React.createElement("div", null, "Seconds Elapsed: ", this.state.secondsElapsed);
-  }
-}
-
-ReactDOM.render(React.createElement(Timer), mountNode);
-#+end_src
-
-* Circe
-  Figure out how I can work with Map for working with registers info without having to resort to
-  the clumsy stuff I'm using now.
-
 * On registers and DSPs
   Problem: A device can be controlled by setting bits, however this is a very
   primitive encoding, offering no semantic description.
@@ -540,6 +466,8 @@ ReactDOM.render(React.createElement(Timer), mountNode);
    However this does not hold for numbers!
    
    
+* Deploying
+  Run ~/ngrok/ngrok 8080
 
 * About neurons
 ** Filtering
@@ -682,32 +610,6 @@ ReactDOM.render(React.createElement(Timer), mountNode);
     
 ** A bug in fs2
    TODO write about it
-* FS2 mysteries
-** Termination of unit streams
-   for some F[Unit] we may or may not get a reasonable termination.
-   Consider the following: 
-   val a = IO { println("hello") }
-   val b = IO { read data from a socket and write to a different socket }
-   Obviously a terminates, b does not, but this isn't really apparent in the signatures.
-   This has a tendency to trip me up when using evalMap!
-   
-   val s = Stream(0,1,2,3).repeat.evalMap( z => if(z mod 2) a else b)
-
-   Here I'm thinking that this won't clog, but of course it will because on token 1 we start an 
-   IO action that will not terminate.
-   
-   Typically this ends with me using something silly like
-   
-   (Stream(0,1,2,3).repeat.map( z => if(z mod 2) a else b)).through(_.map(Stream.eval(_))).joinUnbounded
-   
-   This is silly, it would be better if tasks would themselves indicate that they were async or sync,
-   and this certainly exists in fs2 or the cats IO ecosystem!
-   
-   I suppose this is where you need Async, Schedulers, Strategies and more, since you want to have 
-   a strategy for performing async tasks instead of defining the execution strategy at the task creation!
-   
-   
-   
    
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed
@@ -793,3 +695,59 @@ ReactDOM.render(React.createElement(Timer), mountNode);
       */
       def bracket[F[_], R, O](r: F[R])(use: R => Stream[F, O], release: R => F[Unit]): Stream[F, O] = ...
    #+end_src
+
+* Data that should be communicated between MEAME, SHODAN backend and frontend
+** MEAME and SHODAN
+   MEAME state should be kept to a minimum.
+   A configuration must be supplied whenever an action is requested.
+   i.e startIfConfigured -> Bool is a huge no-no.
+   
+   The only information that should be requestable is device state (is DSP enabled mostly)
+   Even DAQ state should ideally be unavailable, thus to get info SHODAN should probe this.
+   An example of this is that it is SHODANs responsibility to check if the DSP is broken via
+   the existing interface.
+
+** backend and frontend
+    The information Needed for a recording and starting a record should mostly be the same, but flowing
+    in opposite direction
+    
+    segment length is pretty irrelevant it seems. Maybe just fix it? It's certainly not something a 
+    user should be interested in.
+    
+    add a samplerate -> segment length function then?
+    
+*** General
+    + MEAME operational
+      This should either be yes or failure message (so Either[List[Error],Unit]?)
+      
+      Possible errors: MEAME not online
+      DSP broken (powercycle needed)
+      Something wrong with SHODAN (database not working for instance)
+      
+    In order to simplify, if states are not in sync (i.e recording is running this should be
+    a simple yes/no question rather than attempting to accurately convey what is happening)
+    
+*** Playback
+    + Samplerate
+    + date
+    + comment if available
+    + duration if available
+
+*** Live
+    + Samplerate
+    + some filtering parameters
+    + some GA parameters
+      
+**** Recording
+     + comment plz
+     + hmm
+      
+*** Visualizing
+    For visualization we must know how much to downsample. For the moment let's fix canvas size.
+    Possibly rename params to staticConfig to clearly separate it.
+    
+   
+* Adding sideband data?
+  It could for some recordings be interesting to record when stim is running, in
+  case we want to use all electrodes.
+  This should be something that can be replicated, but why not just make it explicit?

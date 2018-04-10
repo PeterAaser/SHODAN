@@ -2,17 +2,19 @@ package cyborg
 
 import cyborg.wallAvoid.Agent
 import fs2._
+import fs2.async.mutable.Signal
 import fs2.async.mutable.Topic
 import _root_.io.udash.rpc.ClientId
 import scala.language.higherKinds
-import utilz._
 import cats.effect.IO
 import cats.effect._
 import fs2.async._
 import fs2.async.mutable.Topic
 import cats.implicits._
 
-// import cyborg.backend.server.ApplicationServer._
+import cyborg.backend.server.ApplicationServer
+import cyborg.Setting._
+import cyborg.utilz._
 
 object Assemblers {
 
@@ -20,15 +22,17 @@ object Assemblers {
   type ffANNoutput = List[Double]
 
   /**
-    Assembles the necessary components to start SHODAN and then starts up the websocket and
-    http server
-    TODO: Maybe use a topic for raw data, might be bad due to information being lost before subbing?
+    Assembles the necessary components to start SHODAN
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
     // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
     val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
     val s = for {
-      commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,ControlTokens.UserCommand])
+      conf           <- Stream.eval(assembleConfig)
+      getConf        =  conf.get
+      state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
+
+      commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
       topics         <- assembleTopics.through(vectorizeList(60))
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
@@ -36,20 +40,27 @@ object Assemblers {
       waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
 
-      rpcServer            = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
-                                           commandQueue,
-                                           agentQueue.dequeue,
-                                           taggedSeqTopic,
-                                           agentListeners,
-                                           waveformListeners))
+      rpcServer      = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
+                                     commandQueue,
+                                     agentQueue.dequeue,
+                                     taggedSeqTopic,
+                                     waveformListeners,
+                                     agentListeners,
+                                     state,
+                                     conf))
 
-      agentSink            = agentQueue.enqueue
-      commandPipe          = staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink)
+      agentSink      = agentQueue.enqueue
+      commandPipe    <- Stream.eval(staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink, state, getConf))
+
+      visualizerSink <- Stream.eval(ApplicationServer.waveformSink(waveformListeners, getConf))
 
       frontend       <- rpcServer
       _              <- Stream.eval(frontend.start)
 
-      _ <- commandQueue.dequeue.through(commandPipe).concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
+      _ <- commandQueue.dequeue.through(commandPipe)
+             .concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
+             .concurrently(taggedSeqTopic.subscribe(1000).through(visualizerSink))
+
     } yield ()
     s.handleErrorWith(z => {say(z); throw z})
   }
@@ -61,15 +72,15 @@ object Assemblers {
     */
   def assembleInputFilter(
     broadcastSource: List[Topic[IO,TaggedSegment]],
-    channels: List[Channel],
-    spikeDetector: Pipe[IO,Int,Double]
-  )(implicit ec: EC): Stream[IO,ffANNinput] = {
+    spikeDetector: Pipe[IO,Int,Double],
+    getConf: IO[FullSettings]
+  )(implicit ec: EC): IO[Stream[IO,ffANNinput]] = getConf map { conf =>
+
+    val channels = conf.filterSettings.inputChannels
 
     // selects relevant topics and subscribe to them
     val inputTopics = (channels).toList.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(10000))
-
-    // def busyWork: Sink[IO,Int]
 
     // TODO Does not synchronize streams
     // This means, if at subscription time, one channel has newer input,
@@ -134,14 +145,8 @@ object Assemblers {
   }
 
 
-  /**
-    Simply creates a stream with the db/meame topics. Assumes 60 channels, not easily
-    parametrized with the import params thing because db might have more or less channels
-    TODO: Outdated, slated for removal. (just call directly?)
-    */
-  def assembleTopics(implicit ec: EC): Stream[IO,Topic[IO,TaggedSegment]] = {
+  def assembleTopics(implicit ec: EC): Stream[IO,Topic[IO,TaggedSegment]] =
     Stream.repeatEval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1,Vector[Int]())))
-  }
 
 
   /**
@@ -151,54 +156,48 @@ object Assemblers {
     dataSource: List[Topic[IO,TaggedSegment]],
     inputChannels: List[Channel],
     frontendAgentObserver: Sink[IO,Agent],
-    feedbackSink: Sink[IO,List[Double]])(implicit ec: EC): IO[InterruptableAction[IO]] = {
+    feedbackSink: Sink[IO,List[Double]],
+    getConf: IO[FullSettings])(implicit ec: EC): IO[InterruptableAction[IO]] = {
 
-    import params.experiment._
-    import params.filtering._
+    getConf flatMap { conf =>
 
-    def filter = spikeDetector.spikeDetectorPipe[IO](samplerate, MAGIC_THRESHOLD)
-    def inputSpikes = assembleInputFilter(dataSource, inputChannels, filter)
+      val filter = spikeDetector.spikeDetectorPipe[IO](getConf)
+      val inputSpikes = filter.flatMap{filter => assembleInputFilter(dataSource, filter, getConf)}
 
-    val experimentPipe: Pipe[IO, Vector[Double], Agent] = GArunner.gaPipe
+      val gaRunner = new GArunner(conf.gaSettings, conf.filterSettings)
 
-    signalOf[IO,Boolean](false).map { interruptSignal =>
-      val interruptTask = for {
-        _ <- interruptSignal.set(true)
-      } yield ()
+      val experimentPipe: Pipe[IO, Vector[Double], Agent] = gaRunner.gaPipe
 
-      val runTask = inputSpikes
-        .interruptWhen(interruptSignal
-                         .discrete
-                         .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
-        .through(experimentPipe)
-        .observe(frontendAgentObserver)
-        .through(_.map((λ: Agent) => {λ.distances}))
-        .through(feedbackSink)
-        .compile.drain
+      signalOf[IO,Boolean](false).map { interruptSignal =>
+        val interruptTask = for {
+          _ <- interruptSignal.set(true)
+        } yield ()
 
-      InterruptableAction(
-        interruptTask,
-        runTask
-      )
+        val runTask = inputSpikes flatMap (
+          _.interruptWhen(interruptSignal
+                           .discrete
+                           .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
+          .through(experimentPipe)
+          .observe(frontendAgentObserver)
+          .through(_.map((λ: Agent) => {λ.distances}))
+          .through(feedbackSink)
+          .compile.drain)
+
+        InterruptableAction(
+          interruptTask,
+          runTask
+        )
+      }
     }
   }
 
 
-  /**
-    Takes in the raw dataStream before separating to topics for perf reasons
-    */
-  // def assembleWebsocketVisualizer(rawInputStream: Stream[IO, Int]): IO[Server[IO]] = {
-
-  //   val filtered = rawInputStream
-  //     .through(mapN(params.waveformVisualizer.blockSize, _.force.toArray.head)) // downsample
-  //     .through(mapN(params.waveformVisualizer.wfMsgSize, _.force.toArray))
-
-  //   val server = webSocketServer.webSocketWaveformServer(filtered)
-  //   server
-  // }
+  def assembleConfig(implicit ec: EC): IO[Signal[IO, FullSettings]] =
+    fs2.async.signalOf[IO,FullSettings](FullSettings.default)
 
 
   def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
    mcsParser.processRecordings
+
 
 }

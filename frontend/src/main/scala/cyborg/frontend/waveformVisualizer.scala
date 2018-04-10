@@ -2,22 +2,32 @@ package cyborg
 
 import org.scalajs.dom
 import org.scalajs.dom.html
+import frontilz._
 
 import cyborg.frontend.services.rpc.RPCService
 
 object waveformVisualizer {
 
-  class WFVisualizerControl(canvas: html.Canvas, dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
+  class WFVisualizerControl(canvas: html.Canvas,
+                            dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
+
+    var maxVal = 600
 
     import params.waveformVisualizer._
 
     canvas.width = vizLength*8 + 4
     canvas.height = vizHeight*8 + 4
 
+    say(canvas.height)
+    say(canvas.width)
+
     var testan = 0
 
+    say("attempting to get context")
+    say(s"canvas: $canvas")
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
+    say("dunnit")
 
     renderer.font = "16 comic sans"
     renderer.textAlign = "center"
@@ -67,8 +77,7 @@ object waveformVisualizer {
       topRowWithCoords ::: middleRowsWithCoords ::: botRowWithCoords
 
 
-    // val groupSize = wfMsgSize/60
-    val groupSize = params.waveformVisualizer.reducedSegmentLength
+    val groupSize = params.waveformVisualizer.pointsPerMessage
     var running = false
 
     scalajs.js.timers.setInterval(50) {
@@ -98,7 +107,7 @@ object waveformVisualizer {
 
     // Takes a new datasegment and appends to the pixelarray
     def drawToPixelArray(data: Array[Int], index: Int): Unit = {
-      val (remainder, _) = pixels(index) splitAt(vizLength - reducedSegmentLength)
+      val (remainder, _) = pixels(index) splitAt(vizLength - groupSize)
       pixels(index) = (normalize(data).reverse.toArray ++ remainder)
     }
 

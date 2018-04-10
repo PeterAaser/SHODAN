@@ -16,15 +16,14 @@ import seqUtils._
 
   Currently not really a GA, just a mockup for the sake of API and some results
   */
-object GArunner {
-
-  import params.GA._
-  import params.filtering._
+class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.FilterSettings) {
 
   type ReservoirOutput = Vector[Double]
   type FilterOutput    = List[Double]
   type O               = Agent
 
+  import gaSettings._
+  import filterSettings._
 
   /**
     Sets up a simulation running an agent in 5 different initial poses
@@ -67,7 +66,7 @@ object GArunner {
 
     def init(s: Stream[IO,Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
       val initNetworks = (0 until pipesPerGeneration)
-        .map(_ => (Filters.FeedForward.randomNetWithLayout(layout)))
+        .map(_ => (Filters.FeedForward.randomNetWithLayout(filterSettings)))
         .toList
 
       say(s"Outputting $pipesPerGeneration pipes")

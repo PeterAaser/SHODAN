@@ -113,7 +113,7 @@ object BitDrawing {
 
     }
 
-    val merged = utilz.intersect(fields, reads)
+    val merged = bonus.intersect(fields, reads)
 
     merged.mapValues(λ => renderFieldGroup(λ._2, λ._1))
   }

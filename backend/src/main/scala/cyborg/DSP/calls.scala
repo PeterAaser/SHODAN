@@ -23,6 +23,7 @@ object DspCalls {
   val SLOW_MODE          = 7
   val STIM_REQUEST       = 8
   val ENABLE_STIM_GROUP  = 9
+  val NO_OP              = 10
 
   implicit class FiniteDurationDSPext(t: FiniteDuration) {
     def toDSPticks = (t.toMicros/20).toInt
@@ -91,19 +92,9 @@ object DspCalls {
             0     -> STIM_QUEUE_TOGGLE_VAL).void
 
 
-  def test: IO[Unit] = {
-    for {
-      _ <- waveformGenerator.squareWave(0, 0.4.second, 0.8.second, 0, 4000)
-      _ <- IO { Thread.sleep(1000) }
-      _ <- stimRequest(0, 3.second.toDSPticks, List(0))
-      _ <- IO { Thread.sleep(1000) }
-      _ <- startStimQueue
-      _ <- IO { Thread.sleep(1000) }
-      _ <- enableStimGroup(0)
-      _ <- IO { Thread.sleep(10000) }
-      _ <- stopStimQueue
-      _ <- IO { Thread.sleep(1000) }
-      _ <- DspLog.printDspLog
-    } yield()
-  }
+  def checkDsp: IO[Boolean] =
+    dspCall(NO_OP).attempt.map{
+      case Right(_) => true
+      case Left(_)  => false
+    }
 }

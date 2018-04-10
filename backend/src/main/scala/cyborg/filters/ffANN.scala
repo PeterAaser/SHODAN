@@ -67,10 +67,11 @@ object Filters {
     type Layout = List[Int]
 
 
-    def randomNetWithLayout(layout: Layout): FeedForward = {
+    def randomNetWithLayout(configuration: Setting.FilterSettings): FeedForward = {
       // say("Created random net with layout")
 
-      import params.ANN._
+      import configuration._
+      val layout = configuration.ANNlayout
 
       val neededBias = layout.tail.sum
       val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)

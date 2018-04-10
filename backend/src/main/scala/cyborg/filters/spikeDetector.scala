@@ -1,7 +1,8 @@
 package cyborg
 
 import fs2._
-import utilz._
+import cats.effect._
+import cats.implicits._
 
 object spikeDetector {
 
@@ -12,12 +13,13 @@ object spikeDetector {
     The spike detector feeds its output to a moving average pipe which ensures that the agent can
     act somewhat consistantly inbetween detected spikes.
     */
-  def spikeDetectorPipe[F[_]](sampleRate: Int, threshold: Int): Pipe[F, Int, Double] = s => {
+  def spikeDetectorPipe[F[_]: Effect](getConf: F[Setting.FullSettings]): F[Pipe[F, Int, Double]] = getConf map { conf =>
 
+    import conf.experimentSettings._
     import params.experiment.maxSpikesPerSec
 
-    val spikeCooldown = (sampleRate/maxSpikesPerSec)
-    say(spikeCooldown)
+    val spikeCooldown = (samplerate/maxSpikesPerSec)
+    val threshold = conf.filterSettings.MAGIC_THRESHOLD
 
     /**
       spikeCooldownTimer: The refactory period between two spikes
@@ -52,7 +54,7 @@ object spikeDetector {
     }
 
 
-    s.through(_.map(_ > threshold))
+    (s: Stream[F,Int]) => s.through(_.map(_ > threshold))
       .through(spikeDetector)
       .through(_.map(λ => (if(λ) 1 else 0)))
       .through(utilz.fastMovingAverage(10))

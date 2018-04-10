@@ -27,14 +27,15 @@ object sIO {
     */
   def streamToDatabase(
     rawDataStream: Stream[IO,TaggedSegment],
-    comment: String)
+    comment: String,
+    getConf: IO[Setting.FullSettings])
     (implicit ec: EC): IO[InterruptableAction[IO]] =
   {
     import fs2.async._
     import cats.implicits._
 
     signalOf[IO,Boolean](false).flatMap { interruptSignal =>
-      databaseIO.createRecordingSink("").map { recordingSink =>
+      databaseIO.createRecordingSink("", getConf).map { recordingSink =>
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
           rawDataStream

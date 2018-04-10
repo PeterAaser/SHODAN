@@ -5,6 +5,7 @@ import io.udash.wrappers.jquery._
 import org.scalajs.dom.Element
 import scala.scalajs.js.annotation.JSExport
 
+
 object JSLauncher extends CrossLogging {
   import cyborg.frontend.Context
 

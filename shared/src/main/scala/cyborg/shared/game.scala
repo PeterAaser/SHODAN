@@ -1,6 +1,6 @@
 package cyborg
 
-import utilz._
+// import utilz._
 
 object wallAvoid {
 

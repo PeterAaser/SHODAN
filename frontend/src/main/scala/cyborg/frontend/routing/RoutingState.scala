@@ -23,3 +23,5 @@ case object ErrorState extends FinalRoutingState(Some(RootState))
 
 case object IndexState extends ContainerRoutingState(Some(RootState))
 case object LiveState extends FinalRoutingState(Some(IndexState))
+case object RecordingState extends FinalRoutingState(Some(IndexState))
+case object DspTestState extends FinalRoutingState(Some(IndexState))

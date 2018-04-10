@@ -2,6 +2,9 @@ import org.scalajs.jsenv.selenium.SeleniumJSEnv
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.remote.DesiredCapabilities
 
+
+// resolvers += "Sonatype Public" at "https://oss.sonatype.org/content/groups/public/"
+
 name := "shodan"
 
 inThisBuild(Seq(
@@ -10,10 +13,11 @@ inThisBuild(Seq(
   organization := "cyborg",
   scalacOptions ++= Seq(
     "-feature",
+    "-language:higherKinds",
     "-deprecation",
     "-unchecked",
     "-language:implicitConversions",
-    "-language:existentials",
+    // "-language:existentials",
     "-language:dynamics",
     "-Xfuture",
     // "-Xfatal-warnings",
@@ -80,7 +84,8 @@ lazy val sharedJS = shared.js
 
 val frontendWebContent = "UdashStatics/WebContent"
 lazy val frontend = project.in(file("frontend"))
-  .enablePlugins(ScalaJSPlugin) // enables Scala.js plugin in this module
+  .enablePlugins(ScalaJSPlugin)
+  // .enablePlugins(ScalaJSBundlerPlugin)
   .dependsOn(sharedJS % TestAndCompileDep)
   .settings(commonSettings)
   .settings(commonJSSettings)

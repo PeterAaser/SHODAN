@@ -14,6 +14,8 @@
   
 * Getting started
 ** Installing
+   WARNING! THIS BRANCH RELIES ON JAWN 11.0, WHICH NECESSESITATES A LOCAL BUILD OF UDASH. MORE INFO SOON
+
    SHODAN is developed and tested on ubuntu 16.04, but should work on most GNU/Linux distros
    To build SHODAN only sbt (scala build tool) is required. Since the main compilation target
    of scala is java bytecode you must have a jvm installed in order to run sbt, but apart
@@ -133,7 +135,7 @@ def myDataFilter[F[_],O]: Pipe[F,Int,O] = ???
   
    Next, you need a sink to send the data you've generated in your filter:
    #+BEGIN_SRC scala
-def myDataStoreSink[F[_],O]: Sink[F,O] = _.through(_.map{ o => println(s"std.out is a database right?, $o) })
+def myDataStoreSink[F[_],O]: Sink[F,O] = _.through(_.map{ o => println(s"std.out is a database right?, $o") })
    #+END_SRC
    
    Now we have our filter and our storage, so how do we actually get it to run? What generally happens

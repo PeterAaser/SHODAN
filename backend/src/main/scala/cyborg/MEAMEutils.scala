@@ -80,6 +80,10 @@ object MEAMEutilz {
     val period = (1.0/d)
     (period*params.experiment.DSPticksPerSecond).toInt
   }
+
+  def getSegmentLength(samplerate: Int): Int = {
+    2000
+  }
 }
 
 

@@ -2,18 +2,17 @@ package cyborg.frontend.services.rpc
 
 import cyborg.shared.rpc.client.MainClientRPC
 import cyborg.shared.rpc.client.WfClientRPC
+import cyborg.shared.rpc.client.AgentClientRPC
 import cyborg.wallAvoid.Agent
 import scala.collection.mutable
 import cyborg.frontend.Context
 
+import cyborg._
+import frontilz._
+
 class RPCService extends MainClientRPC {
-  override def pongPush(id: Int): Unit =
-    println(s"pong push $id")
-
-  override def agentPush(agent: Agent): Unit =
-    println(agent)
-
   override def wf(): WfClientRPC = WfClient
+  override def agent(): AgentClientRPC = AgentClient
 }
 
 object WfClient extends WfClientRPC {
@@ -25,21 +24,22 @@ object WfClient extends WfClientRPC {
 
   // Kinda magical on the registering front
   def register(q: mutable.Queue[Array[Int]]): Unit = {
-    onWfUpdate = (λq: Array[Int]) => q.enqueue(λq)
-    wfRunning = true
+    onWfUpdate = (data: Array[Int]) => {
+      say("got data")
+      q.enqueue(data)
+    }
 
-    // TODO implement placeholder rpc
-    // should register
-    Context.serverRpc.ping(123)
+    wfRunning = true
+    Context.serverRpc.registerWaveform
   }
 
   def unregister(): Unit = {
     wfRunning = false
 
-    // TODO implement placeholder rpc
-    Context.serverRpc.ping(123)
-
-    // should unregister
+    Context.serverRpc.unregisterWaveform
   }
 }
 
+object AgentClient extends AgentClientRPC {
+  override def agentPush(agent: Agent): Unit = ()
+}

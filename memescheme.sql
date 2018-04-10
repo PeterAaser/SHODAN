@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS experimentInfo (
 CREATE TABLE IF NOT EXISTS experimentParams (
     experimentId     integer NOT NULL,
     sampleRate       integer NOT NULL,
-    segmentLength    integer NOT NULL,
-    duration         integer
+    segmentLength    integer NOT NULL
 );
 
 
@@ -45,7 +44,7 @@ CREATE TABLE IF NOT EXISTS experimentSubject (
 
 CREATE TABLE IF NOT EXISTS MEA (
     id      integer NOT NULL,
-    MEAname varchar NOT NULL, -- I AM NOT A NUMBER, I AM A FREE MAN!
+    MEAname varchar NOT NULL,
     info    varchar NOT NULL -- Placeholder for all sorts of exciting information about Neural cultures
 );
 

@@ -12,5 +12,7 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
   private val (url2State, state2Url) = bidirectional {
     case "/idx" => IndexState
     case "/idx/live" => LiveState
+    case "/idx/playback" => RecordingState
+    case "/idx/dspTests" => DspTestState
   }
 }

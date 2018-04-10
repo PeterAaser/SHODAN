@@ -2,6 +2,30 @@ package cyborg
 
 object BooleanNetwork {
 
+  // type RBN[+A] = (simpleRBN => (simpleRBN, A))
+
+  // def unit[A](a: A): RBN[A] = (net => (net, a))
+
+  // def map[A,B](n: RBN[A])(f: A => B): RBN[B] = net => {
+  //   val (nextNet, res) = n(net)
+  //   (nextNet, f(res))
+  // }
+
+  // def flatMap[A,B](n: RBN[A])(f: A => RBN[B]): RBN[B] = net => {
+  //   val (nextNet, res) = n(net)
+  //   f(res)(nextNet)
+  // }
+
+  // def modify(f: simpleRBN => simpleRBN): RBN[ Unit ] = net =>
+  //   (f(net), ())
+
+  // def get: RBN[simpleRBN] = net => (net, net)
+
+  // def runNet: RBN[ Readout ] =
+  //   net => net.update
+
+
+
   // type Edges = List[List[Int]]
   // type Rules = List[List[Boolean]]
 
@@ -29,27 +53,6 @@ object BooleanNetwork {
 
   // }
 
-  // type RBN[+A] = (simpleRBN => (simpleRBN, A))
-
-  // def unit[A](a: A): RBN[A] = (net => (net, a))
-
-  // def map[A,B](n: RBN[A])(f: A => B): RBN[B] = net => {
-  //   val (nextNet, res) = n(net)
-  //   (nextNet, f(res))
-  // }
-
-  // def flatMap[A,B](n: RBN[A])(f: A => RBN[B]): RBN[B] = net => {
-  //   val (nextNet, res) = n(net)
-  //   f(res)(nextNet)
-  // }
-
-  // def modify(f: simpleRBN => simpleRBN): RBN[ Unit ] = net =>
-  //   (f(net), ())
-
-  // def get: RBN[simpleRBN] = net => (net, net)
-
-  // def runNet: RBN[ Readout ] =
-  //   net => net.update
 
 
   // def findAttractor(maxLength: Int): RBN[ Readouts ] = net => {

@@ -11,6 +11,7 @@ object Launcher extends CrossLogging {
 
     say("wello")
 
+
     params.printParams()
     Assemblers.startSHODAN.compile.drain.unsafeRunSync()
   }

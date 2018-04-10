@@ -1,6 +1,6 @@
 package cyborg.backend.css
 
-import cyborg.shared.css.{ChatStyles, GlobalStyles, LoginPageStyles}
+// import cyborg.shared.css.{ChatStyles, GlobalStyles, LoginPageStyles}
 import io.udash.css._
 
 import scalacss.internal.{Renderer, StringRenderer}
@@ -15,9 +15,9 @@ class CssRenderer(path: String, renderPretty: Boolean) {
     new CssFileRenderer(path,
       Seq(
         // the list of styles to be rendered
-        GlobalStyles,
-        LoginPageStyles,
-        ChatStyles
+        // GlobalStyles,
+        // LoginPageStyles,
+        // ChatStyles
       ), createMain = true
     ).render()(renderer)
   }

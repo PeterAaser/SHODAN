@@ -1,7 +1,7 @@
 package cyborg
 
-import com.github.nscala_time.time.Imports._
-import com.github.nscala_time.time.Implicits._
+import org.joda.time._
+import org.joda.time.format.DateTimeFormat
 import cats.effect._
 import cats.effect.IO
 import fs2._
