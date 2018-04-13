@@ -19,6 +19,7 @@
 * Doing
   
 * Now 
+** TODO Move endpoints to using Queue
 ** TODO Figure out how to better handle reporting equipment failure
 ** TODO Prune shared state, separate static and dynamic settings
 ** TODO Find time library that plays well with psql and the jvm/js boundary

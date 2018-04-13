@@ -4,6 +4,7 @@ import fs2.async.mutable.Signal
 import java.io.IOException
 import cats.implicits._
 
+import RPCmessages._
 import cyborg.wallAvoid.Agent
 import fs2._
 import fs2.async.mutable.Topic
@@ -126,7 +127,7 @@ object staging {
       val tasks = state.discrete.through(_.map(z => (z.playbackId, z.playbackRunning))).changes.tail map { case(id, start) =>
         if(start) for {
           _         <- IO.unit
-          data      =  sIO.streamFromDatabase(id.toInt)
+          data      =  sIO.streamFromDatabase(id)
           broadcast <- Assemblers.broadcastDataStream(data, topics, rawDataTopic.publish)
           _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
           _         <- state.modify(_.copy(dbRecording = false))
@@ -157,16 +158,9 @@ object staging {
         case DBstopRecord =>
           state.modify( _.copy( dbRecording = false )).void
 
-        case RunFromDB(id) =>
+        case RunFromDB(recording) =>
           state.modify( _.copy( playbackRunning = true,
-                                playbackId      = id.toLong )).void
-
-        case RunFromDBNewest =>
-          for {
-            newest <- databaseIO.newestRecordingId
-            _      <- state.modify( _.copy( playbackRunning = true,
-                                            playbackId      = newest)).void
-          } yield ()
+                                playbackId      = recording.id )).void
 
         case StopData =>
           state.modify( _.copy( playbackRunning = false,
@@ -174,6 +168,9 @@ object staging {
 
         case AgentStart =>
           state.modify(s => s.copy( agentRunning = true )).void
+
+        case GetSHODANstate(p) => handleGetSHODANstate(p)
+        case GetRecordings(p) => handleGetRecordings(p)
 
         case DspBarf =>
           DspLog.printDspLog
@@ -201,12 +198,48 @@ object staging {
                .concurrently(handlePlaybackStateChange(state,actions))
     }
   }
+
+
+  // TODO figure out how to idiomatically handle this stuff
+  def handleGetSHODANstate(p: Promise[IO,EquipmentState]): IO[Unit] = {
+    def accumulateError(errors: Either[List[EquipmentFailure], Unit])(error: Option[EquipmentFailure]): Either[List[EquipmentFailure], Unit] = {
+      error match {
+        case Some(err) => errors match {
+          case Left(errorList) => Left(err :: errorList)
+          case Right(_) => Left(List(err))
+        }
+        case None => errors
+      }
+    }
+
+    val errors: Either[List[EquipmentFailure],Unit] = Right(())
+
+    val hurr: IO[Either[List[EquipmentFailure],Unit]] = HttpClient.getMEAMEhealthCheck.map { s =>
+      val durr: List[Option[EquipmentFailure]] = List(
+        (if(s.isAlive)    None else Some(MEAMEoffline)),
+        (if(s.dspAlive)   None else Some(DspDisconnected)),
+        (if(!s.dspBroken) None else Some(DspBroken)))
+
+      durr.foldLeft(errors){ case(acc,e) => accumulateError(acc)(e) }
+    }
+    val huh = hurr.attempt.map {
+      case Left(_) => Left(List(MEAMEoffline))
+      case Right(e) => e
+    }
+    huh flatMap(x => p.complete(x))
+  }
+
+
+  def handleGetRecordings(p: Promise[IO,List[RecordingInfo]])(implicit ec: EC): IO[Unit] = for {
+    experiments <- databaseIO.getAllExperiments
+    _ <- p.complete(experiments)
+  } yield ()
 }
 
 case class ProgramState(
   meameRunning    : Boolean = false,
   playbackRunning : Boolean = false,
-  playbackId      : Long    = 0,
+  playbackId      : Int     = 0,
   dbRecording     : Boolean = false,
   agentRunning    : Boolean = false,
   dspAlive        : Boolean = false,

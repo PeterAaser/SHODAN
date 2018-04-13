@@ -14,6 +14,25 @@ import utilz._
 object DspTests {
   import DspCalls._
 
+
+  def mcsEmulator: IO[Unit] = for {
+    _ <- IO { say("Starting stimulus test for MCS suite emulation") }
+    _ <- IO { say("Electrodes 0 to 59 should be stimulated with period 2 milliseconds") }
+    _ <- IO { say("Amplitude should be 2V") }
+    _ <- IO { say("duration should be 2 milliseconds") }
+    _ <- waveformGenerator.squareWave(0, 1.milliseconds, 2.milliseconds, 0, 2000)
+    _ <- IO { Thread.sleep(100) }
+    _ <- IO { say("requesting stimuli on electrode 0, period 0.3 seconds") }
+    _ <- stimRequest(0, 2.milliseconds.toDSPticks, ((0 to 12) ++ (20 to 59)).toList)
+    _ <- IO { Thread.sleep(200) }
+    _ <- IO { say("starting stim queue") }
+    _ <- startStimQueue
+    _ <- IO { Thread.sleep(200) }
+    _ <- IO { say("enabling stim group 0...") }
+    _ <- enableStimGroup(0)
+  } yield ()
+
+
   def test: IO[Unit] = {
     for {
       _ <- waveformGenerator.squareWave(0, 0.4.second, 0.8.second, 0, 4000)

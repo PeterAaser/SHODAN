@@ -1,5 +1,8 @@
 package cyborg
 
+import fs2.async.Promise
+import cats.effect.IO
+import cyborg.RPCmessages._
 
 sealed trait UserCommand
 case object StartMEAME extends UserCommand
@@ -13,12 +16,14 @@ case object AgentStop  extends UserCommand
 // case object StartWaveformVisualizer extends UserCommand
 // case object ConfigureMEAME extends UserCommand
 
-case class  RunFromDB(experimentId: Int) extends UserCommand
-case object RunFromDBNewest              extends UserCommand
-case object DBstartRecord                extends UserCommand
-case object DBstopRecord                 extends UserCommand
+case class  RunFromDB(info: RecordingInfo) extends UserCommand
+case object DBstartRecord                  extends UserCommand
+case object DBstopRecord                   extends UserCommand
 
-case object Shutdown                     extends UserCommand
+case class GetSHODANstate(ret: Promise[IO,EquipmentState]) extends UserCommand
+case class GetRecordings(ret: Promise[IO,List[RecordingInfo]]) extends UserCommand
+
+case object Shutdown                       extends UserCommand
 
 // Not that relevant now
 case object DspSet  extends UserCommand

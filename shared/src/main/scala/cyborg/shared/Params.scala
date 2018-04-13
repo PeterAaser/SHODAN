@@ -1,16 +1,6 @@
 package cyborg
 
-import Predef.println
-import Predef.print
-
 object params {
-
-  def printParams(): Unit = {
-    // experiment.printMe()
-    // filtering.printMe()
-    // waveformVisualizer.printMe()
-    println("print params is deprecated")
-  }
 
   object experiment {
     val maxSpikesPerSec = 50
@@ -30,7 +20,8 @@ object params {
     val vizLength: Int = 200
 
     val messagesPerSecond: Int = 40
-    val pointsPerMessage: Int = vizLength/messagesPerSecond
+    val pointsPerMessagePerChannel: Int = vizLength/messagesPerSecond
+    val pointsPerMessage = pointsPerMessagePerChannel*60
 
   }
 

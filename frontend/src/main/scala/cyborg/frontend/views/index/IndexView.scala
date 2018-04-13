@@ -46,7 +46,6 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
   DBplaybackButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlaybackClick(btn) }
   UploadButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onUploadClick(btn) }
 
-
   def mainButtons(): dom.Element = div(StyleConstants.frame)(
     UdashBootstrap.loadBootstrapStyles(),
     UdashButtonGroup(vertical=true)(

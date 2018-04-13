@@ -77,10 +77,13 @@ object waveformVisualizer {
       topRowWithCoords ::: middleRowsWithCoords ::: botRowWithCoords
 
 
-    val groupSize = params.waveformVisualizer.pointsPerMessage
+    val groupSize = params.waveformVisualizer.pointsPerMessagePerChannel
     var running = false
+    var num = 0
 
-    scalajs.js.timers.setInterval(50) {
+    say(s"groupSize $groupSize")
+
+    scalajs.js.timers.setInterval(25) {
       if(!running){
         running = true
         if(dataqueue.size > 500){
@@ -95,6 +98,8 @@ object waveformVisualizer {
     }
 
     def gogo(data: Array[Int]): Unit = {
+      say(s"drawing ${data.size} points, package $num")
+      num = num + 1
       clear()
       val chopped = data.grouped(groupSize).zipWithIndex.toList
       chopped.foreach(λ => drawToPixelArray(λ._1, λ._2 % 60))

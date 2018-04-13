@@ -19,10 +19,11 @@ import _root_.io.udash.rpc._
 object ApplicationServer {
 
 
-
   def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,TaggedSegment]] = {
 
     import cyborg.backend.rpc.ClientRPChandle
+
+    var hurr = 0
 
     def sendData: Sink[IO,Array[Int]] = {
 
@@ -46,14 +47,14 @@ object ApplicationServer {
     getConf map { conf =>
 
       val pointsPerSec = conf.experimentSettings.samplerate
-      val pointsNeededPerSec = 200
+      val pointsNeededPerSec = params.waveformVisualizer.vizLength
 
       val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
 
-      say(s"Created a waveform sink with $conf")
       in => in.through(_.map(_.data)).through(chunkify)
         .through(downsampler)
         .through(mapN(pointsPerMessage, _.force.toArray))
+        .map(xs => xs.zipWithIndex.map(z => z._2).map(z => (if(z % 2 == 0) 0 else z)))
         .through(sendData)
 
     }

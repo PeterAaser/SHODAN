@@ -120,8 +120,6 @@ object Dependencies {
     "org.eclipse.jetty" % "jetty-server" % jettyVersion,
     "org.eclipse.jetty.websocket" % "websocket-server" % jettyVersion,
 
-    // server logging backend
-
     "io.circe" %% "circe-core" % circeVersion,                // JSON
     "io.circe" %% "circe-generic" % circeVersion,             // JSON
     "io.circe" %% "circe-parser" % circeVersion,              // JSON

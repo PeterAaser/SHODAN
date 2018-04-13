@@ -37,7 +37,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class DspTestView(model: ModelProperty[DspTestModel], presenter: DspTestViewPresenter) extends ContainerView with CssView {
 
   val stopButton = UdashButton()(Icons.FontAwesome.square)
-  val uploadButton = UdashButton()(Icons.FontAwesome.square)
+  val uploadButton = UdashButton()("flash DSP")
 
   val test1 = UdashButton()("Stimulus upload baseline")
   val test2 = UdashButton()("Stimulus upload replicate")
@@ -45,19 +45,23 @@ class DspTestView(model: ModelProperty[DspTestModel], presenter: DspTestViewPres
   val test4 = UdashButton()("Stim queue test 1")
   val test5 = UdashButton()("Stim queue test 2")
   val test6 = UdashButton()("Stim queue test 3")
+  val test7 = UdashButton()("All electrodes squarewave test")
 
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.stopTestClicked(btn) }
+  uploadButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.flashClicked(btn) }
   test1.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 0) }
   test2.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 1) }
   test3.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 2) }
   test4.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 3) }
   test5.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 4) }
   test6.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 5) }
+  test7.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 6) }
 
   override def getTemplate: Modifier = {
     div(
       UdashBootstrap.loadFontAwesome(),
       stopButton.render,
+      uploadButton.render,
       test1.render,
       test2.render,
       test3.render,
@@ -81,6 +85,11 @@ class DspTestViewPresenter(model: ModelProperty[DspTestModel]) extends Presenter
   def stopTestClicked(btn: UdashButton): Unit = {
     say(s"stopping test")
     Context.serverRpc.stopDspTest
+  }
+
+  def flashClicked(btn: UdashButton): Unit = {
+    say(s"flashing dsp")
+    Context.serverRpc.flashDsp
   }
 
   override def handleState(state: DspTestState.type): Unit = {}

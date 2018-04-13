@@ -25,6 +25,7 @@ trait MainServerRPC {
 
   def startPlayback(rec: RecordingInfo): Unit
 
+  def flashDsp: Unit
   def runDspTest(testNo: Int): Unit
   def stopDspTest: Unit
 }

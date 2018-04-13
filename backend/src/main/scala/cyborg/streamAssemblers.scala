@@ -27,7 +27,7 @@ object Assemblers {
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
     // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
     val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
-    val s = for {
+    for {
       conf           <- Stream.eval(assembleConfig)
       getConf        =  conf.get
       state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
@@ -49,6 +49,7 @@ object Assemblers {
                                      state,
                                      conf))
 
+
       agentSink      = agentQueue.enqueue
       commandPipe    <- Stream.eval(staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink, state, getConf))
 
@@ -62,7 +63,6 @@ object Assemblers {
              .concurrently(taggedSeqTopic.subscribe(1000).through(visualizerSink))
 
     } yield ()
-    s.handleErrorWith(z => {say(z); throw z})
   }
 
 

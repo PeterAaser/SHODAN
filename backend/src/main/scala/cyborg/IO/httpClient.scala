@@ -43,14 +43,16 @@ object HttpClient {
 
     say("MEAME health check inc")
     val req = GET(Uri.uri("http://129.241.201.110:8888/status"))
-    val gogo = httpClient.expect[MEAMEstatus](req).flatMap { status =>
+    val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)
         DspCalls.checkDsp.map(s => MEAMEstatus(true, true, s))
       else
         IO(MEAMEstatus(true, false, false))
     }
-    say("ok")
-    gogo
+    gogo.attempt.map {
+      case Left(e) => MEAMEstatus(false,false,false)
+      case Right(s) => s
+    }
   }
 
 
@@ -58,6 +60,12 @@ object HttpClient {
   ////////////////////////////////////////
   ////////////////////////////////////////
   // DSP
+
+  def flashDsp: IO[Unit] = {
+    val req = GET(Uri.uri("http://129.241.201.110:8888/DSP/flash"))
+    httpClient.expect[String](req).void
+  }
+
   def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
   {
     val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/write"), regs.asJson)

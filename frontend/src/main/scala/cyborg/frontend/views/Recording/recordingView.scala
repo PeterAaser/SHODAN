@@ -78,14 +78,14 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
   val wfQueue = new scala.collection.mutable.Queue[Array[Int]]()
 
   def onPlayClicked(btn: UdashButton) = {
-    say("play canvas clicked")
+    say("play record clicked")
     WfClient.register(wfQueue)
     Context.serverRpc.startPlayback(selectedRecord.get)
   }
 
 
   def onPauseClicked(btn: UdashButton) = {
-    say("pause canvas clicked")
+    say("pause record clicked")
     WfClient.unregister()
     wfQueue.clear()
   }

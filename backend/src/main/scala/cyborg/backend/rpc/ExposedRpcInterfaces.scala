@@ -50,48 +50,41 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
   override def unregisterWaveform: Unit = wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
   override def unregisterAgent: Unit    = agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
 
-  override def getSHODANstate:  Future[EquipmentState] = {
 
-    def accumulateError(errors: Either[List[EquipmentFailure], Unit])(error: Option[EquipmentFailure]): Either[List[EquipmentFailure], Unit] = {
-      error match {
-        case Some(err) => errors match {
-          case Left(errorList) => Left(err :: errorList)
-          case Right(_) => Left(List(err))
-        }
-        case None => errors
-      }
-    }
-
-    val errors: Either[List[EquipmentFailure],Unit] = Right(())
-
-    val hurr: IO[Either[List[EquipmentFailure],Unit]] = HttpClient.getMEAMEhealthCheck.map { s =>
-      val durr: List[Option[EquipmentFailure]] = List(
-        (if(s.isAlive)    None else Some(MEAMEoffline)),
-        (if(s.dspAlive)   None else Some(DspDisconnected)),
-        (if(!s.dspBroken) None else Some(DspBroken)))
-
-      durr.foldLeft(errors){ case(acc,e) => accumulateError(acc)(e) }
-    }
-    val huh = hurr.attempt.map {
-      case Left(_) => Left(List(MEAMEoffline))
-      case Right(e) => e
-    }
-    say("yolo")
-    huh.unsafeToFuture()
+  //TODO move to token?
+  override def flashDsp: Unit = {
+    val runit = for {
+      _ <- HttpClient.flashDsp
+      _ <- HttpClient.getMEAMEhealthCheck
+    } yield()
+    runit.unsafeRunSync()
   }
 
-  override def getRecordings: Future[List[RecordingInfo]] = databaseIO.getAllExperiments.unsafeToFuture()
 
-  // TODO NYI
+  override def getSHODANstate:  Future[EquipmentState] = {
+    val action = for {
+      promise <- async.promise[IO,EquipmentState]
+      _       <- userQ.enqueue1(GetSHODANstate(promise))
+      res     <- promise.get
+    } yield (res)
+
+    action.unsafeToFuture()
+  }
+
+
+  override def getRecordings: Future[List[RecordingInfo]] = {
+    val action = for {
+      promise <- async.promise[IO,List[RecordingInfo]]
+      _       <- userQ.enqueue1(GetRecordings(promise))
+      res     <- promise.get
+    } yield (res)
+
+    action.unsafeToFuture()
+  }
+
+
   override def startPlayback(recording: RecordingInfo): Unit = {
-    // val thingy = for {
-    //   // OK, maybe lenses aren't so bad...
-    //   _ <- configuration.modify(c => c.copy( experiment = c.experiment.copy(samplerate = recording.samplerate, segmentLength = recording.segmentLength)))
-    //   _ <- userQ.enqueue1( RunFromDB(recording.id) )
-    // } yield()
-
-    // thingy.unsafeRunSync()
-    ???
+    userQ.enqueue1(RunFromDB(recording)).unsafeRunSync()
   }
 
 
@@ -102,7 +95,8 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     stimulusTest3,
     oscilloscopeTest1,
     oscilloscopeTest2,
-    oscilloscopeTest3)
+    oscilloscopeTest3,
+    mcsEmulator)
 
   // lol no error handling
   override def runDspTest(testNo: Int): Unit = {
