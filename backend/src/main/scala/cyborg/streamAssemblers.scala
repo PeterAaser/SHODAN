@@ -51,16 +51,22 @@ object Assemblers {
 
 
       agentSink      = agentQueue.enqueue
-      commandPipe    <- Stream.eval(staging.commandPipe(topics, taggedSeqTopic, meameFeedbackSink, agentSink, state, getConf))
-
-      visualizerSink <- Stream.eval(ApplicationServer.waveformSink(waveformListeners, getConf))
+      commandPipe    <- Stream.eval(staging.commandPipe(
+                                      topics,
+                                      taggedSeqTopic,
+                                      meameFeedbackSink,
+                                      agentSink,
+                                      state,
+                                      getConf,
+                                      waveformListeners,
+                                      agentListeners))
 
       frontend       <- rpcServer
       _              <- Stream.eval(frontend.start)
 
       _ <- commandQueue.dequeue.through(commandPipe)
              .concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
-             .concurrently(taggedSeqTopic.subscribe(1000).through(visualizerSink))
+             // .concurrently(taggedSeqTopic.subscribe(1000).through(visualizerSink))
 
     } yield ()
   }

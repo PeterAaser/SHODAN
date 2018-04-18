@@ -384,7 +384,6 @@ object utilz {
   }
 
 
-  // TODO: maybe rewrite with more idiomatic ops?
   def tagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
       s.pull.unconsN(segmentLength.toLong, false) flatMap {
@@ -395,6 +394,102 @@ object utilz {
       }
     }
     in => go(0, in).stream
+  }
+
+
+  def testTagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
+    def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
+      s.pull.unconsN(segmentLength.toLong, false) flatMap {
+        case Some((seg, tl)) => {
+          Pull.output1(TaggedSegment(n, seg.force.toVector.map(_ => n*10))) >> go((n + 1) % 60, tl)
+        }
+        case None => Pull.done
+      }
+    }
+    in => go(0, in).stream
+  }
+
+
+  /**
+    Modifies the segment length of a stream. Not optimized
+    */
+  def modifySegmentLengthGCD[F[_]](originalSegmentLength: Int, newSegmentLength: Int, channels: Int = 60): Pipe[F,Int,Int] = {
+
+    def gcd(a: Int,b: Int): Int = {
+      if(b ==0) a else gcd(b, a%b)
+    }
+    val divisor = gcd(originalSegmentLength, newSegmentLength)
+
+    say(s"modify seg with original: $originalSegmentLength, new: $newSegmentLength, gcd: $divisor")
+
+    def disassemble: Pipe[F,Int,List[Int]] = {
+
+      val outCols = channels*divisor
+      val outRows = (originalSegmentLength/divisor)
+      val pullSize = channels*originalSegmentLength
+
+      // say(s"outCols is $outCols")
+      // say(s"outRows is $outRows")
+      // say(s"pullSize is $pullSize")
+
+      val outBuffers = Array.ofDim[Int](outRows, outCols)
+
+      def go(s: Stream[F,Int]): Pull[F,List[Int],Unit] = {
+        s.pull.unconsN(channels*originalSegmentLength.toLong, false).flatMap {
+          case Some((seg,tl)) => {
+            // say("disassembling")
+            val data = seg.force.toArray
+            for(i <- 0 until pullSize){
+              val outRow = (i/divisor)%outRows
+              // val outRow = (i/outCols)
+              val outCol = (i%divisor) + divisor*(i/originalSegmentLength)
+              // say(s"with i: $i we get outBuf[$outRow][$outCol] <- ${data(i)}")
+              outBuffers(outRow)(outCol) = data(i)
+            }
+            // say(s"disassembler outputting ${outBuffers.map(_.toList).toList} \n")
+            Pull.outputChunk(Chunk.seq(outBuffers.map(_.toList).toList)) >> go(tl)
+          }
+          case None => Pull.done
+        }
+      }
+
+      in => go(in).stream
+    }
+
+    def reassemble: Pipe[F,List[Int], Int] = {
+
+      val pullSize = (newSegmentLength/divisor)
+      val outBuf: Array[Int] = new Array(newSegmentLength*channels)
+
+      def go(s: Stream[F,List[Int]]): Pull[F,Int,Unit] = {
+        s.pull.unconsN(pullSize.toLong, false).flatMap {
+          case Some((seg,tl)) => {
+            // say(s"ressembling, pullsize is $pullSize")
+            val data = seg.force.toArray
+            // say(s"reassembling from ${data.map(_.toList).toList}")
+            for(row <- 0 until pullSize){
+              for(col <- 0 until (divisor*channels)){
+                val internalSegOffset = row*divisor
+                val offset = (col/divisor)*newSegmentLength
+                val idx = (internalSegOffset + offset) + col%divisor
+                // say(s"Attempting to collect from row: $row, col: $col")
+                // say(s"With offsets calculated to: $internalSegOffset and $offset the final idx is $idx")
+                // say(s"outBuf[$idx] <- data[$row][$col] = ${data(row)(col)}\n")
+                outBuf(idx) = data(row)(col)
+              }
+            }
+            // say(s"the reassembled pull is ${outbuf.tolist}")
+            Pull.outputChunk(Chunk.seq(outBuf)) >> go(tl)
+          }
+          case None => Pull.done
+        }
+      }
+
+      in => go(in).stream
+    }
+
+    in => in.through(disassemble).through(reassemble)
+
   }
 
 

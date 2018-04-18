@@ -48,14 +48,37 @@ object ApplicationServer {
 
       val pointsPerSec = conf.experimentSettings.samplerate
       val pointsNeededPerSec = params.waveformVisualizer.vizLength
+      val segmentsPerSec = pointsPerSec/conf.experimentSettings.segmentLength
+      val pointsNeededPerSegment = pointsNeededPerSec/segmentsPerSec
+
+      val downsampledSegmentLength = (conf.experimentSettings.segmentLength*pointsNeededPerSec)/pointsPerSec
+
+      val targetSegmentLength = 200/40
 
       val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
+      say(s"made downsampler with params: pointsPerSec: $pointsPerSec, pointsNeededPerSec: $pointsNeededPerSec, downsampled seg length: $downsampledSegmentLength")
+      say(s"TargetSegLen: $targetSegmentLength, downsampledSegLength: $downsampledSegmentLength")
 
       in => in.through(_.map(_.data)).through(chunkify)
         .through(downsampler)
-        .through(mapN(pointsPerMessage, _.force.toArray))
-        .map(xs => xs.zipWithIndex.map(z => z._2).map(z => (if(z % 2 == 0) 0 else z)))
+        .through(modifySegmentLengthGCD(downsampledSegmentLength, targetSegmentLength))
+        .through(mapN(targetSegmentLength*60, _.force.toArray))
         .through(sendData)
+
+      // val pointsPerSec = conf.experimentSettings.samplerate
+      // val pointsNeededPerSec = params.waveformVisualizer.vizLength
+      // val segmentsPerSec = pointsPerSec/conf.experimentSettings.segmentLength
+      // val pointsNeededPerSegment = pointsNeededPerSec/segmentsPerSec
+
+      // val downsampledSegmentLength = conf.experimentSettings.segmentLength*(pointsNeededPerSec/pointsPerSec)
+
+      // val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
+      // say(s"made downsampler with params: pointsPerSec: $pointsPerSec, pointsNeededPerSec: $pointsNeededPerSec")
+
+      // in => in.through(_.map(_.data)).through(chunkify)
+      //   .through(downsampler)
+      //   .through(mapN(pointsNeededPerSegment*60, _.force.toArray))
+      //   .through(sendData)
 
     }
   }

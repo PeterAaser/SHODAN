@@ -15,34 +15,18 @@
 
   
 * Neste gang
+  Run tests
 
 * Doing
   
+  
 * Now 
-** TODO Move endpoints to using Queue
-** TODO Figure out how to better handle reporting equipment failure
-** TODO Prune shared state, separate static and dynamic settings
-** TODO Find time library that plays well with psql and the jvm/js boundary
-** TODO Investigate MEAME data
-   possibly fixed by changing channelsInBlock stuff
-** TODO Improve the frontend
-*** DONE Get rid of the annyoing redundant clicks!!
-*** TODO Settings accessible on the frontend
-*** DONE Redo basic UI
-   Added react, now to learn using it. Ish
-
-*** DONE Add functionality for making a recording
-**** TODO UI elements
-**** TODO Backend support
-
-*** DONE Functionality for stim protocols?
-**** TODO UI elements
-**** TODO MEAME support?
-**** TODO DSP support
-    See refactoring representation element
-
+** TODO Prepare test run on DSP
+** TODO Test recording
     
 * Later
+** TODO Find time library that plays well with psql and the jvm/js boundary
+** TODO Figure out how to better handle reporting equipment failure
 ** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Polish file playback
 ** TODO MCS file fixerino reduxerino
@@ -81,8 +65,16 @@
    Let this be handled on the DSP for now...
 *** TODO Refactor HttpClient stuff, get the forest under control.
    
+  
+* Maybe
+** TODO Optimize segment translator
     
 * Finished
+** DONE implement buffer for smoothing over segment sizes when visualizing
+   In order to do this I need a pipe that changes segment lengths
+** DONE Prune shared state, separate static and dynamic settings
+** DONE Investigate MEAME data
+** DONE Move endpoints to using Queue
 ** DONE Remove visualizers dependency on experiment parameters
    Sending wf data should be done with packets of data. The currently used 
    implementation had to work with a raw byte array. Not so fun...
