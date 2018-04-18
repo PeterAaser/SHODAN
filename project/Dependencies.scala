@@ -6,7 +6,8 @@ object Dependencies {
   val versionOfScala = "2.12.4"
 
   // Udash
-  val udashVersion = "0.7.0-SNAPSHOT"
+  // val udashVersion = "0.7.0-SNAPSHOT"
+  val udashVersion = "0.6.1"
   val udashJQueryVersion = "1.1.0"
 
   // Backend

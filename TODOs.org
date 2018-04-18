@@ -22,7 +22,11 @@
   
 * Now 
 ** TODO Prepare test run on DSP
-** TODO Test recording
+** TODO Implement recording view functionality
+*** DONE Basic testing
+*** TODO Investigate why channels get shuffled
+*** TODO Validate recoring ready
+*** TODO Add form for recording info
     
 * Later
 ** TODO Find time library that plays well with psql and the jvm/js boundary

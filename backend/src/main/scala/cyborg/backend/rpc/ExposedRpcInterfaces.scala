@@ -87,6 +87,9 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     userQ.enqueue1(RunFromDB(recording)).unsafeRunSync()
   }
 
+  override def startRecording: Unit = userQ.enqueue1(DBstartRecord).unsafeRunSync()
+  override def stopRecording: Unit  = userQ.enqueue1(DBstopRecord).unsafeRunSync()
+
   override def startLive : Unit = {
     userQ.enqueue1(StartMEAME).unsafeRunSync()
   }

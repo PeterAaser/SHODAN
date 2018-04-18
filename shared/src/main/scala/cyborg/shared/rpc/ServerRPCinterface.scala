@@ -25,6 +25,10 @@ trait MainServerRPC {
 
   def startPlayback(rec: RecordingInfo): Unit
 
+  // TODO: Should contain some info
+  def startRecording: Unit
+  def stopRecording: Unit
+
   def startLive: Unit
 
   def flashDsp: Unit

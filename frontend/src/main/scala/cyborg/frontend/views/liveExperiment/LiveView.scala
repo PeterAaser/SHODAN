@@ -26,13 +26,12 @@ import org.scalajs.dom.html
 class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanvas: html.Canvas) extends FinalView with CssView {
 
   val playButton = UdashButton()(Icons.FontAwesome.play)
-  val pauseButton = UdashButton()(Icons.FontAwesome.pause)
   val recordButton = UdashButton()(Icons.FontAwesome.circle)
   val stopButton = UdashButton()(Icons.FontAwesome.square)
 
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
-  recordButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
-  stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
+  recordButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRecordClicked(btn) }
+  stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onStopClicked(btn) }
 
   override def getTemplate: Modifier = {
     say("rendering all that crap")
@@ -61,15 +60,18 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas) exte
   }
 
 
-  def onPauseClicked(btn: UdashButton) = {
-    say("pause canvas clicked")
-    WfClient.unregister()
-    wfQueue.clear()
+  def onRecordClicked(btn: UdashButton) = {
+    if(model.get.isRecording)
+      Context.serverRpc.startRecording
+    else
+      Context.serverRpc.stopRecording
   }
 
 
   def onStopClicked(btn: UdashButton) = {
+    say("stop canvas clicked")
     WfClient.unregister()
+    Context.serverRpc.stopRecording
     wfQueue.clear()
   }
 

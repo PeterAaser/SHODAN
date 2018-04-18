@@ -25,7 +25,7 @@ object networkIO {
   val noDelay = true
 
   val ip = params.TCP.ip
-  val port = params.TCP.port
+  val port = params.TCP.sawtooth
   val hosePort = 12350
 
   val maxQueued = 3
