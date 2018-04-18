@@ -19,15 +19,15 @@ object WfClient extends WfClientRPC {
 
   var onWfUpdate: Array[Int] => Unit = (_: Array[Int]) => ()
   var wfRunning = false
-  var num = 0
+  // var num = 0
 
   override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
 
   // Kinda magical on the registering front
   def register(q: mutable.Queue[Array[Int]]): Unit = {
     onWfUpdate = (data: Array[Int]) => {
-      say(s"got packet $num")
-      num = num + 1
+      // say(s"got packet $num")
+      // num = num + 1
       q.enqueue(data)
     }
 

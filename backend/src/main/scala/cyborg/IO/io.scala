@@ -17,6 +17,7 @@ object sIO {
     val params = databaseIO.dbGetParams(experimentId)
 
     Stream.eval(params).flatMap ( p =>
+      // experimentData.through(testTagPipe(p))
       experimentData.through(tagPipe(p))
     )
   }
@@ -64,5 +65,6 @@ object sIO {
     * Data is broadcasted to provided topics
     */
   def streamFromTCP(segmentLength: Int)(implicit ec: ExecutionContext): Stream[IO,TaggedSegment] =
+    // networkIO.streamAllChannels[IO].through(testTagPipe(segmentLength))
     networkIO.streamAllChannels[IO].through(tagPipe(segmentLength))
 }

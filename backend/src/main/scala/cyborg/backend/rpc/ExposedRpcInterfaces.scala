@@ -45,10 +45,10 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     wfListeners.modify(cis => (ci :: cis).toSet.toList).unsafeRunSync()
   }
 
-  override def registerAgent: Unit      = agentListeners.modify(ci :: _).unsafeRunSync()
+  override def registerAgent      : Unit = agentListeners.modify(ci :: _).unsafeRunSync()
 
-  override def unregisterWaveform: Unit = wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
-  override def unregisterAgent: Unit    = agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+  override def unregisterWaveform : Unit = wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+  override def unregisterAgent    : Unit = agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
 
 
   //TODO move to token?
@@ -61,7 +61,7 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
   }
 
 
-  override def getSHODANstate:  Future[EquipmentState] = {
+  override def getSHODANstate: Future[EquipmentState] = {
     val action = for {
       promise <- async.promise[IO,EquipmentState]
       _       <- userQ.enqueue1(GetSHODANstate(promise))
@@ -87,6 +87,9 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     userQ.enqueue1(RunFromDB(recording)).unsafeRunSync()
   }
 
+  override def startLive : Unit = {
+    userQ.enqueue1(StartMEAME).unsafeRunSync()
+  }
 
   import DspTests._
   val tests = List(

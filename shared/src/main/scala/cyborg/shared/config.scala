@@ -11,9 +11,9 @@ object Setting {
 
   object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
     val default = ExperimentSettings(
-      samplerate         = 10000,
+      samplerate         = 20000,
       stimulusElectrodes = Nil,
-      segmentLength      = 1000
+      segmentLength      = 2000
     )}
 
 

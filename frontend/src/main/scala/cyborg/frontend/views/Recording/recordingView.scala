@@ -84,6 +84,7 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
   }
 
 
+  // TODO: Kinda doesnt work
   def onPauseClicked(btn: UdashButton) = {
     say("pause record clicked")
     WfClient.unregister()

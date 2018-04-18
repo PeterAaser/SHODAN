@@ -1,6 +1,5 @@
 package cyborg.backend
 
-// import io.udash.logging.CrossLogging
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import cyborg._

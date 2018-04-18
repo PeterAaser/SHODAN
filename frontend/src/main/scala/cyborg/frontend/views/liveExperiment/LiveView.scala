@@ -57,6 +57,7 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas) exte
   def onPlayClicked(btn: UdashButton) = {
     say("play canvas clicked")
     WfClient.register(wfQueue)
+    Context.serverRpc.startLive
   }
 
 
@@ -74,19 +75,7 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas) exte
 
 
   override def handleState(state: LiveState.type): Unit = {
-    // disgusting...
-    // val conf = Context.serverRpc.getSHODANconfig
-    // val state = Context.serverRpc.getSHODANstate
-
-    // conf onComplete {
-    //   say(wfCanvas)
-    //   say("the horrible handlestate thing is done")
-
-    //   r => r match {
-    //     case Success(conf) => new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
-    //     case Failure(ex) => say("egads!")
-    //   }
-    // }
+    new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
   }
 }
 

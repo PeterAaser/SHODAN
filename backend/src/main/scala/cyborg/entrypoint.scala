@@ -1,6 +1,7 @@
 package cyborg
 
 import fs2.async.mutable.Signal
+import io.udash.rpc.ClientId
 import java.io.IOException
 import cats.implicits._
 
@@ -42,7 +43,9 @@ object staging {
     meameFeedbackSink: Sink[IO,List[Double]],
     frontendAgentSink: Sink[IO,Agent],
     state:             Signal[IO,ProgramState],
-    getConf:           IO[Setting.FullSettings])(
+    getConf:           IO[Setting.FullSettings],
+    waveformListeners: Ref[IO,List[ClientId]],
+    agentListeners:    Ref[IO,List[ClientId]])(
     implicit ec:       EC
   ): IO[Sink[IO,UserCommand]] = {
 
@@ -143,6 +146,25 @@ object staging {
       tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
+
+    /**
+      Create and populate frontend viz
+      */
+    // TODO: I would like this to not be its own method, but it will do for now.
+    def handleFrontendVisualizer(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+      val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.playbackRunning))).changes.tail map { case(a, b) =>
+        if(a || b) for {
+          _         <- configureAndAttachFrontendSink(getConf, waveformListeners, rawDataTopic.subscribe(10))
+        } yield ()
+        else for {
+          _         <- IO.unit
+        } yield ()
+      }
+
+      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+    }
+
+
     def doTheThing(stopSignal: Signal[IO,Boolean], action: Signal[IO,ProgramActions]): Pipe[IO,UserCommand,IO[Unit]] = _.map{ c =>
       say(s"got action token guy named $c")
       c match {
@@ -196,11 +218,21 @@ object staging {
                .concurrently(handleRecordingStateChange(state,actions))
                .concurrently(handleAgentStateChange(state,actions))
                .concurrently(handlePlaybackStateChange(state,actions))
+               .concurrently(handleFrontendVisualizer(state,actions))
     }
   }
 
 
-  // TODO figure out how to idiomatically handle this stuff
+  // Configures the frontend sink,
+  def configureAndAttachFrontendSink(getConf: IO[Setting.FullSettings], getListeners: Ref[IO,List[ClientId]], rawStream: Stream[IO,TaggedSegment])(implicit ec: EC): IO[Unit] = {
+    import cyborg.backend.server.ApplicationServer
+    val t = Stream.eval(ApplicationServer.waveformSink(getListeners, getConf)).flatMap { sink =>
+      rawStream.through(sink)
+    }
+    t.compile.drain
+  }
+
+  // TODO: figure out how to idiomatically handle this stuff
   def handleGetSHODANstate(p: Promise[IO,EquipmentState]): IO[Unit] = {
     def accumulateError(errors: Either[List[EquipmentFailure], Unit])(error: Option[EquipmentFailure]): Either[List[EquipmentFailure], Unit] = {
       error match {
