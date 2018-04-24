@@ -14,6 +14,9 @@ class StatesToViewFactoryDef extends ViewFactoryRegistry[RoutingState] {
       case LiveState => LiveViewFactory
       case RecordingState => RecordingViewFactory
       case DspTestState => DspTestViewFactory
+      case DspMemoryState => DspMemoryViewFactory
+
+      case MEAstate(meaID) => MEAviewFactory(meaID)
 
       case _ => ErrorViewFactory
     }

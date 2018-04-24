@@ -40,7 +40,7 @@ object databaseIO {
 
 
   /**
-    Gets a resource URI from the database and reads said info
+    Gets a resource URI from the database and returns the content of the file as a Stream
     */
   def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
     say(s"making stream for experiment $experimentId")

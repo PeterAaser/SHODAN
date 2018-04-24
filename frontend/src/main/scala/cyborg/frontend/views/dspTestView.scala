@@ -4,6 +4,7 @@ import cyborg.frontend.routing._
 
 import io.udash._
 import io.udash.bootstrap.UdashBootstrap
+import io.udash.bootstrap.form.{ UdashForm, UdashInputGroup }
 import io.udash.bootstrap.navs.UdashNavbar
 import io.udash.bootstrap.utils.Icons
 import org.scalajs.dom.html
@@ -16,6 +17,7 @@ import frontilz._
 import io.udash.css._
 
 import org.scalajs.dom
+import org.scalajs.dom.html.Input
 import scalatags.JsDom.all._
 import io.udash.bootstrap.button._
 import org.scalajs.dom
@@ -23,8 +25,6 @@ import scalatags.JsDom
 import JsDom.all._
 
 import scala.language.postfixOps
-
-import com.karasiq.bootstrap.Bootstrap.default._
 
 import io.udash.css._
 
@@ -36,39 +36,78 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class DspTestView(model: ModelProperty[DspTestModel], presenter: DspTestViewPresenter) extends ContainerView with CssView {
 
-  val stopButton = UdashButton()(Icons.FontAwesome.square)
-  val uploadButton = UdashButton()("flash DSP")
+  val checkboxProps = SeqProperty[Int]((0 to 10))
+  val checkboxStrings = checkboxProps.transform(
+    (i: Int) => i.toString(),
+    (s: String) => s.toInt
+  )
 
-  val test1 = UdashButton()("Stimulus upload baseline")
-  val test2 = UdashButton()("Stimulus upload replicate")
-  val test3 = UdashButton()("Stimulus upload square wave")
-  val test4 = UdashButton()("Stim queue test 1")
-  val test5 = UdashButton()("Stim queue test 2")
-  val test6 = UdashButton()("Stim queue test 3")
-  val test7 = UdashButton()("All electrodes squarewave test")
+  val stopButton = UdashButton()(Icons.FontAwesome.square)
+  val flashButton = UdashButton()("flash DSP")
+  val startStimQueue = UdashButton()("Start stim queue")
+
+  val uploadSineButton = UdashButton()("upload square wave")
+  val uploadSquareButton = UdashButton()("upload sine wave")
+
+  val amplitude = UdashForm.numberInput()("Amplitude in mV")(model.subProp(_.amplitude).transform(_.toString, _.toInt))
+  val period = UdashForm.numberInput()("period in ms")(model.subProp(_.period).transform(_.toString, _.toInt))
+
+
+  val labels = (0 to 59).toList.map(_.toString())
+
+  def shouldBreak(idx: Int): Boolean = {
+    if((idx > 6) && (idx < 53))
+      (idx % 8) - 6 == 0
+    else
+      idx == 6 || idx == 54
+  }
+
+  def electrodeSelector = form(
+    UdashInputGroup()(
+      UdashInputGroup.addon("EleCTrOdES:DDDD"),
+      CheckButtons(
+        property = checkboxStrings,
+        options = labels,
+
+        decorator = (els: Seq[(Input, String)]) => {
+          span(
+            els.foldLeft(List[scalatags.JsDom.Modifier]()){case (xs, z) =>
+              val(i, l: String) = z
+              if(shouldBreak(l.toInt)){
+                label(i, l) :: br :: xs
+              }
+              else
+                label(i, l) :: xs
+            }.reverse
+          )
+        }
+      )
+    ).render
+  )
 
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.stopTestClicked(btn) }
-  uploadButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.flashClicked(btn) }
-  test1.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 0) }
-  test2.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 1) }
-  test3.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 2) }
-  test4.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 3) }
-  test5.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 4) }
-  test6.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 5) }
-  test7.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.testClicked(btn, 6) }
+  flashButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.flashClicked(btn) }
+  startStimQueue.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.startStimQueue(btn, checkboxProps.get) }
+  uploadSineButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.sineUploadClicked(btn) }
+  uploadSquareButton.listen { case UdashButton.ButtonClickEvent(btn, _)=> presenter.squareUploadClicked(btn) }
 
   override def getTemplate: Modifier = {
     div(
       UdashBootstrap.loadFontAwesome(),
       stopButton.render,
-      uploadButton.render,
-      test1.render,
-      test2.render,
-      test3.render,
-      test4.render,
-      test5.render,
-      test6.render,
-    ),
+      flashButton.render,
+      electrodeSelector.render,
+      startStimQueue.render,
+      br,
+      p("Current waveform:"), p(bind(model.subProp(_.currentWaveform))),
+      UdashForm(
+        amplitude,
+        period
+      ).render,
+      uploadSineButton.render,
+      uploadSquareButton.render,
+      childViewContainer
+    )
   }
 }
 
@@ -76,11 +115,6 @@ class DspTestView(model: ModelProperty[DspTestModel], presenter: DspTestViewPres
 class DspTestViewPresenter(model: ModelProperty[DspTestModel]) extends Presenter[DspTestState.type] {
 
   import cyborg.frontend.Context
-
-  def testClicked(btn: UdashButton, idx: Int): Unit = {
-    say(s"launching test $idx")
-    Context.serverRpc.runDspTest(idx)
-  }
 
   def stopTestClicked(btn: UdashButton): Unit = {
     say(s"stopping test")
@@ -90,6 +124,41 @@ class DspTestViewPresenter(model: ModelProperty[DspTestModel]) extends Presenter
   def flashClicked(btn: UdashButton): Unit = {
     say(s"flashing dsp")
     Context.serverRpc.flashDsp
+  }
+
+  def squareUploadClicked(btn: UdashButton): Unit = {
+    say("square upload clicked")
+    model.subProp(_.currentWaveform).set("uploading...")
+    val amp = model.subProp(_.period).get
+    val ms = model.subProp(_.amplitude).get
+    Context.serverRpc.uploadSquare(ms, amp)
+      .onComplete {
+        case Success(_) =>
+          model.subProp(_.currentWaveform).set(s"Square wave, amplitude ${amp}mV, period: ${ms}ms")
+
+        case Failure(ex) => ()
+          model.subProp(_.currentWaveform).set(s"It's fucking broken...")
+      }
+  }
+
+  def sineUploadClicked(btn: UdashButton): Unit = {
+    say("square upload clicked")
+    model.subProp(_.currentWaveform).set("uploading...")
+    val amp = model.subProp(_.period).get
+    val ms = model.subProp(_.amplitude).get
+    Context.serverRpc.uploadSine(ms, amp)
+      .onComplete {
+        case Success(_) =>
+          model.subProp(_.currentWaveform).set(s"Sine wave, amplitude ${amp}mV, period: ${ms}ms")
+
+        case Failure(ex) => ()
+          model.subProp(_.currentWaveform).set(s"It's fucking broken...")
+      }
+  }
+
+  def startStimQueue(btn: UdashButton, checkboxes: Seq[Int]): Unit = {
+    say("for fan nu kor vi grabbar!")
+    Context.serverRpc.runDspTestWithElectrodes(checkboxes.toList)
   }
 
   override def handleState(state: DspTestState.type): Unit = {}
@@ -103,12 +172,17 @@ case object DspTestViewFactory extends ViewFactory[DspTestState.type] {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   override def create(): (View, Presenter[DspTestState.type]) = {
-    val model = ModelProperty( DspTestModel( Setting.FullSettings.default, false, false) )
+    val model = ModelProperty( DspTestModel( Setting.FullSettings.default, false, false, 100, 1000) )
     val presenter = new DspTestViewPresenter(model)
     val view = new DspTestView(model, presenter)
     (view, presenter)
   }
 }
 
-case class DspTestModel(conf: Setting.FullSettings, confReady: Boolean, stateReady: Boolean)
+case class DspTestModel(conf: Setting.FullSettings,
+                        confReady: Boolean,
+                        stateReady: Boolean,
+                        amplitude: Int,
+                        period: Int,
+                        currentWaveform: String = "Default")
 object DspTestModel extends HasModelPropertyCreator[DspTestModel]

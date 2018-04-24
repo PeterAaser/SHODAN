@@ -13,19 +13,39 @@
   Perhaps this is prudent for more parts of the codebase, ensure that each component is a persistent 
   container for its internal streams which may be interrupted and restarted.
 
+ 
+* Learning
+** TODO Sett deg inn i scalatags
   
 * Neste gang
-  Run tests
-
+  
 * Doing
+  Mer DSP diagnostics?
+** DONE Splitte stim uploads og stim queue testing.
   
   
 * Now 
+** TODO Add DSP memory browser to frontend
+*** TODO Set up RPC interfaces
+*** TODO Render field with HTML
+*** TODO Fetch data from DSP 
+*** TODO Match selected data with DSP value
+** TODO Add MEA selection
+*** TODO Frontend
+**** TODO Add new MEA
+**** TODO Remove MEA
+**** TODO Select MEA in dropdown
+*** TODO Backend
+**** TODO DB schema + methods
+**** TODO RPC
+    
+   Use the udash akka demo as a template to add MEAs
+** TODO Add file upload form
 ** TODO Prepare test run on DSP
 ** TODO Implement recording view functionality
 *** DONE Basic testing
 *** TODO Investigate why channels get shuffled
-*** TODO Validate recoring ready
+*** DONE Validate recording ready
 *** TODO Add form for recording info
     
 * Later
@@ -74,6 +94,9 @@
 ** TODO Optimize segment translator
     
 * Finished
+** DONE Add DSP tests to the live section
+*** DONE Add electrode select to live section
+    It looks like shit. IDGAF
 ** DONE implement buffer for smoothing over segment sizes when visualizing
    In order to do this I need a pipe that changes segment lengths
 ** DONE Prune shared state, separate static and dynamic settings

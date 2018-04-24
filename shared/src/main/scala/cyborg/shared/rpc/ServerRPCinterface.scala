@@ -32,8 +32,15 @@ trait MainServerRPC {
   def startLive: Unit
 
   def flashDsp: Unit
-  def runDspTest(testNo: Int): Unit
+
+  def uploadSine(period: Int, amplitude: Int): Future[Unit]
+
+  def uploadSquare(period: Int, amplitude: Int): Future[Unit]
+
+  def runDspTestWithElectrodes(electrodes: List[Int]): Unit
   def stopDspTest: Unit
+
+  def readMemoryRegion(address: Int): Future[Int]
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

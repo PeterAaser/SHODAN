@@ -22,6 +22,9 @@ case object LandingPageState extends FinalRoutingState(Some(RootState))
 case object ErrorState extends FinalRoutingState(Some(RootState))
 
 case object IndexState extends ContainerRoutingState(Some(RootState))
-case object LiveState extends FinalRoutingState(Some(IndexState))
+case object LiveState extends ContainerRoutingState(Some(IndexState))
 case object RecordingState extends FinalRoutingState(Some(IndexState))
-case object DspTestState extends FinalRoutingState(Some(IndexState))
+case object DspTestState extends ContainerRoutingState(Some(LiveState))
+case object DspMemoryState extends FinalRoutingState(Some(DspTestState))
+
+case class MEAstate(MEAid: Option[Int] = None) extends FinalRoutingState(Some(LiveState))

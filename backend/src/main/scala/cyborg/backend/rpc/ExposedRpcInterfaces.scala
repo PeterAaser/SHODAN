@@ -11,6 +11,7 @@ import fs2.async.mutable.Signal
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import cyborg._
 import utilz._
@@ -94,23 +95,20 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     userQ.enqueue1(StartMEAME).unsafeRunSync()
   }
 
-  import DspTests._
-  val tests = List(
-    stimulusTest1,
-    stimulusTest2,
-    stimulusTest3,
-    oscilloscopeTest1,
-    oscilloscopeTest2,
-    oscilloscopeTest3,
-    mcsEmulator)
 
-  // lol no error handling
-  override def runDspTest(testNo: Int): Unit = {
-    tests(testNo).unsafeRunSync()
-  }
+  import DspTests._
+  override def uploadSine(period: Int, amplitude: Int): Future[Unit] =
+    uploadSineTest(period.millis, amplitude).unsafeToFuture()
+
+  override def uploadSquare(period: Int, amplitude: Int): Future[Unit] =
+    uploadSquareTest(period.millis, amplitude).unsafeToFuture()
 
   import DspCalls._
   override def stopDspTest: Unit = {
     stopStimQueue.unsafeRunSync()
+  }
+
+  override def runDspTestWithElectrodes(electrodes: List[Int]): Unit = {
+    makeTestWithElectrodes(electrodes).unsafeRunSync()
   }
 }

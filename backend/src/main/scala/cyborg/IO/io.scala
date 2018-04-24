@@ -40,6 +40,7 @@ object sIO {
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
           rawDataStream
+            .dropWhile(seg => seg.channel != 0)
             .through(_.map(_.data))
             .through(chunkify)
             .through(recordingSink.sink)

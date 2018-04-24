@@ -55,6 +55,8 @@ object DspCalls {
     _ <- upload
   } yield ()
 
+
+
   def setSlowMode(factor: Int) =
     dspCall(SLOW_MODE,
             factor -> SLOW_MODE_FACTOR).void
