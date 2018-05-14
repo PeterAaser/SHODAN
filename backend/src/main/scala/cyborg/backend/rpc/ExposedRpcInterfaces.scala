@@ -104,11 +104,13 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     uploadSquareTest(period.millis, amplitude).unsafeToFuture()
 
   import DspCalls._
-  override def stopDspTest: Unit = {
+  override def stopDspTest: Unit =
     stopStimQueue.unsafeRunSync()
-  }
 
-  override def runDspTestWithElectrodes(electrodes: List[Int]): Unit = {
+  override def runDspTestWithElectrodes(electrodes: List[Int]): Unit =
     makeTestWithElectrodes(electrodes).unsafeRunSync()
-  }
+
+  override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
+    HttpClient.readRegistersRequest(reads).unsafeToFuture()
+
 }

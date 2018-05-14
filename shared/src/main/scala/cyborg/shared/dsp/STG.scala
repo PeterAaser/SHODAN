@@ -1,5 +1,4 @@
 package cyborg
-import DspRoutines._
 
 /**
   Contains the registers described in STG regions of interest
@@ -198,25 +197,6 @@ be reading from.
  in the same memory-area.
  """
    )
-
-
-//   // According to regmap there is a gap here between E8 and F0
-//   val WeightFactor = Set(
-//     BitField(0x91E0, "DAC A Weighting factor", 18, 0),
-//     BitField(0x91E4, "DAC C Weighting factor", 18, 0),
-//     BitField(0x91E8, "DAC E Weighting factor", 18, 0),
-//     BitField(0x91F0, "DAC B Weighting factor", 18, 0),
-//     BitField(0x91F4, "DAC D Weighting factor", 18, 0),
-//     BitField(0x91F8, "DAC F Weighting factor", 18, 0)
-//   )
-
-//   val WeightFactorBF = ValueFields(
-//     "Weight factor",
-//     WeightFactor,
-//     """No description in the manual, guesswork as to what this
-// does based on the name
-// """
-//   )
 
 
    val StimMemControlMap = Map(Bits(x2"00") -> SettingName("not sure if legal."),

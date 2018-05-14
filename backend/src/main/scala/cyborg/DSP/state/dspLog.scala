@@ -121,11 +121,20 @@ object DspLog {
   )
 
 
-  def getDspLog: IO[RegisterReadResponse] =
+  var entries = 0
+  def getDspLog: IO[RegisterReadResponse] = {
     for {
-      items <- readRegistersRequest(RegisterReadList( List(LOG_ENTRIES)) )
-      resp  <- readRegistersRequest(RegisterReadList( (0 until items.values.head).map(z => (z*4 + LOG_START)).toList ))
-    } yield (resp)
+      items           <- readRegistersRequest(RegisterReadList( List(LOG_ENTRIES)) )
+      _               =  say(s"old entries value: $entries")
+      entryStartPoint =  items.values.head - entries
+      nextEntries     =  items.values.head
+      _               =  say(s"reading log with entry startpoint: $entryStartPoint, entries: $entries")
+      resp            <- readRegistersRequest(RegisterReadList( (entryStartPoint until nextEntries).map(z => (z*4 + LOG_START)).toList ))
+    } yield {
+      entries = nextEntries
+      resp
+    }
+  }
 
 
   def readLogEntry(log: List[Int]): (List[Int], String) = {

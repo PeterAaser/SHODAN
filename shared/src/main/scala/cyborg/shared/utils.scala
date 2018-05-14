@@ -2,14 +2,6 @@ package cyborg
 
 object bonus {
 
-  // type EC = ExecutionContext
-  // type Channel = Int
-  // case class TaggedSegment(channel: Channel, data: Vector[Int])
-  // type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
-
-  // sealed trait Stoppable[F[_]] { def interrupt: F[_] }
-  // case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit]) extends Stoppable[F]
-
   def swapMap[A,B](m: Map[A,B]): Map[B,List[A]] =
     m.toList.groupBy(_._2).mapValues(_.map(_._1))
 

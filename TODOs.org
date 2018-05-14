@@ -17,6 +17,8 @@
 * Learning
 ** TODO Sett deg inn i scalatags
   
+** TODO Sbt mode i spacemacs
+   
 * Neste gang
   
 * Doing
@@ -26,10 +28,14 @@
   
 * Now 
 ** TODO Add DSP memory browser to frontend
+*** TODO Clean up dsp routines. Remove write stuff.
 *** TODO Set up RPC interfaces
 *** TODO Render field with HTML
 *** TODO Fetch data from DSP 
 *** TODO Match selected data with DSP value
+*** DONE Write a shitty version
+*** TODO Evaluate the need for a proper browser
+    
 ** TODO Add MEA selection
 *** TODO Frontend
 **** TODO Add new MEA
@@ -44,9 +50,10 @@
 ** TODO Prepare test run on DSP
 ** TODO Implement recording view functionality
 *** DONE Basic testing
-*** TODO Investigate why channels get shuffled
+*** DONE Investigate why channels get shuffled
 *** DONE Validate recording ready
 *** TODO Add form for recording info
+    
     
 * Later
 ** TODO Find time library that plays well with psql and the jvm/js boundary
@@ -771,3 +778,21 @@ we should totally find out what it is and find a way to incorporate it into the 
   It could for some recordings be interesting to record when stim is running, in
   case we want to use all electrodes.
   This should be something that can be replicated, but why not just make it explicit?
+
+* Udash
+  kjør i scalafiddle for 60 checkboxes
+  
+  #+begin_src scala
+    import io.udash._
+    import scalatags.JsDom.all._
+
+    val options = Seq.tabulate(60)(idx => idx.toString)
+    val selected = SeqProperty[String]("39")
+
+    println(div(
+              CheckButtons.apply(selected, options, decorator = els => {
+                                   div(els.map { case (in, name) => span(in, " ", name, " | ") })
+                                 }),
+              bind(selected)
+            ))
+  #+end_src

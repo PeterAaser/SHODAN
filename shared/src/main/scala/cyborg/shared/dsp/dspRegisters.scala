@@ -1,9 +1,8 @@
 package cyborg
 
-import utilz._
-
 object DspRegisters {
 
+  import com.avsystem.commons.serialization.HasGenCodec
   import twiddle._
 
   case class RegisterSetList(addresses: List[Int], values: List[Int])
@@ -12,9 +11,12 @@ object DspRegisters {
     def asMap: Map[Reg, Word] = (addresses zip values).map(λ => (Reg(λ._1),Word(λ._2))).toMap
   }
 
-  case object RegisterSetList {
+  object RegisterSetList extends HasGenCodec[RegisterSetList] {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)
   }
+
+  object RegisterReadList extends HasGenCodec[RegisterReadList]
+  object RegisterReadResponse extends HasGenCodec[RegisterReadResponse]
 
   ////////////////////////////////////////
   ////////////////////////////////////////
@@ -203,5 +205,4 @@ object DspRegisters {
   "READ_START3           " -> (TRIGGER_CTRL_BASE + 0x50),
   "MANUAL_TRIGGER        " -> (TRIGGER_CTRL_BASE + 0x14)
   ).map(_.swap)
-
 }
