@@ -9,6 +9,8 @@
    + 3 Trigger statemachines
 
    TODO This is incomprehensible, Fix after doing the last part.
+   What the fuck is this??
+
    The trigger statemachines control the
    Within each module, the three DAC pairs and three sideband
    channels can be arbitrary controlled by three trigger statemachines. These
@@ -147,9 +149,10 @@
    In this wildly uninformative diagram the stim mux is shown as the red line, and DAC assignment
    as blue.
 
-   Electrodes can be in two modes, "manual" and "auto".
+   Electrodes can be in two modes, "manual" (0b00) and "auto" (0b11).
    In manual mode, each electrode will be configured only by the stimulus select and enable registers.
    In auto mode, the stimulus and enable mux are additionally controlled by its assigned sideband.
+   Since we are using sideband I assume it's nice to set this to auto?
    When assigned to a sideband, an electrode can only emit stimuli it is enabled and the sideband
    switch close signal is high. Similarily, only when the sideband stim selector enable is high can
    an electrode be assigned a source from the DAC select register (no selection = GND).
@@ -189,38 +192,14 @@
     A trigger can control many sidebands/stimulus patterns, allowing several
     stimuli/sideband configurations 
 
-*** Incomprehensible
-    An example where more than one
-    DAC is assigned to one trigger is, when multiple electrodes are to be
-    stimulated, grouped into two blocks, where each of the two blocks has a
-    different stimulation signal amplitude. To accomplish this, two DACs can be
-    assigned to one trigger. As long as the timing of the two stimulation patterns
-    for two stimulus groups are the same, they can share one sideband resulting in a
-    setup where one trigger controls two DACS and one sideband. When the two
-    stimulation groups have differences in timing it is useful to use a seperate
-    sidebands for each of these groups, thus resulting in a setup where one trigger
-    controls two DACs and two sidebands. The assignment of the three DAC pairs and
-    three sidebands to the three triggers within each block is controlled by
-    registers 0x104 for the DACs and by register 0x108
-    The assignment of the three DAC pairs and
-    three sidebands to the three triggers within each block is controlled by
-    registers 0x104 for the DACs and by register 0x108 for the sideband channels.
-    With this setup the controlling trigger for each DAC and sideband has to be
-    choosen. Start and Stop of the stimulation is always controlled at the level of
-    the triggers, so that all DAC and sidebands which are grouped together to a
-    specific trigger are started and keeped running in sync. Start Trigger For the
-    trigger to work, the first bit(0) in the Trigger Control Register 1 (0x200) on
-    the Interface board has to be set to 1. This enables the trigger event packet to
-    propagate from the interface board to the stimulus generators. The Trigger ID
-    registers (0x218 to 0x244) define for each trigger, which Stimulus­Pattern
-    Memory­Segment to use when the corresponding trigger is startet. For single
-    segment mode leave this register at the default value of 0. To actually start a
-    trigger manually, write a "1" to the bit which corresponds the trigger number in
-    the Trigger Event Status register 0x214. For example to manually start trigger
-    1, write a value of 0x00000001 to register 0x214. To start a trigger with
-    external signals or other sources a Digital Multiplexer for source select is
-    implemented (0x280­0x2AC).
-
+    For triggers to work the first bit in the Trigger control 1 register must be
+    set to 1.
+    
+    0x0214 <- 0x1
+    
+    Trigger ID registers may all be set to 0
+    (0x0218 - 0x0244) <- 0
+    as long as we are in single segment mode (which we are)
     
 * An attempt to decipher writing of data
   In setup:
@@ -229,22 +208,7 @@
    0x9200 <- 0
 
 
-  
-** SetSegment(1, 0)
-   0x9220 <- 0
-
-** uploadSine
-   seems to be the outer loop. Keeps track of 
-   + previous value
-   + duration
-   + datapoints
-   + a volatile i
-   + vectors used
-
-*** ClearChannel(0)
-    0x920c <- 0
-   
-*** for i in 1000:
+   1000:
     Seems to increment duration until it reaches stepsize
     When stepsize is reached, duration resets, and 
     vectors used is incremented in a sideeffect-tastic manner:

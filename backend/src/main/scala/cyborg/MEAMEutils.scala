@@ -196,8 +196,8 @@ object waveformGenerator {
     for {
       _ <- setRegistersRequest(stimReset)
       _ <- setRegistersRequest(stimUploads)
-      - <- setRegistersRequest(SBSReset)
-      - <- setRegistersRequest(SBSUploads)
+      _ <- setRegistersRequest(SBSReset)
+      _ <- setRegistersRequest(SBSUploads)
     } yield ()
   }
 

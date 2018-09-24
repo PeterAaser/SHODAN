@@ -20,6 +20,8 @@
 ** TODO Sbt mode i spacemacs
    
 * Neste gang
+** TODO Lage ferdig default setup i calls.scala.
+** TODO Endre logging til å bare lese default config etter commit
   
 * Doing
   Mer DSP diagnostics?
@@ -781,7 +783,6 @@ we should totally find out what it is and find a way to incorporate it into the 
 
 * Udash
   kjør i scalafiddle for 60 checkboxes
-  
   #+begin_src scala
     import io.udash._
     import scalatags.JsDom.all._
@@ -796,3 +797,6 @@ we should totally find out what it is and find a way to incorporate it into the 
               bind(selected)
             ))
   #+end_src
+
+* How to run it all
+  Når SHODAN startes så kan funksjonalitet kun nåes vha direkte URL (lol)
