@@ -1,5 +1,7 @@
 package cyborg
 
+import BitDrawing._
+
 object DspRegisters {
 
   import com.avsystem.commons.serialization.HasGenCodec
@@ -9,14 +11,24 @@ object DspRegisters {
   case class RegisterReadList(addresses: List[Int])
   case class RegisterReadResponse(addresses: List[Int], values: List[Int]){
     def asMap: Map[Reg, Word] = (addresses zip values).map(λ => (Reg(λ._1),Word(λ._2))).toMap
+    override def toString: String = {
+      (addresses zip values).map{ case(a, v) => s"at address 0x${a.toHexString}: ${v}" }.mkString("\n","\n","\n")
+    }
+
+    def apply(address: Int): Option[Word] = asMap.lift(Reg(address))
   }
 
   object RegisterSetList extends HasGenCodec[RegisterSetList] {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)
+    def apply(r: (Int, Int)*): RegisterSetList = RegisterSetList(r.unzip._2.toList, r.unzip._1.toList)
   }
 
-  object RegisterReadList extends HasGenCodec[RegisterReadList]
-  object RegisterReadResponse extends HasGenCodec[RegisterReadResponse]
+  object RegisterReadList extends HasGenCodec[RegisterReadList] {
+    def apply(addresses: Int*): RegisterReadList = RegisterReadList(addresses.toList)
+  }
+
+  object RegisterReadResponse extends HasGenCodec[RegisterReadResponse] {
+  }
 
   ////////////////////////////////////////
   ////////////////////////////////////////
@@ -38,11 +50,43 @@ object DspRegisters {
   val STIM_QUEUE_ELEC0   = (STIM_QUEUE_BASE + 0xc)
   val STIM_QUEUE_ELEC1   = (STIM_QUEUE_BASE + 0x10)
 
-  val STIM_QUEUE_TOGGLE_SG  = (STIM_QUEUE_BASE + 0x14)
-  val STIM_QUEUE_TOGGLE_VAL = (STIM_QUEUE_BASE + 0x18)
+  val CFG_DEBUG_ELEC0 = STIM_QUEUE_BASE + 0x14
+  val CFG_DEBUG_ELEC1 = STIM_QUEUE_BASE + 0x18
+  val CFG_DEBUG_MODE0 = STIM_QUEUE_BASE + 0x1C
+  val CFG_DEBUG_MODE1 = STIM_QUEUE_BASE + 0x20
+  val CFG_DEBUG_MODE2 = STIM_QUEUE_BASE + 0x24
+  val CFG_DEBUG_MODE3 = STIM_QUEUE_BASE + 0x28
+  val CFG_DEBUG_DAC0  = STIM_QUEUE_BASE + 0x2c
+  val CFG_DEBUG_DAC1  = STIM_QUEUE_BASE + 0x30
+  val CFG_DEBUG_DAC2  = STIM_QUEUE_BASE + 0x34
+  val CFG_DEBUG_DAC3  = STIM_QUEUE_BASE + 0x38
 
-  val SLOW_MODE_BASE     = (STIM_QUEUE_BASE + 0x1c)
-  val SLOW_MODE_FACTOR   = (SLOW_MODE_BASE  + 0x0)
+  val SHOTS_FIRED     = STIM_QUEUE_BASE + 0x3c
+
+  val ERROR_FLAG      = STIM_QUEUE_BASE + 0x40
+  val ERROR_START     = STIM_QUEUE_BASE + 0x44
+  val ERROR_END       = STIM_QUEUE_BASE + 0x60
+  val ERROR_ENTRIES   = STIM_QUEUE_BASE + 0x64
+
+  val STEP_COUNTER    = STIM_QUEUE_BASE + 0x68
+
+  val  DEBUG1 = (STIM_QUEUE_BASE + 0x90)
+  val  DEBUG2 = (STIM_QUEUE_BASE + 0x94)
+  val  DEBUG3 = (STIM_QUEUE_BASE + 0x98)
+  val  DEBUG4 = (STIM_QUEUE_BASE + 0x9C)
+
+  val STIM_REQ1_ACTIVE               = STIM_QUEUE_BASE + 0x6C
+  val STIM_REQ1_PERIOD               = STIM_QUEUE_BASE + 0x70
+  val STIM_REQ1_NEXT_FIRING_TIMESTEP = STIM_QUEUE_BASE + 0x74
+
+  val STIM_REQ2_ACTIVE               = STIM_QUEUE_BASE + 0x78
+  val STIM_REQ2_PERIOD               = STIM_QUEUE_BASE + 0x7C
+  val STIM_REQ2_NEXT_FIRING_TIMESTEP = STIM_QUEUE_BASE + 0x80
+
+  val STIM_REQ3_ACTIVE               = STIM_QUEUE_BASE + 0x84
+  val STIM_REQ3_PERIOD               = STIM_QUEUE_BASE + 0x88
+  val STIM_REQ3_NEXT_FIRING_TIMESTEP = STIM_QUEUE_BASE + 0x8C
+
 
   val LOG_START          = (0x1100)
   val LOG_END            = (0x1F00)

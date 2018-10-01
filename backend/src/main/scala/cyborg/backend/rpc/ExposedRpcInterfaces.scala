@@ -96,19 +96,19 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
   }
 
 
-  import DspTests._
+  import DspCalls._
   override def uploadSine(period: Int, amplitude: Int): Future[Unit] =
     uploadSineTest(period.millis, amplitude).unsafeToFuture()
 
   override def uploadSquare(period: Int, amplitude: Int): Future[Unit] =
     uploadSquareTest(period.millis, amplitude).unsafeToFuture()
 
-  import DspCalls._
   override def stopDspTest: Unit =
     stopStimQueue.unsafeRunSync()
 
   override def runDspTestWithElectrodes(electrodes: List[Int]): Unit =
-    makeTestWithElectrodes(electrodes).unsafeRunSync()
+    say("deprecated and unimplemented")
+    // makeTestWithElectrodes(electrodes).unsafeRunSync()
 
   override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
     HttpClient.readRegistersRequest(reads).unsafeToFuture()

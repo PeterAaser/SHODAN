@@ -45,7 +45,7 @@ object HttpClient {
     val req = GET(Uri.uri("http://129.241.201.110:8888/status"))
     val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)
-        DspCalls.checkDsp.map(s => MEAMEstatus(true, true, s))
+        DspCalls.readElectrodeConfig.map(_ => MEAMEstatus(true, true, true))
       else
         IO(MEAMEstatus(true, false, false))
     }

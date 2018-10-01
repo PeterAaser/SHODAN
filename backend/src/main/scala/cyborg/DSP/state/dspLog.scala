@@ -99,25 +99,18 @@ object DspLog {
       s"at timestep: ${logEntry(5)}\n"
   }
 
+  def parseMODE_SET(logEntry: List[Int]): String = {
+    s"after mode select ${logEntry(0)}\n" +
+      s"0 : ${logEntry(1)}\n" +
+      s"0 : ${logEntry(2)}\n" +
+      s"0 : ${logEntry(3)}\n" +
+      s"0 : ${logEntry(4)}\n"
+  }
+
   val logHandlers = Map[Int, (List[Int] => String)](
 
-    1  -> parseSQstates,
-    2  -> parseSQbooking,
-    3  -> parseSQstateChange,
-    4  -> parseSQconfStart,
-    6  -> parseSQconfReset,
-    7  -> parseSQtriggerFired,
-
+    1  -> parseMODE_SET,
     10 -> parseInstructionReceived,
-
-    11 -> parseSQcanary,
-
-    12 -> unnamed,
-
-    13 -> parseStimulus,
-
-    14 -> parseSGstate,
-    15 -> parseDACstate
   )
 
 

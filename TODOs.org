@@ -16,7 +16,6 @@
  
 * Learning
 ** TODO Sett deg inn i scalatags
-  
 ** TODO Sbt mode i spacemacs
    
 * Neste gang
@@ -24,9 +23,7 @@
 ** TODO Endre logging til å bare lese default config etter commit
   
 * Doing
-  Mer DSP diagnostics?
-** DONE Splitte stim uploads og stim queue testing.
-  
+  Figure out why triggers aren't fired off correctly.
   
 * Now 
 ** TODO Add DSP memory browser to frontend

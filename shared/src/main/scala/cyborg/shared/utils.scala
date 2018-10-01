@@ -2,6 +2,8 @@ package cyborg
 
 object bonus {
 
+  type mV = Double
+
   def swapMap[A,B](m: Map[A,B]): Map[B,List[A]] =
     m.toList.groupBy(_._2).mapValues(_.map(_._1))
 

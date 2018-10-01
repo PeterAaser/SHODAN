@@ -1,6 +1,6 @@
 package cyborg
 
-import cats.effect.Async
+import cats.effect.{ Async, Sync }
 import cats.{ Functor, Monad }
 import cats.implicits._
 import fs2._
@@ -547,6 +547,13 @@ object utilz {
   def say(word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
     val fname = filename.value.split("/").last
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+  }
+
+  def Fsay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {
+    ev.delay{
+      val fname = filename.value.split("/").last
+      println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+    }
   }
 
 }

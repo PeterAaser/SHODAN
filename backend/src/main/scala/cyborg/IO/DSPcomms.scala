@@ -6,10 +6,10 @@ import cats.effect._
 
 import MEAMEutilz._
 import utilz._
+import fs2._
 
 object DspComms {
 
-  import fs2._
 
   def stimuliRequestSink(tolerance: Double)(implicit ec: EC): Sink[IO,List[Double]] = {
 
@@ -29,7 +29,8 @@ object DspComms {
             (diffExceedsThreshHold || sensorOutOfRange)
           }
 
-          val stimReq = DspCalls.createStimRequests(clamped)
+          // val stimReq = DspCalls.createStimRequests(clamped)
+          val stimReq = IO {say("Firing off an unimplemented stim request, CLOG WARNING")}
 
           if(shouldUpdate) {
             Pull.output1(stimReq) >> go(clamped,tl)
