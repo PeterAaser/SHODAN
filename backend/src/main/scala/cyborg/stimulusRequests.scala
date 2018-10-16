@@ -5,11 +5,20 @@ import cats.effect.IO
 import cats.effect._
 
 import MEAMEutilz._
+import scala.concurrent.duration.FiniteDuration
 import utilz._
 import fs2._
 
+
+// TODO: Rename
 object DspComms {
 
+  def toStimReq[F[_]](): Pipe[F,List[Double], List[(Int, FiniteDuration)]] = {
+
+
+    // HER VAR DU
+    ???
+  }
 
   def stimuliRequestSink(tolerance: Double)(implicit ec: EC): Sink[IO,List[Double]] = {
 

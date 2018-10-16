@@ -1,17 +1,12 @@
 package cyborg
 
 import fs2._
-import cats._
-import cats.syntax._
-import cats.implicits._
-import cats.effect.implicits._
 import cats.effect._
 import scala.concurrent.duration._
+import cyborg.utilz._
 
 
 object DSP {
-
-  case class mV(mv: Double)
 
   /**
     Configures stimulus with a square waveform and only group 0 active
@@ -60,4 +55,13 @@ object DSP {
     _ <- DspCalls.stopStimQueue
     _ <- WaveformGenerator.squareWave(channel, 0.milli, duration, 0.0, 400.0)
   } yield ()
+
+
+  def stimuliRequestSink(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = { ins =>
+    val stimRequests = ins.map{ case(idx, period) =>
+      period.map(p => setStimgroupPeriod(idx, p))
+        .getOrElse(disableStimGroup(idx))}
+
+    stimRequests.map(Stream.eval).joinUnbounded
+  }
 }

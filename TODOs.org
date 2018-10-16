@@ -12,29 +12,27 @@
   it will be easier to monitor.
   Perhaps this is prudent for more parts of the codebase, ensure that each component is a persistent 
   container for its internal streams which may be interrupted and restarted.
-
+  
  
 * Learning
 ** TODO Sett deg inn i scalatags
 ** TODO Sbt mode i spacemacs
    
 * Neste gang
-** TODO Lage ferdig default setup i calls.scala.
-** TODO Endre logging til å bare lese default config etter commit
   
 * Doing
-  Figure out why triggers aren't fired off correctly.
+** TODO Refactor the DSP config and stim pipeline
+*** TODO RPC still has DspCalls._
+*** TODO Stim request pipe
+*** TODO DSP comms rewrite
   
 * Now 
-** TODO Add DSP memory browser to frontend
-*** TODO Clean up dsp routines. Remove write stuff.
-*** TODO Set up RPC interfaces
-*** TODO Render field with HTML
-*** TODO Fetch data from DSP 
-*** TODO Match selected data with DSP value
-*** DONE Write a shitty version
-*** TODO Evaluate the need for a proper browser
+** TODO Refactor into API packages kinda
+*** DONE DSP
+*** TODO Resten...
+** TODO Revisit the setup flow now that the DSP actually works
     
+* Later
 ** TODO Add MEA selection
 *** TODO Frontend
 **** TODO Add new MEA
@@ -46,29 +44,17 @@
     
    Use the udash akka demo as a template to add MEAs
 ** TODO Add file upload form
-** TODO Prepare test run on DSP
 ** TODO Implement recording view functionality
 *** DONE Basic testing
 *** DONE Investigate why channels get shuffled
 *** DONE Validate recording ready
 *** TODO Add form for recording info
     
-    
-* Later
 ** TODO Find time library that plays well with psql and the jvm/js boundary
 ** TODO Figure out how to better handle reporting equipment failure
 ** TODO Standardize names in codebase (DSP, Dsp, dsp etc...)
 ** TODO Polish file playback
 ** TODO MCS file fixerino reduxerino
-** TODO Add tests
-   Maybe read the chapter on prop testing in the red book?
-*** DONE Get hello world test to run
-    sort of, the frontend kinda stopped working... hurr!
-*** TODO Make simple sine wave playback server/harness
-*** TODO Make database playback mock server/harness
-   
-** TODO Spec out and properly implement DB
-*** TODO add more todo items
 ** TODO Refactor Feedback pipe
    not critical
 *** TODO figure out how to dequeueAvailable without losing unconsumed
@@ -76,30 +62,11 @@
 **** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
      Might deadlock or whatever
     
-** TODO Better handling of parameters
-*** TODO Define requirements
-    'better' is not a requirement, although in its current state it's not
-    100% wrong either. Possibly params could be a signal or some other IO
-    mutable construct, including an isReady IO[Bool].
-    Sort of react-ish way of handling it
-
-** TODO Refactor registry representation
-*** DONE Refine register representation.
-*** DONE Check correctness of STG.scala
-*** TODO Make specialized rendering per field basis
-   For instance electrode enable should use ✘ and ✓ instead of dumping everything
-   Similarily, this allows for more sensible per group rendering.
-   Currently it's worth asking if this is actually needed, can we simply get by
-   with a specialized function? (yes)
-*** TODO Create specialized stimulus upload
-   Let this be handled on the DSP for now...
-*** TODO Refactor HttpClient stuff, get the forest under control.
-   
-  
 * Maybe
 ** TODO Optimize segment translator
     
 * Finished
+** DONE Figure out why triggers aren't fired off correctly.
 ** DONE Add DSP tests to the live section
 *** DONE Add electrode select to live section
     It looks like shit. IDGAF
@@ -502,7 +469,7 @@ we should totally find out what it is and find a way to incorporate it into the 
 
    I assume maximum amount of spikes we're interested in recording is 50 per second
 
-
+   
 * Issues with output from MEAME
   It seems the data corruption issues only happen with low samplerates.
   With a samplerate of 1khz I get garbage, but at 10khz the channels are correctly rendered, 

@@ -296,7 +296,7 @@ object utilz {
             else {
               (qs(idx).dequeue1 map { xs: Vector[I] =>
                  for(i <- 0 until elementsPerDeq){
-                   arr(i)(idx) = xs(i) // TODO <--- her var du
+                   arr(i)(idx) = xs(i)
                  }
                }) >> loader(idx + 1)
             }
@@ -555,5 +555,14 @@ object utilz {
       println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
     }
   }
+
+  def groupByDelimiter[F[_],I](f: I => Boolean): Pipe[F,I,Seq[I]] = {
+    def go(s: Stream[F,I], acc: Seq[I]): Pull[F,Seq[I],Unit] =
+      s.pull.uncons.flatMap {
+        case 
+  }
+
+  def indexTupler[F[_],I]: Pipe[F,Seq[I],(I,Int)] =
+    _.through(_.map(_.zipWithIndex)).through(chunkify)
 
 }
