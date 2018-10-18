@@ -21,6 +21,8 @@ import scala.concurrent.ExecutionContext
   */
 object fileIO {
 
+  import params.StorageParams.toplevelPath
+
   def getListOfFiles(dir: String): List[File] =
     (new File(dir)).listFiles.filter(_.isFile).toList
 
@@ -48,7 +50,7 @@ object fileIO {
 
 
   def getNewestFilename: String =
-    sortFilesByDate(getListOfFiles("/home/peter/MEAMEdata"))
+    sortFilesByDate(getListOfFiles(toplevelPath))
       .head.toString(fmt)
 
 

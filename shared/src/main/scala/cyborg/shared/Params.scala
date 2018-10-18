@@ -65,7 +65,9 @@ object params {
 
 
   object StorageParams {
-    val storageType = "CSV"
-    val toplevelPath = "/home/peteraa/MEAdata/"
+    import java.nio.file.Paths
+    val storageType      = "CSV"
+    val workingDirectory = Paths.get(".").toAbsolutePath
+    val toplevelPath     = workingDirectory + "/MEAdata"
   }
 }

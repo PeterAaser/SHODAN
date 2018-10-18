@@ -76,13 +76,15 @@ object mcsParser {
     */
   def processRecordings(implicit ec: ExecutionContext): Stream[IO,Unit] = {
 
+    import params.StorageParams.toplevelPath
+
     // Query for all URIs currently in the database
     val dbUris = databaseIO.getAllExperimentUris.map(_.toSet)
 
     // Get list of recordings in the data folder
     val fileUris: Set[Path] = (
-      fileIO.getListOfFiles("/home/peteraa/MEAdata") ++
-      fileIO.getListOfFiles("/home/peteraa/MEAdata/mcs_data")
+      fileIO.getListOfFiles(toplevelPath) ++
+      fileIO.getListOfFiles(toplevelPath + "/mcs_data")
     ).map(_.toPath()).toSet
 
 
@@ -90,7 +92,7 @@ object mcsParser {
     val uninserted = dbUris.map( dbUris => fileUris -- dbUris).map{ uris =>
       uris.map { uri =>
 
-        val metaData = fileIO.getListOfFiles("/home/peteraa/MEAdata/mcs_data/metadata")
+        val metaData = fileIO.getListOfFiles(toplevelPath + "/mcs_data/metadata")
           .filterNot(λ => λ.getName.eq(uri.getFileName.toString()))
           .head.toPath() // #YOLO
 
