@@ -11,6 +11,7 @@ import stimulus.WaveformGenerator
 object DSP {
 
   import calls.DspCalls
+  import HttpClient.DSP._
 
   /**
     Configures stimulus with a square waveform and only group 0 active
@@ -68,4 +69,6 @@ object DSP {
 
     stimRequests.map(Stream.eval).joinUnbounded
   }
+
+  def flashDSP: IO[Unit] = HttpClient.DSP.flashDsp
 }

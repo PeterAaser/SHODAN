@@ -55,7 +55,7 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
   //TODO move to token?
   override def flashDsp: Unit = {
     val runit = for {
-      _ <- HttpClient.flashDsp
+      _ <- cyborg.dsp.DSP.flashDSP
       _ <- HttpClient.getMEAMEhealthCheck
     } yield()
     runit.unsafeRunSync()
@@ -110,6 +110,6 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     say("deprecated and unimplemented")
 
   override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
-    HttpClient.readRegistersRequest(reads).unsafeToFuture()
+    HttpClient.DSP.readRegistersRequest(reads).unsafeToFuture()
 
 }

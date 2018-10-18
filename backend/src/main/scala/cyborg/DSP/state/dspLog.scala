@@ -9,6 +9,7 @@ import DspRegisters._
 
 
 object DspLog {
+  import HttpClient.DSP._
 
   def parseStimulus(logEntry: List[Int]): String =
     s"stimulus entry:\n 0x${logEntry(0).toHexString.toUpperCase()} <- 0x${logEntry(1).toHexString.toUpperCase()} - 0b${BitDrawing.as32BinarySpaced(logEntry(1))}\tstimulus.c: ${logEntry(2)}\n-------\n\n"

@@ -1,6 +1,5 @@
 package cyborg
 
-// emits spurious warning
 import cyborg.dsp.calls.DspCalls
 
 import cats.effect.IO
@@ -14,10 +13,10 @@ import org.http4s.Uri
 
 import org.http4s.circe._
 
-import io.circe.literal._
-import io.circe.generic.auto._
-import io.circe.syntax._
-import io.circe.{ Encoder, Json }
+import _root_.io.circe.literal._
+import _root_.io.circe.generic.auto._
+import _root_.io.circe.syntax._
+import _root_.io.circe.{ Encoder, Json }
 
 
 import utilz._
@@ -64,32 +63,33 @@ object HttpClient {
   ////////////////////////////////////////
   // DSP
 
-  def flashDsp: IO[Unit] = {
-    val req = GET(Uri.uri("http://129.241.201.110:8888/DSP/flash"))
-    httpClient.expect[String](req).void
+  object DSP {
+    def flashDsp: IO[Unit] = {
+      val req = GET(Uri.uri("http://129.241.201.110:8888/DSP/flash"))
+      httpClient.expect[String](req).void
+    }
+
+    def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
+    {
+      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/write"), regs.asJson)
+      httpClient.expect[String](req).void
+    }
+
+
+    def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
+    {
+      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/read"), regs.asJson)
+      httpClient.expect[RegisterReadResponse](req)
+    }
+
+
+    def dspCall(call: Int, args: (Int,Int)*): IO[Unit] =
+    {
+      val funcCall = DspFuncCall(call, args.toList)
+      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/call"), funcCall.asJson)
+      httpClient.expect[String](req).void
+    }
   }
-
-  def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/write"), regs.asJson)
-    httpClient.expect[String](req).void
-  }
-
-
-  def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
-  {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/read"), regs.asJson)
-    httpClient.expect[RegisterReadResponse](req)
-  }
-
-
-  def dspCall(call: Int, args: (Int,Int)*): IO[Unit] =
-  {
-    val funcCall = DspFuncCall(call, args.toList)
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/call"), funcCall.asJson)
-    httpClient.expect[String](req).void
-  }
-
 
 
   ////////////////////////////////////////

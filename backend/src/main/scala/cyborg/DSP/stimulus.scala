@@ -6,6 +6,7 @@ import utilz._
 import cats.effect.IO
 
 import DspRegisters._
+import HttpClient.DSP._
 import bonus._
 
 

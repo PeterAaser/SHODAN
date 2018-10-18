@@ -16,8 +16,10 @@ import bonus._
 import BitDrawing._
 
 import dsp.stimulus.WaveformGenerator
+import HttpClient.DSP._
 
 object DspCalls {
+
 
   val DUMP                            = 1
   val RESET                           = 2
