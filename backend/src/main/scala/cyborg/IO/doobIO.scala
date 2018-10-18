@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.io.database
+import cyborg._
 
 import cats.effect.IO
 import doobie.imports._
@@ -13,7 +14,7 @@ import utilz._
 import java.nio.file.{ Path, Paths }
 
 
-object doobIO {
+object DoobieQueries {
 
   case class ExperimentInfo(id: Int,
                             startTime: DateTime,

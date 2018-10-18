@@ -10,10 +10,9 @@ import utilz._
 import fs2._
 
 
-// TODO: Rename
-object DspComms {
+object PerturbationTransform {
 
-  def toStimReq[F[_]](): Pipe[F,List[Double], List[(Int, FiniteDuration)]] = {
+  def toStimReq[F[_]]: Pipe[F,List[Double], List[(Int, FiniteDuration)]] = {
 
 
     // HER VAR DU

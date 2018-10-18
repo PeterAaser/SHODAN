@@ -65,8 +65,7 @@ object Assemblers {
       _              <- Stream.eval(frontend.start)
 
       _ <- commandQueue.dequeue.through(commandPipe)
-             .concurrently(networkIO.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
-             // .concurrently(taggedSeqTopic.subscribe(1000).through(visualizerSink))
+             .concurrently(cyborg.io.sIO.Network.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
 
     } yield ()
   }
@@ -203,7 +202,7 @@ object Assemblers {
 
 
   def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
-   mcsParser.processRecordings
+   cyborg.io.files.mcsParser.processRecordings
 
 
 }

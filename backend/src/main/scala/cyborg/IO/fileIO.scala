@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.io.files
+import cyborg._
 
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
@@ -54,7 +55,7 @@ object fileIO {
   // TODO might be perf loss to go from Array to List and all that
   def readCSV[F[_]: Effect](filePath: Path, elementsPerSec: Int)(implicit ec: EC, s: Scheduler): Stream[F,Int] = {
     say(s"elements per sec set to $elementsPerSec")
-    val reader = io.file.readAll[F](filePath, 4096*32)
+    val reader = fs2.io.file.readAll[F](filePath, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
       .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
@@ -85,7 +86,7 @@ object fileIO {
         .through(utilz.vectorize(1000))
         .through(_.map(_.mkString("",", ", "\n")))
         .through(text.utf8Encode)
-        .through(io.file.writeAll(path))
+        .through(fs2.io.file.writeAll(path))
 
       (path, sink)
     }
@@ -108,6 +109,6 @@ object fileIO {
 
 
   def stringToFile[F[_]: Effect](s: String, path: Path): Stream[F,Unit] = {
-    Stream.emit(s).covary[F].through(text.utf8Encode).through(io.file.writeAll(path))
+    Stream.emit(s).covary[F].through(text.utf8Encode).through(fs2.io.file.writeAll(path))
   }
 }

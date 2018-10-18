@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.io.files
+import cyborg._
 
 import cats.effect.IO
 import org.joda.time.format.DateTimeFormat
@@ -8,6 +9,7 @@ import scala.concurrent.ExecutionContext
 
 import fs2._
 
+import cyborg.io.database._
 
 /**
   Takes in a filepath, performs the magic.

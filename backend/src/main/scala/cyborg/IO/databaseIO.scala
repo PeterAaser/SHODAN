@@ -1,4 +1,6 @@
-package cyborg
+package cyborg.io.database
+import cyborg._
+import cyborg.io.files._
 
 import org.joda.time._
 import org.joda.time.Interval
@@ -16,7 +18,7 @@ import cats.effect.IO
 import java.nio.file.Path
 
 import cyborg.utilz._
-import cyborg.doobIO._
+import DoobieQueries._
 import cyborg.RPCmessages._
 
 import cats.effect.IO
@@ -45,8 +47,8 @@ object databaseIO {
   def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
     say(s"making stream for experiment $experimentId")
 
-    val data = Stream.eval(doobIO.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
-      Stream.eval(doobIO.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
+    val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
+      Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
         say(s"Playing record with parameters:")
         say(s"id:             ${expParams.id}")
         say(s"samplerate:     ${expParams.samplerate}")
@@ -72,8 +74,8 @@ object databaseIO {
 
     Stream.eval(newest) flatMap{ experimentId =>
       say(s"playing experiment with id $experimentId")
-      val data = Stream.eval(doobIO.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
-        Stream.eval(doobIO.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
+      val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
+        Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
           say(s"Playing record with parameters:")
           say(s"id:             ${expParams.id}")
           say(s"samplerate:     ${expParams.samplerate}")
@@ -90,10 +92,34 @@ object databaseIO {
   }
 
 
+  def streamToDatabase(
+    rawDataStream: Stream[IO,TaggedSegment],
+    comment: String,
+    getConf: IO[Setting.FullSettings])
+    (implicit ec: EC): IO[InterruptableAction[IO]] =
+  {
+    import fs2.async._
+    import cats.implicits._
+
+    signalOf[IO,Boolean](false).flatMap { interruptSignal =>
+      databaseIO.createRecordingSink("", getConf).map { recordingSink =>
+        InterruptableAction(
+          interruptSignal.set(true) >> recordingSink.finalizer,
+          rawDataStream
+            .dropWhile(seg => seg.channel != 0)
+            .through(_.map(_.data))
+            .through(chunkify)
+            .through(recordingSink.sink)
+            .interruptWhen(interruptSignal.discrete).run
+        )
+      }
+    }
+  }
+
   def getRecordingInfo(id: Int)(implicit ec: EC): IO[RecordingInfo] = {
 
-    val info = doobIO.getExperimentInfo(id)
-    val params = doobIO.getExperimentParams(id)
+    val info = DoobieQueries.getExperimentInfo(id)
+    val params = DoobieQueries.getExperimentParams(id)
 
     // hideous
     def shittyFormat(s: Seconds): String = {
@@ -118,14 +144,8 @@ object databaseIO {
     }.transact(xa)
   }
 
-  def getAllExperiments(implicit ec: EC): IO[List[RecordingInfo]] = {
-    getAllExperimentIds.flatMap { ids =>
-      ids.map(getRecordingInfo).sequence
-    }
-  }
-
   def dbGetParams(experimentId: Int): IO[Int] = {
-    val params = doobIO.getExperimentParams(experimentId)
+    val params = DoobieQueries.getExperimentParams(experimentId)
       .transact(xa)
       .map(_.segmentLength)
 
@@ -167,13 +187,13 @@ object databaseIO {
 
 
   def getAllExperimentIds(): IO[List[Int]] =
-    doobIO.getAllExperiments.transact(xa)
+    DoobieQueries.getAllExperiments.transact(xa)
 
   def getAllExperimentUris(): IO[List[Path]] =
-    doobIO.getAllExperimentUris.transact(xa)
+    DoobieQueries.getAllExperimentUris.transact(xa)
 
   def insertOldExperiment(comment: String, timestamp: DateTime, uri: String): IO[Unit] =
-    doobIO.insertOldExperiment(comment, timestamp, uri).transact(xa)
+    DoobieQueries.insertOldExperiment(comment, timestamp, uri).transact(xa)
 
 
   def filterByTimeInterval(interval: Interval): List[ExperimentInfo] => List[ExperimentInfo] = {

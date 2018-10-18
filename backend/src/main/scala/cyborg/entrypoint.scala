@@ -1,7 +1,7 @@
 package cyborg
 
 import fs2.async.mutable.Signal
-import io.udash.rpc.ClientId
+import _root_.io.udash.rpc.ClientId
 import java.io.IOException
 import cats.implicits._
 
@@ -17,6 +17,11 @@ import cats.effect._
 import wallAvoid.Agent
 import utilz._
 import utilz.TaggedSegment
+
+import cyborg.io._
+import sIO.DB._
+import sIO.File._
+import sIO.Network._
 
 
 object staging {
@@ -63,7 +68,7 @@ object staging {
               case Right(_) => for {
                 _         <- IO { say("MEAME responding") }
                 conf      <- getConf
-                tcp       =  sIO.streamFromTCP(conf.experimentSettings.segmentLength)
+                tcp       =  streamFromTCP(conf.experimentSettings.segmentLength)
                 broadcast <- Assemblers.broadcastDataStream(tcp, topics, rawDataTopic.publish)
                 _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
                 _         <- state.modify(_.copy(dbRecording = false))
@@ -86,7 +91,7 @@ object staging {
       val tasks = state.discrete.through(_.map(_.dbRecording)).changes.tail map { start =>
         say(s"handle recording state change with new state $start")
         if(start) for {
-          record <- sIO.streamToDatabase(rawDataTopic.subscribe(10000), "", getConf)
+          record <- streamToDatabase(rawDataTopic.subscribe(10000), "", getConf)
           _      <- actions.modify(_.copy(stopRecording = record.interrupt))
           _      <- record.action
         } yield ()
@@ -130,7 +135,7 @@ object staging {
       val tasks = state.discrete.through(_.map(z => (z.playbackId, z.playbackRunning))).changes.tail map { case(id, start) =>
         if(start) for {
           _         <- IO.unit
-          data      =  sIO.streamFromDatabase(id)
+          data      =  streamFromDatabase(id)
           broadcast <- Assemblers.broadcastDataStream(data, topics, rawDataTopic.publish)
           _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
           _         <- state.modify(_.copy(dbRecording = false))
@@ -263,7 +268,7 @@ object staging {
 
 
   def handleGetRecordings(p: Promise[IO,List[RecordingInfo]])(implicit ec: EC): IO[Unit] = for {
-    experiments <- databaseIO.getAllExperiments
+    experiments <- getAllExperiments
     _ <- p.complete(experiments)
   } yield ()
 }

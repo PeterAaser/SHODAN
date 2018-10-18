@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.io.network
+import cyborg._
 
 import cats.effect.{ Effect, IO }
 import fs2._
