@@ -69,7 +69,7 @@ object networkIO {
         }.compile.drain
     }
 
-    server(new InetSocketAddress("129.241.110.153", hosePort)).flatMap {
+    server(new InetSocketAddress("0.0.0.0", hosePort)).flatMap {
       say("opening server")
       sockets => {
         sockets.map{ socket =>
