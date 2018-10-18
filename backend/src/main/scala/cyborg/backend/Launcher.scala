@@ -7,7 +7,7 @@ import cyborg._
 import utilz._
 import cats.effect._
 
-import DspCalls._
+import cyborg.dsp.calls.DspCalls._
 
 object Launcher {
   def main(args: Array[String]): Unit = {
@@ -31,6 +31,6 @@ object Launcher {
     // hurr.unsafeRunSync()
 
 
-    // Assemblers.startSHODAN.compile.drain.unsafeRunSync()
+    Assemblers.startSHODAN.compile.drain.unsafeRunSync()
   }
 }

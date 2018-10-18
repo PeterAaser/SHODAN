@@ -1,5 +1,8 @@
 package cyborg
 
+// emits spurious warning
+import cyborg.dsp.calls.DspCalls
+
 import cats.effect.IO
 import cats.effect._
 import cats.implicits._

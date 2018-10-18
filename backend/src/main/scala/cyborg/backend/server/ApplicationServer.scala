@@ -65,21 +65,6 @@ object ApplicationServer {
         .through(mapN(targetSegmentLength*60, _.force.toArray))
         .through(sendData)
 
-      // val pointsPerSec = conf.experimentSettings.samplerate
-      // val pointsNeededPerSec = params.waveformVisualizer.vizLength
-      // val segmentsPerSec = pointsPerSec/conf.experimentSettings.segmentLength
-      // val pointsNeededPerSegment = pointsNeededPerSec/segmentsPerSec
-
-      // val downsampledSegmentLength = conf.experimentSettings.segmentLength*(pointsNeededPerSec/pointsPerSec)
-
-      // val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
-      // say(s"made downsampler with params: pointsPerSec: $pointsPerSec, pointsNeededPerSec: $pointsNeededPerSec")
-
-      // in => in.through(_.map(_.data)).through(chunkify)
-      //   .through(downsampler)
-      //   .through(mapN(pointsNeededPerSegment*60, _.force.toArray))
-      //   .through(sendData)
-
     }
   }
 

@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.dsp.stimulus
+import cyborg._
 
 import scala.concurrent.duration._
 import utilz._

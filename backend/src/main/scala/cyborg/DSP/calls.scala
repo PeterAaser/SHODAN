@@ -1,4 +1,5 @@
-package cyborg
+package cyborg.dsp.calls
+import cyborg._
 
 import HttpClient._
 import cyborg.twiddle.Reg
@@ -14,6 +15,7 @@ import utilz._
 import bonus._
 import BitDrawing._
 
+import dsp.stimulus.WaveformGenerator
 
 object DspCalls {
 

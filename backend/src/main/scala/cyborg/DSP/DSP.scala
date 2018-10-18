@@ -1,12 +1,16 @@
-package cyborg
+package cyborg.dsp
+import cyborg._
 
 import fs2._
 import cats.effect._
 import scala.concurrent.duration._
 import cyborg.utilz._
 
+import stimulus.WaveformGenerator
 
 object DSP {
+
+  import calls.DspCalls
 
   /**
     Configures stimulus with a square waveform and only group 0 active
