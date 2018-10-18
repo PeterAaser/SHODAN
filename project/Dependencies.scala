@@ -7,8 +7,8 @@ object Dependencies {
 
   // Udash
   // val udashVersion = "0.7.0-SNAPSHOT"
-  val udashVersion = "0.6.1"
-  val udashJQueryVersion = "1.1.0"
+  val udashVersion = "0.7.1"
+  val udashJQueryVersion = "1.2.0"
 
   // Backend
   val avsystemCommonsVersion = "1.25.6"

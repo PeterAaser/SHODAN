@@ -4,6 +4,7 @@ package cyborg
 
 object wallAvoid {
 
+  import com.avsystem.commons.serialization.GenCodec
   import params.game._
 
   def compress(d: Double): Double =
@@ -17,6 +18,9 @@ object wallAvoid {
     def toPixelCoordinates(screenWidth: Int, screenHeight: Int): Coord =
       copy(x = (x/width.toDouble)*screenWidth.toDouble,
            y = (y/height.toDouble)*screenHeight.toDouble)
+  }
+  object Coord {
+    implicit val coordCodec: GenCodec[Coord] = GenCodec.materialize
   }
   case class Agent(loc: Coord, heading: Double, degreesFieldOfView: Int){
 
@@ -65,6 +69,7 @@ object wallAvoid {
       val nextAgent = a.update((input.head, input.tail.head))
       nextAgent
     }
+    implicit val agentCodec: GenCodec[Agent] = GenCodec.materialize
   }
 
   val PI = 3.14

@@ -556,11 +556,6 @@ object utilz {
     }
   }
 
-  def groupByDelimiter[F[_],I](f: I => Boolean): Pipe[F,I,Seq[I]] = {
-    def go(s: Stream[F,I], acc: Seq[I]): Pull[F,Seq[I],Unit] =
-      s.pull.uncons.flatMap {
-        case 
-  }
 
   def indexTupler[F[_],I]: Pipe[F,Seq[I],(I,Int)] =
     _.through(_.map(_.zipWithIndex)).through(chunkify)
