@@ -70,4 +70,11 @@ object params {
     val workingDirectory = Paths.get(".").toAbsolutePath
     val toplevelPath     = workingDirectory + "/MEAdata"
   }
+
+  object perturbationTransform {
+    val scaleRangeToFreq =
+      (experiment.maxFreq - experiment.minFreq) / (game.sightRange - game.deadZone)
+    val scaleFreqToRange =
+      (game.sightRange - game.deadZone) / (experiment.maxFreq - experiment.minFreq)
+  }
 }
