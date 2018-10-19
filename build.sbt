@@ -169,3 +169,7 @@ lazy val packager = project
       (frontendStatics.allPaths --- frontendStatics) pair relativeTo(frontendStatics.getParentFile)
     },
   )
+
+// Ability to interrupt task execution with C-c
+cancelable in Global := true
+fork := true
