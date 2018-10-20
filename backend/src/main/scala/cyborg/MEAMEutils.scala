@@ -76,12 +76,9 @@ object MEAMEutilz {
       (expDecay(expDecay(lin(d)))*(maxFreq - minFreq)) + minFreq
   }
 
+
   def toTickPeriod(d: Double): Int = {
     val period = (1.0/d)
     (period*params.experiment.DSPticksPerSecond).toInt
-  }
-
-  def getSegmentLength(samplerate: Int): Int = {
-    2000
   }
 }

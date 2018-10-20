@@ -75,6 +75,13 @@ object sIO {
     def streamFromTCP(segmentLength: Int)(implicit ec: ExecutionContext): Stream[IO,TaggedSegment] =
       networkIO.streamAllChannels[IO].through(tagPipe(segmentLength))
 
+    /**
+      * Opens a TCP server which exposes the channels individually.
+      * Once SHODAN is running, another consumer may request a datastream by sending a byte to the
+      * server and reading the returned data.
+      *
+      * Very crufty, crashes the server upon consumer disconnecting lol
+      */
     def channelServer[F[_]: Effect](topics: List[Topic[F,TaggedSegment]])(implicit ec: EC): Stream[F,F[Unit]] =
       networkIO.channelServer(topics)
   }
