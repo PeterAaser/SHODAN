@@ -2,6 +2,11 @@ package cyborg
 
 object bonus {
 
+  implicit class SeqOps[A](xs: Seq[A]) {
+    def zipWith[B,C](ys: Seq[B])(f: (A,B) => C): Seq[C] =
+      xs.zip(ys) map f.tupled
+  }
+
   type mV = Double
 
   def swapMap[A,B](m: Map[A,B]): Map[B,List[A]] =
