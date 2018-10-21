@@ -62,7 +62,6 @@ object fileIO {
       .through(text.lines)
       .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
       .through(utilz.chunkify)
-      .through(utilz.throttlerPipe(elementsPerSec*60, 0.05.second))
       .handleErrorWith{
         case e: java.lang.NumberFormatException => { say("Record done"); Stream.empty}
         case e: Exception => { say(s"very bad error $e"); Stream.empty }
