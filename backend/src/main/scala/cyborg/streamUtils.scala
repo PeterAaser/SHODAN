@@ -352,7 +352,7 @@ object utilz {
   }
 
 
-  def logEveryNth[F[_],I](n: Int, message: I => Unit ): Pipe[F,I,I] = {
+  def logEveryNth[F[_],I](n: Int, message: I => Any): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
