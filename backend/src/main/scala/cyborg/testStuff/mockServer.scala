@@ -116,7 +116,7 @@ object mockServer {
 
   def assembleTestServer(port: Int): IO[Unit] = {
     def mountServer(s: Signal[IO,ServerState]) = BlazeBuilder[IO]
-      .bindHttp(8888, "localhost")
+      .bindHttp(port, "0.0.0.0")
       .mountService(hello(s), "/")
       .mountService(DAQ(s), "/DAQ")
       .mountService(DSP(s), "/DSP")
