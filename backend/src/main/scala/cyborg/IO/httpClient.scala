@@ -19,13 +19,16 @@ import _root_.io.circe.syntax._
 import _root_.io.circe.{ Encoder, Json }
 
 
+import DspRegisters._
 import utilz._
+
 
 object HttpClient {
 
-  import DspRegisters._
-
-
+  def buildUri(path: String): Uri = {
+    val ip = params.http.MEAMEclient.ip
+    Uri.fromString(s"http://$ip:8888/$path").toOption.get
+  }
 
   ////////////////////////////////////////
   ////////////////////////////////////////
@@ -42,9 +45,9 @@ object HttpClient {
 
 
   def getMEAMEhealthCheck: IO[MEAMEstatus] = {
-
     say("MEAME health check inc")
-    val req = GET(Uri.uri("http://129.241.201.110:8888/status"))
+    // val req = GET(Uri.fromString(s"http://$ip:8888/status").toOption.get)
+    val req = GET(buildUri("status"))
     val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)
         DspCalls.readElectrodeConfig.map(_ => MEAMEstatus(true, true, true))
@@ -65,20 +68,20 @@ object HttpClient {
 
   object DSP {
     def flashDsp: IO[Unit] = {
-      val req = GET(Uri.uri("http://129.241.201.110:8888/DSP/flash"))
+      val req = GET(buildUri("DSP/flash"))
       httpClient.expect[String](req).void
     }
 
     def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
     {
-      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/write"), regs.asJson)
+      val req = POST(buildUri("DSP/write"), regs.asJson)
       httpClient.expect[String](req).void
     }
 
 
     def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
     {
-      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/read"), regs.asJson)
+      val req = POST(buildUri("DSP/read"), regs.asJson)
       httpClient.expect[RegisterReadResponse](req)
     }
 
@@ -86,7 +89,7 @@ object HttpClient {
     def dspCall(call: Int, args: (Int,Int)*): IO[Unit] =
     {
       val funcCall = DspFuncCall(call, args.toList)
-      val req = POST(Uri.uri("http://129.241.201.110:8888/DSP/call"), funcCall.asJson)
+      val req = POST(buildUri("DSP/call"), funcCall.asJson)
       httpClient.expect[String](req).void
     }
   }
@@ -98,15 +101,15 @@ object HttpClient {
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[Unit] =
   {
-    val req = POST(Uri.uri("http://129.241.201.110:8888/DAQ/connect"), params.asJson)
+    val req = POST(buildUri("DAQ/connect"), params.asJson)
     httpClient.expect[String](req).void
   }
 
   def startDAQrequest: IO[Unit] =
-    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/start"))).void
+    httpClient.expect[String](GET(buildUri("DAQ/start"))).void
 
   def stopDAQrequest: IO[Unit] =
-    httpClient.expect[String](GET(Uri.uri("http://129.241.201.110:8888/DAQ/stop"))).void
+    httpClient.expect[String](GET(buildUri("DAQ/stop"))).void
 
 
 
@@ -115,7 +118,7 @@ object HttpClient {
   ////////////////////////////////////////
   // Auxillary
   def meameConsoleLog(s: String): IO[Unit] =
-    httpClient.expect[String](POST(Uri.uri("http://129.241.201.110:8888/aux/logmsg"), s)).void
+    httpClient.expect[String](POST(buildUri("aux/logmsg"), s)).void
 
 
 

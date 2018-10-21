@@ -26,8 +26,14 @@ object params {
   }
 
   object http {
+    // object MEAMEclient {
+    //   val ip = "129.241.201.110"
+    //   val port = "8888" // we're not an open server, so we don't use the regular http port.
+    // }
+
+    // mock version
     object MEAMEclient {
-      val ip = "129.241.201.110"
+      val ip = "0.0.0.0"
       val port = "8888" // we're not an open server, so we don't use the regular http port.
     }
 

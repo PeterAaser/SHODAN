@@ -33,7 +33,7 @@ object mockServer {
 
 
   def DAQ(s: Signal[IO,ServerState]) = HttpService[IO] {
-    case GET -> Root / "connect" =>
+    case POST -> Root / "connect" =>
       s.modify(_.copy(running = true)).flatMap(_ => Ok(""))
     case GET -> Root / "start" =>
       s.modify(_.copy(dataAcquisition = true)).flatMap(_ => Ok(""))
@@ -77,10 +77,13 @@ object mockServer {
     val broadcast = Stream.eval(fs2.async.signalOf[IO,Frame](Nil)) flatMap { signal =>
       val dataIn = fromDB.through(utilz.vectorize(60))
         .through(_.map(_.map(_.data).flatten))
+        .through(logEveryNth(100, _ => s"got data in"))
         .evalMap(signal.set(_))
 
       // Does this not clog?
-      val dataOut: Stream[IO, Unit] = signal.discrete.evalMap{ frame =>
+      val dataOut: Stream[IO, Unit] = signal.discrete
+        .through(logEveryNth(100, _ => s"writing to socket"))
+        .evalMap{ frame =>
         listeners.get.flatMap{ x =>
           x.map{ socket =>
             socket.write(Chunk.seq(frame.flatMap(BigInt(_).toByteArray)))
@@ -111,9 +114,9 @@ object mockServer {
   }
 
 
-  def assembleTestServer: IO[Unit] = {
+  def assembleTestServer(port: Int): IO[Unit] = {
     def mountServer(s: Signal[IO,ServerState]) = BlazeBuilder[IO]
-      .bindHttp(8080, "localhost")
+      .bindHttp(8888, "localhost")
       .mountService(hello(s), "/")
       .mountService(DAQ(s), "/DAQ")
       .mountService(DSP(s), "/DSP")
