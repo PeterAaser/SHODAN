@@ -65,6 +65,32 @@ object RBNContext {
 
       go(List(), this, maxLength).map(_.reverse)
     }
+
+    /**
+      * Display an RBN using GraphStream (experimental -- use at your
+      * own risk).
+      */
+    def display: Unit = {
+      import org.graphstream.graph.implementations._
+      import org.graphstream.graph.{Node => gNode}
+      val graph: MultiGraph = new MultiGraph("tutorial1")
+
+      // Adding _all_ nodes before we start adding edges easy
+      for (i <- 0 until state.length) {
+        val n: gNode = graph.addNode(i.toString)
+        n.addAttribute("ui.label", i.toString)
+        ()
+      }
+
+      for ((neighbors, i) <- edges.zipWithIndex) {
+        for (neighbor <- neighbors) {
+          graph.addEdge(i.toString + neighbor.toString, i.toString, neighbor.toString)
+          ()
+        }
+      }
+
+      val viewer = graph.display
+    }
   }
 
   /**
