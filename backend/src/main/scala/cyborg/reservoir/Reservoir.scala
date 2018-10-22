@@ -1,10 +1,14 @@
 package cyborg
 
+import scala.concurrent.duration._
+import params._
+
 object RBNContext {
-  type State = List[Boolean]
-  type Node  = Int
-  type Edges = List[List[Node]]
-  type Rule  = List[Boolean] => Boolean
+  type State         = List[Boolean]
+  type Node          = Int
+  type Edges         = List[List[Node]]
+  type Perturbation  = (Node, Boolean)
+  type Rule          = List[Boolean] => Boolean
 
   case class RBN(
     state: State,
@@ -29,7 +33,7 @@ object RBNContext {
       * Apply a perturbation to the RBN, given as a list of nodes and
       * the new state.
       */
-    def perturb(perturbations: List[(Node, Boolean)]): RBN = {
+    def perturb(perturbations: List[Perturbation]): RBN = {
       copy(state = perturbations.foldLeft(state){(s, p) =>
         s.updated(p._1, p._2)
       })
@@ -59,5 +63,25 @@ object RBNContext {
     */
   def XOR(neighbours: List[Boolean]): Boolean = {
     neighbours.foldLeft(false)(_ ^ _)
+  }
+
+  /**
+    * Converts stimuli in the form of pulses, given as a
+    * FiniteDuration for the period, into perturbations for an RBN of
+    * size equal to the amount of channels of the stimuli. This does
+    * not yet support a pull based fs2 implementation, but can be used
+    * for such an implementation.
+    */
+  def stimuliToPerturbation(stimuli: List[(Int, Option[FiniteDuration])])
+      : List[Node] = {
+    // For now there is no continuous way of perturbing the RBN -- just
+    // flip the boolean value if its channel has a sufficiently strong
+    // signal.
+    stimuli.flatMap{case (channel, duration) => {
+      duration match {
+        case None => None
+        case Some(d) => if (d < 0.2.second) None else Some(channel)
+      }
+    }}
   }
 }
