@@ -85,7 +85,8 @@ object RBNContext {
 
       for ((neighbors, i) <- edges.zipWithIndex) {
         for (neighbor <- neighbors) {
-          graph.addEdge(i.toString + neighbor.toString, i.toString, neighbor.toString)
+          graph.addEdge(i.toString + neighbor.toString,
+            neighbor.toString, i.toString, true)
           ()
         }
       }
