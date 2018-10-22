@@ -13,9 +13,11 @@ import cats.effect.IO
 import cats.implicits._
 import fs2.async.mutable.Topic
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import cyborg.io.database._
 import utilz._
+import backendImplicits._
 
 object sIO {
 
@@ -30,7 +32,9 @@ object sIO {
       val params = databaseIO.dbGetParams(experimentId)
 
       Stream.eval(params).flatMap ( p =>
-        experimentData.through(tagPipe(p))
+        experimentData
+          .through(utilz.throttlerPipe(p.samplerate*60, 0.05.second))
+          .through(tagPipe(p.segmentLength))
       )
     }
 

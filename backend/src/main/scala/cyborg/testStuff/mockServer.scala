@@ -110,7 +110,7 @@ object mockServer {
 
   def assembleTestHttpServer(port: Int): Stream[IO, Server[IO]] = {
     def mountServer(s: Signal[IO,ServerState])(implicit ev: Effect[IO]): IO[Server[IO]] = BlazeBuilder[IO]
-      .bindHttp(8888, "0.0.0.0")
+      .bindHttp(port, "0.0.0.0")
       .mountService(hello(s), "/")
       .mountService(DAQ(s), "/DAQ")
       .mountService(DSP(s), "/DSP")

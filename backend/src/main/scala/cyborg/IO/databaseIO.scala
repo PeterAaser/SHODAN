@@ -144,10 +144,9 @@ object databaseIO {
     }.transact(xa)
   }
 
-  def dbGetParams(experimentId: Int): IO[Int] = {
+  def dbGetParams(experimentId: Int): IO[ExperimentParams] = {
     val params = DoobieQueries.getExperimentParams(experimentId)
       .transact(xa)
-      .map(_.segmentLength)
 
     params
   }
