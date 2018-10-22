@@ -79,6 +79,7 @@ object RBNContext {
       for (i <- 0 until state.length) {
         val n: gNode = graph.addNode(i.toString)
         n.addAttribute("ui.label", i.toString)
+        n.addAttribute("ui.class", state(i).toString)
         ()
       }
 
@@ -89,6 +90,8 @@ object RBNContext {
         }
       }
 
+      graph.addAttribute("ui.stylesheet",
+        "node.false { fill-color: red; } node.true { fill-color: blue; }")
       val viewer = graph.display
     }
   }
