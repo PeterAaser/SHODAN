@@ -30,8 +30,8 @@ object RBNContext {
     }
 
     /**
-      * Apply a perturbation to the RBN, given as a list of nodes and
-      * the new state.
+      * Applies a perturbation to the RBN, given as a list of nodes
+      * and the new state.
       */
     def perturb(perturbations: List[Perturbation]): RBN = {
       copy(state = perturbations.foldLeft(state){(s, p) =>
@@ -40,7 +40,17 @@ object RBNContext {
     }
 
     /**
-      * Find an attractor. Does not output the basin leading to the
+      * Perturbs a list of nodes by flipping their values within the
+      * RBN. Ignores previous values.
+      */
+    def perturbNodes(perturbations: List[Node]): RBN = {
+      copy(state = perturbations.foldLeft(state){(s, n) =>
+        s.updated(n, !s(n))
+      })
+    }
+
+    /**
+      * Finds an attractor. Does not output the basin leading to the
       * given attractor, i.e. you'll only get the actual cycle.
       */
     def attractor(maxLength: Int): Option[List[State]] = {
