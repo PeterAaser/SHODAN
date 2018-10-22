@@ -46,7 +46,6 @@ object HttpClient {
 
   def getMEAMEhealthCheck: IO[MEAMEstatus] = {
     say("MEAME health check inc")
-    // val req = GET(Uri.fromString(s"http://$ip:8888/status").toOption.get)
     val req = GET(buildUri("status"))
     val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)

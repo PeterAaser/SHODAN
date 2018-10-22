@@ -25,6 +25,16 @@ object utilz {
 
   sealed trait Stoppable[F[_]] { def interrupt: F[_] }
   case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit]) extends Stoppable[F]
+  object InterruptableAction {
+    def apply[F[_]: Effect](a: Stream[F,Unit])(implicit ec: EC): F[InterruptableAction[F]] = {
+      val interrupted = fs2.async.signalOf[F,Boolean](false)
+      interrupted.map { interruptSignal =>
+        InterruptableAction(
+          interruptSignal.set(true),
+          a.interruptWhen(interruptSignal.discrete).compile.drain
+        )}
+    }
+  }
 
   /**
     Decodes a byte stream from MEAME into a stream of 32 bit signed ints
@@ -555,6 +565,15 @@ object utilz {
       println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
     }
   }
+
+
+  def Ssay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): Stream[F,Unit] = {
+    Stream.eval(ev.delay{
+                  val fname = filename.value.split("/").last
+                  println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+                })
+  }
+
 
 
   def indexTupler[F[_],I]: Pipe[F,Seq[I],(I,Int)] =

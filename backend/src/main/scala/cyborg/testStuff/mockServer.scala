@@ -6,11 +6,12 @@ import cats.syntax._
 import cats.implicits._
 import fs2._
 import fs2.async.Ref
-import fs2.async.mutable.Signal
+import fs2.async.mutable.{ Queue, Signal }
 import fs2.io.tcp.Socket
 import java.net.InetSocketAddress
 import org.http4s._
 import org.http4s.dsl.io._
+import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -70,64 +71,62 @@ object mockServer {
     Loops through a database recording repeatedly.
     Whenever a socket is connected, the listeners ref should be updated
     */
-  def broadcastDataStream(listeners: Ref[IO, List[Socket[IO]]]): IO[Unit] = {
+  def broadcastDataStream(listeners: Queue[IO, Stream[IO, Socket[IO]]]): Stream[IO, Unit] = {
 
     // Already throttled
     val fromDB = cyborg.io.sIO.DB.streamFromDatabase(3).repeat
     val broadcast = Stream.eval(fs2.async.signalOf[IO,Frame](Nil)) flatMap { signal =>
       val dataIn = fromDB.through(utilz.vectorize(60))
         .through(_.map(_.map(_.data).flatten))
-        .through(logEveryNth(100, _ => s"got data in"))
         .evalMap(signal.set(_))
 
+
+      // TODO how to handle failure?
+      def hoseData(socket: Socket[IO]): Stream[IO, Unit] =
+        signal.discrete
+          .through(_.map(x => x.flatMap(BigInt(_).toByteArray)))
+          .through(chunkify)
+          .through(socket.writes(None))
+
+
       // Does this not clog?
-      val dataOut: Stream[IO, Unit] = signal.discrete
-        .through(logEveryNth(100, _ => s"writing to socket"))
-        .evalMap{ frame =>
-        listeners.get.flatMap{ x =>
-          x.map{ socket =>
-            socket.write(Chunk.seq(frame.flatMap(BigInt(_).toByteArray)))
-          }.sequence_
-        }
-      }
-      dataIn.concurrently(dataOut)
+      val attachSinks: Stream[IO, Unit] = listeners.dequeue.map(_.flatMap(hoseData))
+        .joinUnbounded
+
+      dataIn.concurrently(attachSinks)
     }
-    broadcast.compile.drain
+    broadcast
   }
 
 
-  def tcpServer(listeners: Ref[IO, List[Socket[IO]]])(implicit ev: Effect[IO]): IO[Unit] = {
-
+  def tcpServer(listeners: Queue[IO, Stream[IO,Socket[IO]]])(implicit ev: Effect[IO]): Stream[IO, Unit] = {
     import backendImplicits._
-    val createListener =
-      fs2.io.tcp.server(new InetSocketAddress("0.0.0.0", params.TCP.port)).flatMap { sockets =>
-        val socketListener: Stream[IO, Unit] = sockets.flatMap(s =>
-          for {
-            v <- Stream.eval(listeners.get)
-            _ <- Stream.eval(listeners.setSync(s :: v))
-          } yield ())
+    val createListener: Stream[IO, Unit] =
+      fs2.io.tcp.server(new InetSocketAddress("0.0.0.0", params.TCP.port)).to(listeners.enqueue)
 
-        socketListener
-      }
-
-    createListener.compile.drain
+    createListener
   }
 
 
-  def assembleTestServer(port: Int): IO[Unit] = {
-    def mountServer(s: Signal[IO,ServerState]) = BlazeBuilder[IO]
-      .bindHttp(8888, "localhost")
+  def assembleTestHttpServer(port: Int): Stream[IO, Server[IO]] = {
+    def mountServer(s: Signal[IO,ServerState])(implicit ev: Effect[IO]): IO[Server[IO]] = BlazeBuilder[IO]
+      .bindHttp(8888, "0.0.0.0")
       .mountService(hello(s), "/")
       .mountService(DAQ(s), "/DAQ")
       .mountService(DSP(s), "/DSP")
-      .serve.drain
+      .start
 
     for {
-      listeners <- fs2.async.Ref[IO,List[Socket[IO]]](Nil)
-      meameState <- fs2.async.signalOf[IO,ServerState](ServerState(false,false,false))
-      _ <- (Stream.eval(tcpServer(listeners))
-              .concurrently(Stream.eval(broadcastDataStream(listeners)))
-              .concurrently(mountServer(meameState))).compile.drain
+      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState(false,false,false)))
+      server <- Stream.eval(mountServer(meameState))
+    } yield server
+  }
+
+
+  def assembleTestTcpServer(port: Int): Stream[IO, Unit] = {
+    for {
+      listeners <- Stream.eval(fs2.async.boundedQueue[IO,Stream[IO,Socket[IO]]](10))
+      _ <- Stream(tcpServer(listeners), broadcastDataStream(listeners)).joinUnbounded
     } yield ()
   }
 }

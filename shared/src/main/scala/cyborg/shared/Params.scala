@@ -42,14 +42,22 @@ object params {
       val SHODANserverPort = 9998
     }
   }
-
+  
   object TCP {
-    val ip = "129.241.201.110"
+    val ip = "0.0.0.0"
     val port = 12340
     val sawtooth = 12341
     val sendBufSize = 4096        // rather low bandwidth required for stimreqs
     val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
   }
+
+  // object TCP {
+  //   val ip = "129.241.201.110"
+  //   val port = 12340
+  //   val sawtooth = 12341
+  //   val sendBufSize = 4096        // rather low bandwidth required for stimreqs
+  //   val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
+  // }
 
 
   object GA {

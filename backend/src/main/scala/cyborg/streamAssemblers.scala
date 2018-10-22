@@ -5,6 +5,7 @@ import fs2._
 import fs2.async.mutable.Signal
 import fs2.async.mutable.Topic
 import _root_.io.udash.rpc.ClientId
+import org.joda.time.Seconds
 import scala.language.higherKinds
 import cats.effect.IO
 import cats.effect._
@@ -15,6 +16,8 @@ import cats.implicits._
 import cyborg.backend.server.ApplicationServer
 import cyborg.Setting._
 import cyborg.utilz._
+
+import scala.concurrent.duration._
 
 object Assemblers {
 
@@ -30,6 +33,8 @@ object Assemblers {
     for {
       conf           <- Stream.eval(assembleConfig)
       getConf        =  conf.get
+      mock           <- mockServer.assembleTestHttpServer(8888)
+      _              <- Ssay[IO]("mock server up")
       state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
 
       commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
@@ -64,8 +69,9 @@ object Assemblers {
       frontend       <- rpcServer
       _              <- Stream.eval(frontend.start)
 
+      _              <- Ssay[IO]("All systems go")
       _ <- commandQueue.dequeue.through(commandPipe)
-             .concurrently(cyborg.io.sIO.Network.channelServer(topics).through(_.map(Stream.eval)).joinUnbounded)
+        .concurrently(mockServer.assembleTestTcpServer(8888))
 
     } yield ()
   }
