@@ -6,6 +6,16 @@ import org.graphstream.ui.view._
 
 object ReservoirGraph {
   /**
+    * Basic listener to respond to events within a graph viewer. This
+    * is implemented to be able to step a reservoir continuously.
+    */
+  class GraphListener(val g: MultiGraph) extends ViewerListener {
+    def viewClosed(x: String) = { println("View closed") }
+    def buttonPushed(x: String) = { println("Button push") }
+    def buttonReleased(x: String) = { println("Button released") }
+  }
+
+  /**
     * Display an RBN using GraphStream (experimental -- use at your
     * own risk).
     */
@@ -36,7 +46,14 @@ object ReservoirGraph {
     graph.addAttribute("ui.quality")
     graph.addAttribute("ui.antialias")
 
-    graph.display
+    val viewer: Viewer = graph.display
+    val viewerPipe: ViewerPipe = viewer.newViewerPipe()
+    viewerPipe.addViewerListener(new GraphListener(graph))
+
+    while (true) {
+      viewerPipe.pump
+    }
+
     graph
   }
 }
