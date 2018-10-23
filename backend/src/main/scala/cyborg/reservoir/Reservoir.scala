@@ -94,6 +94,11 @@ object RBNContext {
       graph.addAttribute("ui.stylesheet",
         "node.false { fill-color: red; } node.true { fill-color: blue; }")
 
+      // Quality is obviously a more time consuming rendering
+      // algorithm -- disable for performance
+      graph.addAttribute("ui.quality")
+      graph.addAttribute("ui.antialias")
+
       graph.display
       graph
     }
