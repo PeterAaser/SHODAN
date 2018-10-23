@@ -2,8 +2,6 @@ package cyborg
 
 import scala.concurrent.duration._
 import params._
-import org.graphstream.graph.implementations._
-import org.graphstream.graph.{Node => gNode}
 
 object RBNContext {
   type State         = List[Boolean]
@@ -66,41 +64,6 @@ object RBNContext {
       }
 
       go(List(), this, maxLength).map(_.reverse)
-    }
-
-    /**
-      * Display an RBN using GraphStream (experimental -- use at your
-      * own risk).
-      */
-    def display: MultiGraph = {
-      val graph: MultiGraph = new MultiGraph("tutorial1")
-
-      // Adding _all_ nodes before we start adding edges easy
-      for (i <- 0 until state.length) {
-        val n: gNode = graph.addNode(i.toString)
-        n.addAttribute("ui.label", i.toString)
-        n.addAttribute("ui.class", state(i).toString)
-        ()
-      }
-
-      for ((neighbors, i) <- edges.zipWithIndex) {
-        for (neighbor <- neighbors) {
-          graph.addEdge(i.toString + neighbor.toString,
-            neighbor.toString, i.toString, true)
-          ()
-        }
-      }
-
-      graph.addAttribute("ui.stylesheet",
-        "node.false { fill-color: red; } node.true { fill-color: blue; }")
-
-      // Quality is obviously a more time consuming rendering
-      // algorithm -- disable for performance
-      graph.addAttribute("ui.quality")
-      graph.addAttribute("ui.antialias")
-
-      graph.display
-      graph
     }
   }
 
