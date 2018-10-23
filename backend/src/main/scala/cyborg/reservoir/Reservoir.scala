@@ -2,6 +2,8 @@ package cyborg
 
 import scala.concurrent.duration._
 import params._
+import org.graphstream.graph.implementations._
+import org.graphstream.graph.{Node => gNode}
 
 object RBNContext {
   type State         = List[Boolean]
@@ -70,9 +72,7 @@ object RBNContext {
       * Display an RBN using GraphStream (experimental -- use at your
       * own risk).
       */
-    def display: Unit = {
-      import org.graphstream.graph.implementations._
-      import org.graphstream.graph.{Node => gNode}
+    def display: MultiGraph = {
       val graph: MultiGraph = new MultiGraph("tutorial1")
 
       // Adding _all_ nodes before we start adding edges easy
@@ -93,7 +93,9 @@ object RBNContext {
 
       graph.addAttribute("ui.stylesheet",
         "node.false { fill-color: red; } node.true { fill-color: blue; }")
-      val viewer = graph.display
+
+      graph.display
+      graph
     }
   }
 
