@@ -2,6 +2,8 @@ package cyborg
 
 import scala.concurrent.duration._
 import params._
+import fs2._
+import cats.effect._
 
 object RBNContext {
   type State         = List[Boolean]
@@ -13,7 +15,9 @@ object RBNContext {
   case class RBN(
     state: State,
     edges: Edges,
-    rule:  Rule
+    rule:  Rule,
+    lowFreq: Double  = 3.0,
+    highFreq: Double = 8.0
   ) {
     /**
       * Neighbors are defined as the edges _into_ the node in
@@ -64,6 +68,26 @@ object RBNContext {
       }
 
       go(List(), this, maxLength).map(_.reverse)
+    }
+
+    /**
+      * Output state of an RBN as a stream for SHODAN backend to
+      * interpret. For now there are only two different states, giving
+      * two different spiking behaviours.
+      */
+    def outputState[F[_]: Effect](node: Node, samplerate: Int)
+        : Stream[F, Int] = {
+      val spikeFreq = if (state(node)) highFreq else lowFreq
+      val spikeDistance = samplerate / spikeFreq
+      val amplitude = 500.0
+
+      // Create a uniform stream that creates sawtooth waves
+      // according to distance to next spike. This is just a
+      // placeholder for a real signal for now. The amplitude is
+      // arbitrary.
+      Stream.range(0, samplerate).map(
+        s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
+      )
     }
   }
 
