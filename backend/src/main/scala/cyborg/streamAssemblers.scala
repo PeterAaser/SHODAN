@@ -28,8 +28,12 @@ object Assemblers {
     Assembles the necessary components to start SHODAN
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
-    // val meameFeedbackSink: Sink[IO,List[Double]] = DspComms.stimuliRequestSink(100)
-    val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
+
+    // val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
+    val meameFeedbackSink: Sink[IO,List[Double]] =
+      _.through(PerturbationTransform.toStimReq())
+        .to(cyborg.dsp.DSP.stimuliRequestSink())
+
     for {
       conf           <- Stream.eval(assembleConfig)
       getConf        =  conf.get
@@ -93,9 +97,6 @@ object Assemblers {
     val inputTopics = (channels).toList.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(10000))
 
-    // TODO Does not synchronize streams
-    // This means, if at subscription time, one channel has newer input,
-    // this discrepancy will never be resolved and one stream will be permanently ahead
     val spikeChannels = channelStreams
       .map(_.map(_.data)
              .through(chunkify)
@@ -110,8 +111,6 @@ object Assemblers {
     Demultiplexes the data and publishes data to all channel topics.
 
     Returns a tuple of the stream and a cancel action
-
-    TODO: Should synchronize (e.g at start it should drop until it gets channel 0)
     */
   def broadcastDataStream(
     source: Stream[IO,TaggedSegment],

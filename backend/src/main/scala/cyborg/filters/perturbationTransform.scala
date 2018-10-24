@@ -46,7 +46,7 @@ object PerturbationTransform {
     * agent.
     */
   def toStimReq[F[_]](transform: Double => Option[FiniteDuration] = linearTransform)
-      : Pipe[F,List[Double], List[(Int, Option[FiniteDuration])]] = {
+      : Pipe[F,List[Double], (Int, Option[FiniteDuration])] = {
 
     def go(prev: List[Double], s: Stream[F, List[Double]])
         : Pull[F, List[(Int, Option[FiniteDuration])], Unit] = {
@@ -69,6 +69,6 @@ object PerturbationTransform {
       }
     }
 
-    in => init(in).stream
+    in => init(in).stream.through(chunkify)
   }
 }
