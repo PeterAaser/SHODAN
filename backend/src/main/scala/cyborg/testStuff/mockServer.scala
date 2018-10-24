@@ -32,6 +32,7 @@ object mockServer {
       d.copy(m = d.m.updated(groupIdx, (Some(period), d.m(groupIdx)._2)))
     def toggleGroup(groupIdx: Int, toggle: Boolean): DSPconfig =
       d.copy(m = d.m.updated(groupIdx, (d.m(groupIdx)._1, toggle)))
+
     def update(call: DspFuncCall): DSPconfig = {
       import cyborg.dsp.calls.DspCalls._
       call.func match {

@@ -62,13 +62,8 @@ object DSP {
   } yield ()
 
 
-  def stimuliRequestSink(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = { ins =>
-    val stimRequests = ins.map{ case(idx, period) =>
-      period.map(p => setStimgroupPeriod(idx, p))
-        .getOrElse(disableStimGroup(idx))}
-
-    stimRequests.map(Stream.eval).joinUnbounded
-  }
+  def stimuliRequestSink(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = DspCalls.stimuliRequestSink
 
   def flashDSP: IO[Unit] = HttpClient.DSP.flashDsp
+
 }

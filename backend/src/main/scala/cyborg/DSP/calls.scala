@@ -261,4 +261,29 @@ object DspCalls {
 
     errorCodes.lift(errorCode).map(x => s"$errorCode -> $x")getOrElse(s"Error code $errorCode is not recognized.")
   }
+
+  def stimuliRequestSink(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = {
+    def go(s: Stream[IO, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[IO, Unit, Unit] = {
+      s.pull.uncons1.flatMap {
+        case Some(((idx, Some(period)), tl)) if !state(idx) =>
+          Pull.eval(stimGroupChangePeriod(idx, period)) >>
+            Pull.eval(enableStimReqGroup(idx)) >>
+            go(tl, state.updated(idx, true))
+
+        case Some(((idx, None), tl)) if state(idx) =>
+          Pull.eval(disableStimReqGroup(idx)) >>
+            go(tl, state.updated(idx, false))
+
+        case Some(((idx, Some(period)), tl)) =>
+          Pull.eval(stimGroupChangePeriod(idx, period)) >>
+            go(tl, state)
+
+        case Some((_, tl)) => go(tl, state)
+
+        case None => Pull.done
+      }
+    }
+
+    ins => go(ins, (0 to 2).map((_, false)).toMap).stream
+  }
 }
