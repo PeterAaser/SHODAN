@@ -14,6 +14,7 @@ import org.http4s.dsl.io._
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 object mockServer {
 
@@ -21,13 +22,56 @@ object mockServer {
   import cyborg.HttpClient._
   import cyborg.utilz._
 
+  case class DSPconfig(m: Map[Int, (Option[FiniteDuration], Boolean)])
+  object DSPconfig {
+    def init = DSPconfig( (0 to 2).map( x => (x, (None, false))).toMap)
+  }
+
+  implicit class DSPOps(d: DSPconfig) {
+    def updatePeriod(groupIdx: Int, period: FiniteDuration): DSPconfig =
+      d.copy(m = d.m.updated(groupIdx, (Some(period), d.m(groupIdx)._2)))
+    def toggleGroup(groupIdx: Int, toggle: Boolean): DSPconfig =
+      d.copy(m = d.m.updated(groupIdx, (d.m(groupIdx)._1, toggle)))
+    def update(call: DspFuncCall): DSPconfig = {
+      import cyborg.dsp.calls.DspCalls._
+      call.func match {
+        case SET_ELECTRODE_GROUP_PERIOD =>
+          call.decodeSetPeriod.foldLeft(d){ case(_, (groupIdx, period)) =>
+            d.updatePeriod(groupIdx, period) }
+
+        case ENABLE_STIM_GROUP =>
+          call.decodeToggleGroup.foldLeft(d){ case(_, (groupIdx, _)) =>
+            d.toggleGroup(groupIdx, true) }
+
+        case DISABLE_STIM_GROUP =>
+          call.decodeToggleGroup.foldLeft(d){ case(_, (groupIdx, _)) =>
+            d.toggleGroup(groupIdx, false) }
+
+        case _ => d
+      }
+    }
+  }
+
   case class ServerState(
     alive:           Boolean,
     running:         Boolean,
     dataAcquisition: Boolean,
     dspFlashed:      Boolean,
-    daqParams:       Option[DAQparams]
+    daqParams:       Option[DAQparams],
+    dspConfig:       DSPconfig
   )
+  object ServerState {
+    def init = ServerState(
+      true,
+      false,
+      false,
+      false,
+      None,
+      DSPconfig.init
+    )
+    def fucked = init.copy(alive = false)
+  }
+
 
   def hello(s: Signal[IO,ServerState]) = HttpService[IO] {
     case GET -> Root => s.get flatMap { serverState =>
@@ -53,8 +97,9 @@ object mockServer {
     case GET -> Root / "flash" =>
       s.modify(_.copy(dspFlashed = true)).flatMap(_ => Ok(""))
     case req @ POST -> Root / "call" => {
-      req.decode[DspRegisters.RegisterSetList] { data =>
-        Fsay[IO](s"got dsp call: $data") >> Ok("")
+      req.decode[HttpClient.DspFuncCall] { data =>
+        s.modify(cfg => cfg.copy(dspConfig = cfg.dspConfig.update(data))) >>
+          Ok("")
       }
     }
     case req @ POST -> Root / "read" => {
@@ -133,7 +178,7 @@ object mockServer {
       .start
 
     for {
-      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState(true, false,false,false, None)))
+      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init))
       server <- Stream.eval(mountServer(meameState))
     } yield server
   }

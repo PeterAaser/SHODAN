@@ -127,9 +127,19 @@ object HttpClient {
   case class DAQparams(samplerate: Int, segmentLength: Int)
   case class DspFuncCall(func: Int, args: List[(Int, Int)]){
     import DspCalls._
-    def decode: List[(Int, FiniteDuration)] = args.map{ case (groupIdx, period) =>
-      (groupIdx, period.fromDSPticks)
-    }
+    def decodeSetPeriod: Option[(Int, FiniteDuration)] =
+      if (func == SET_ELECTRODE_GROUP_PERIOD)
+        Some((args(0)._1, args(1)._1.fromDSPticks))
+      else
+        None
+
+    def decodeToggleGroup: Option[(Int, Boolean)] =
+      if (func == ENABLE_STIM_GROUP)
+        Some((args(0)._1, true))
+      else if (func == DISABLE_STIM_GROUP)
+        Some((args(0)._1, false))
+      else
+        None
   }
   object DspFuncCall {
     def apply(func: Int, args: (Int,Int)*): DspFuncCall = {
