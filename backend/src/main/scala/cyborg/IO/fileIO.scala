@@ -65,7 +65,6 @@ object fileIO {
       .handleErrorWith{
         case e: java.lang.NumberFormatException => { say("Record done"); Stream.empty}
         case e: Exception => { say(s"very bad error ${e.printStackTrace()}"); Stream.empty }
-        case _ => { say("I don't fuckin know..."); Stream.empty }
       }
 
     reader

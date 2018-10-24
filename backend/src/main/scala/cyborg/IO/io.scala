@@ -30,7 +30,16 @@ object sIO {
     def streamFromDatabase(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, TaggedSegment] = {
       val experimentData = databaseIO.dbChannelStream(experimentId)
       val params = databaseIO.dbGetParams(experimentId)
+      Stream.eval(params).flatMap ( p =>
+        experimentData
+          .through(tagPipe(p.segmentLength)))
 
+    }
+
+
+    def streamFromDatabaseThrottled(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, TaggedSegment] = {
+      val experimentData = databaseIO.dbChannelStream(experimentId)
+      val params = databaseIO.dbGetParams(experimentId)
       Stream.eval(params).flatMap ( p =>
         experimentData
           .through(utilz.throttlerPipe(p.samplerate*60, 0.05.second))

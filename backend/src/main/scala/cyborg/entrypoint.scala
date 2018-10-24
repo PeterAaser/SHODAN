@@ -135,7 +135,7 @@ object staging {
       val tasks = state.discrete.through(_.map(z => (z.playbackId, z.playbackRunning))).changes.tail map { case(id, start) =>
         if(start) for {
           _         <- IO.unit
-          data      =  streamFromDatabase(id)
+          data      =  streamFromDatabaseThrottled(id)
           broadcast <- Assemblers.broadcastDataStream(data, topics, rawDataTopic.publish)
           _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
           _         <- state.modify(_.copy(dbRecording = false))

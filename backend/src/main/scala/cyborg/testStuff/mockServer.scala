@@ -22,20 +22,26 @@ object mockServer {
   import cyborg.utilz._
 
   case class ServerState(
-    running: Boolean,
+    alive:           Boolean,
+    running:         Boolean,
     dataAcquisition: Boolean,
-    dspFlashed: Boolean,
-    )
+    dspFlashed:      Boolean,
+    daqParams:       Option[DAQparams]
+  )
 
   def hello(s: Signal[IO,ServerState]) = HttpService[IO] {
-    case GET -> Root =>
-      Ok(s"hello this is MEAME.")
+    case GET -> Root => s.get flatMap { serverState =>
+      if(!serverState.alive) InternalServerError()
+      else Ok("")
+    }
   }
 
 
   def DAQ(s: Signal[IO,ServerState]) = HttpService[IO] {
-    case POST -> Root / "connect" =>
-      s.modify(_.copy(running = true)).flatMap(_ => Ok(""))
+    case req @ POST -> Root / "connect" =>
+      req.decode[DAQparams] { params =>
+        s.modify(_.copy(running = true, daqParams = Some(params))).flatMap(_ => Ok(""))
+      }
     case GET -> Root / "start" =>
       s.modify(_.copy(dataAcquisition = true)).flatMap(_ => Ok(""))
     case GET -> Root / "stop" =>
@@ -73,8 +79,18 @@ object mockServer {
     */
   def broadcastDataStream(listeners: Queue[IO, Stream[IO, Socket[IO]]]): Stream[IO, Unit] = {
 
+    // TODO take some recordings at different samplerates...
+    def getStream(params: DAQparams): Stream[IO,Int] = params.samplerate match {
+      case 1000 => ???
+      case 5000 => ???
+      case 10000 => ???
+      case 20000 => ???
+      case 25000 => ???
+      case 40000 => ???
+    }
+
     // Already throttled
-    val fromDB = cyborg.io.sIO.DB.streamFromDatabase(3).repeat
+    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(3).repeat
     val broadcast = Stream.eval(fs2.async.signalOf[IO,Frame](Nil)) flatMap { signal =>
       val dataIn = fromDB.through(utilz.vectorize(60))
         .through(_.map(_.map(_.data).flatten))
@@ -117,7 +133,7 @@ object mockServer {
       .start
 
     for {
-      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState(false,false,false)))
+      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState(true, false,false,false, None)))
       server <- Stream.eval(mountServer(meameState))
     } yield server
   }
