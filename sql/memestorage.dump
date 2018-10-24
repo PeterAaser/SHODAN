@@ -35,16 +35,16 @@ INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (1
 -- Data for Name: datarecording; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (1, '/home/thomaav/forsk/SHODAN/MEAdata/06.02.2018, 16:09:15', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (2, '/home/thomaav/forsk/SHODAN/MEAdata/06.02.2018, 16:45:02', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (3, '/home/thomaav/forsk/SHODAN/MEAdata/08.02.2018, 13:30:27', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (4, '/home/thomaav/forsk/SHODAN/MEAdata/08.02.2018, 16:06:51', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (6, '/home/thomaav/forsk/SHODAN/MEAdata/18.04.2018, 11:35:37', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (7, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:01:34', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (8, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:06:58', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (9, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:19:55', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (10, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:22:31', 'CSV');
-INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (11, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 16:28:02', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (1, 'MEAdata/06.02.2018, 16:09:15', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (2, 'MEAdata/06.02.2018, 16:45:02', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (3, 'MEAdata/08.02.2018, 13:30:27', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (4, 'MEAdata/08.02.2018, 16:06:51', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (6, 'MEAdata/18.04.2018, 11:35:37', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (7, 'MEAdata/19.04.2018, 11:01:34', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (8, 'MEAdata/19.04.2018, 11:06:58', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (9, 'MEAdata/19.04.2018, 11:19:55', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (10, 'MEAdata/19.04.2018, 11:22:31', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (11, 'MEAdata/19.04.2018, 16:28:02', 'CSV');
 
 
 --
