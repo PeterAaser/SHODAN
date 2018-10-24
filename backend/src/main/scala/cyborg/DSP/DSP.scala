@@ -62,7 +62,8 @@ object DSP {
   } yield ()
 
 
-  def stimuliRequestSink(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = DspCalls.stimuliRequestSink
+  def stimuliRequestSink(allowed: List[Int] = List(0,1,2))(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] =
+    DspCalls.stimuliRequestSink(allowed)
 
   def flashDSP: IO[Unit] = HttpClient.DSP.flashDsp
 
