@@ -39,6 +39,10 @@ object DspCalls {
     def toDSPticks = (t.toMicros/20).toInt
   }
 
+  implicit class DSPIntOps(i: Int) {
+    def fromDSPticks: FiniteDuration = (i*20).micros
+  }
+
 
   def configureStimGroup(group: Int, electrodes: List[Int]) = {
     val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }

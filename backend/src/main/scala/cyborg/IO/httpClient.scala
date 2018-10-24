@@ -20,6 +20,7 @@ import _root_.io.circe.{ Encoder, Json }
 
 
 import DspRegisters._
+import scala.concurrent.duration.FiniteDuration
 import utilz._
 
 
@@ -124,11 +125,17 @@ object HttpClient {
 
 
   case class DAQparams(samplerate: Int, segmentLength: Int)
-  case class DspFuncCall(func: Int, args: List[(Int, Int)])
+  case class DspFuncCall(func: Int, args: List[(Int, Int)]){
+    import DspCalls._
+    def decode: List[(Int, FiniteDuration)] = args.map{ case (groupIdx, period) =>
+      (groupIdx, period.fromDSPticks)
+    }
+  }
   object DspFuncCall {
     def apply(func: Int, args: (Int,Int)*): DspFuncCall = {
       DspFuncCall(func, args.toList)
-    }}
+    }
+  }
 
   case class MEAMEhealth(isAlive: Boolean, dspAlive: Boolean)
   case class MEAMEstatus(isAlive: Boolean, dspAlive: Boolean, dspBroken: Boolean)
