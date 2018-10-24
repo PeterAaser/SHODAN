@@ -30,13 +30,14 @@ object databaseIO {
 
 
   // haha nice meme dude!
+  val username = "memer"
   val superdupersecretPassword = "memes"
 
   import doobie.imports._
   val xa = Transactor.fromDriverManager[IO](
     "org.postgresql.Driver",
     "jdbc:postgresql:memestorage",
-    "postgres",
+    s"$username",
     s"$superdupersecretPassword"
   )
 
