@@ -1,4 +1,4 @@
-.PHONY: sbtconf purge
+.PHONY: sbtconf purge scaffold
 
 sbtconf:
 	mkdir -p ~/.sbt/0.13/plugins
@@ -19,3 +19,9 @@ purge:
 	-rm -rf ~/.coursier
 	-rm -rf ~/.sbt/1.0/plugins/project/
 	-rm -rf ~/.sbt/1.0/plugins/target/
+
+scaffold:
+	createuser memer -W	
+	createdb memestorage --owner=memer
+	psql -d memestorage -a -f sql/memescheme.sql
+	psql memestorage < sql/memestorage.dump

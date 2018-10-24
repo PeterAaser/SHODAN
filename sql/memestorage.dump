@@ -1,0 +1,100 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.10
+-- Dumped by pg_dump version 9.6.10
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Data for Name: experimentinfo; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (1, '2018-02-06 16:09:17.754587', '2018-02-06 16:09:37.829237', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (2, '2018-02-06 16:45:04.219693', '2018-02-06 16:45:23.593605', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (3, '2018-02-08 13:30:28.974363', '2018-02-08 13:31:04.077369', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (4, '2018-02-08 16:06:52.68117', '2018-02-08 16:07:21.945527', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (6, '2018-04-18 11:35:38.430385', '2018-04-18 11:35:46.154486', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (7, '2018-04-19 11:01:35.380106', '2018-04-19 11:02:38.885812', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (8, '2018-04-19 11:06:59.425068', NULL, '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (9, '2018-04-19 11:19:55.765972', '2018-04-19 11:21:32.021918', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (10, '2018-04-19 11:22:32.520111', '2018-04-19 11:29:02.001295', '');
+INSERT INTO public.experimentinfo (id, starttime, finishtime, comment) VALUES (11, '2018-04-19 16:28:02.765129', '2018-04-19 16:28:09.656615', '');
+
+
+--
+-- Data for Name: datarecording; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (1, '/home/thomaav/forsk/SHODAN/MEAdata/06.02.2018, 16:09:15', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (2, '/home/thomaav/forsk/SHODAN/MEAdata/06.02.2018, 16:45:02', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (3, '/home/thomaav/forsk/SHODAN/MEAdata/08.02.2018, 13:30:27', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (4, '/home/thomaav/forsk/SHODAN/MEAdata/08.02.2018, 16:06:51', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (6, '/home/thomaav/forsk/SHODAN/MEAdata/18.04.2018, 11:35:37', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (7, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:01:34', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (8, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:06:58', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (9, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:19:55', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (10, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 11:22:31', 'CSV');
+INSERT INTO public.datarecording (experimentid, resourcepath, resourcetype) VALUES (11, '/home/thomaav/forsk/SHODAN/MEAdata/19.04.2018, 16:28:02', 'CSV');
+
+
+--
+-- Name: experimentinfo_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.experimentinfo_id_seq', 11, true);
+
+
+--
+-- Data for Name: experimentparams; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (1, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (2, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (3, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (4, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (6, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (7, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (8, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (9, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (10, 20000, 2000);
+INSERT INTO public.experimentparams (experimentid, samplerate, segmentlength) VALUES (11, 20000, 2000);
+
+
+--
+-- Data for Name: person; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: experimentperformedby; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: mea; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: experimentsubject; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- PostgreSQL database dump complete
+--
+
