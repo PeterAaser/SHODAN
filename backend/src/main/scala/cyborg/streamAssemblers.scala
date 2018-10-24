@@ -33,7 +33,7 @@ object Assemblers {
     for {
       conf           <- Stream.eval(assembleConfig)
       getConf        =  conf.get
-      mock           <- mockServer.assembleTestHttpServer(8888)
+      mock           <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
       _              <- Ssay[IO]("mock server up")
       state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
 
@@ -71,7 +71,7 @@ object Assemblers {
 
       _              <- Ssay[IO]("All systems go")
       _ <- commandQueue.dequeue.through(commandPipe)
-        .concurrently(mockServer.assembleTestTcpServer(8888))
+        .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
 
     } yield ()
   }

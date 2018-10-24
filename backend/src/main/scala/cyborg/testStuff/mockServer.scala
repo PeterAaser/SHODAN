@@ -84,8 +84,8 @@ object mockServer {
       // TODO how to handle failure?
       def hoseData(socket: Socket[IO]): Stream[IO, Unit] =
         signal.discrete
-          .through(_.map(x => x.flatMap(BigInt(_).toByteArray)))
           .through(chunkify)
+          .through(intToBytes)
           .through(socket.writes(None))
 
 

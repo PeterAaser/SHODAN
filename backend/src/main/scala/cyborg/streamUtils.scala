@@ -7,6 +7,7 @@ import fs2._
 import fs2.async.Ref
 import fs2.async.mutable.{ Queue, Signal, Topic }
 import cats.effect.Effect
+import java.nio.{ ByteBuffer, ByteOrder }
 import scala.concurrent.ExecutionContext
 
 import scala.concurrent.duration._
@@ -36,11 +37,16 @@ object utilz {
     }
   }
 
+  def bytesToInts[F[_]](format: String = "Csharp"): Pipe[F, Byte, Int] = format match {
+    case "Csharp" => bytesToIntsMEAME
+    case "JVM" => bytesToIntsJVM
+  }
+
   /**
     Decodes a byte stream from MEAME into a stream of 32 bit signed ints
     This pipe should only be used to deserialize data from MEAME
     */
-  def bytesToInts[F[_]]: Pipe[F, Byte, Int] = {
+  def bytesToIntsMEAME[F[_]]: Pipe[F, Byte, Int] = {
 
     def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
       s.pull.unconsN(4096, false)flatMap {
@@ -74,30 +80,44 @@ object utilz {
   }
 
 
-  /**
-    Encodes int to byte arrays. Assumes 4 bit integers
-    */
-  def intToBytes[F[_]]: Pipe[F, Int, Array[Byte]] = {
+  def bytesToIntsJVM[F[_]]: Pipe[F, Byte, Int] = {
 
-    def go(s: Stream[F, Int]): Pull[F,Array[Byte],Unit] = {
-      s.pull.uncons flatMap {
+    def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
+      s.pull.unconsN(4096, false)flatMap {
         case Some((seg, tl)) => {
-
           val data = seg.force.toArray
-          say("done")
-          val bb = java.nio.ByteBuffer.allocate(data.length*4)
-          for(ii <- 0 until data.length){
-            bb.putInt(data(ii))
-          }
-          Pull.output(Segment(bb.array())) >> go(tl)
+          val intbuf = ByteBuffer.wrap(data)
+            .order(ByteOrder.BIG_ENDIAN)
+            .asIntBuffer()
+          val outs = Array.ofDim[Int](1024)
+          intbuf.get(outs)
+          val huh = Segment.seq(outs)
+          Pull.output(huh) >> go(tl)
+        }
+        case None => Pull.done
+      }
+    }
+    in => go(in.buffer(4096)).stream
+  }
+
+
+  def intToBytes[F[_]]: Pipe[F, Int, Byte] = {
+
+    def go(s: Stream[F, Int]): Pull[F,Byte,Unit] = {
+      s.pull.unconsN(1024, false)flatMap {
+        case Some((seg, tl)) => {
+          val data = seg.force.toArray
+          val bb = ByteBuffer.allocate(4096)
+          bb.asIntBuffer().put(data)
+          val outs = bb.array()
+          val huh = Segment.seq(outs)
+          Pull.output(huh) >> go(tl)
         }
         case None => Pull.done
       }
     }
     in => go(in).stream
   }
-
-
 
   /**
     Partitions a stream vectors of length n

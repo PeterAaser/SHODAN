@@ -45,7 +45,7 @@ object networkIO {
   def streamAllChannels[F[_]: Effect](implicit ec: EC): Stream[F, Int] = {
     say(s"streaming from IP: $ip, port: $port")
     socketStream[F](port) flatMap { socket =>
-      socket.reads(1024*1024).through(utilz.bytesToInts)
+      socket.reads(1024*1024).through(utilz.bytesToInts(params.TCP.format))
     }
   }
 

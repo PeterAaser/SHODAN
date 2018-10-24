@@ -28,13 +28,13 @@ object params {
   object http {
     // object MEAMEclient {
     //   val ip = "129.241.201.110"
-    //   val port = "8888" // we're not an open server, so we don't use the regular http port.
+    //   val port = 8888 // we're not an open server, so we don't use the regular http port.
     // }
 
     // mock version
     object MEAMEclient {
       val ip = "0.0.0.0"
-      val port = "8888" // we're not an open server, so we don't use the regular http port.
+      val port = 8888
     }
 
     object SHODANserver {
@@ -42,13 +42,14 @@ object params {
       val SHODANserverPort = 9998
     }
   }
-  
+
   object TCP {
     val ip = "0.0.0.0"
     val port = 12340
     val sawtooth = 12341
     val sendBufSize = 4096        // rather low bandwidth required for stimreqs
     val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
+    val format = "JVM"
   }
 
   // object TCP {
@@ -57,6 +58,7 @@ object params {
   //   val sawtooth = 12341
   //   val sendBufSize = 4096        // rather low bandwidth required for stimreqs
   //   val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
+  //   val format = "Csharp"
   // }
 
 
