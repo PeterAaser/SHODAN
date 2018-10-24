@@ -21,7 +21,7 @@ purge:
 	-rm -rf ~/.sbt/1.0/plugins/target/
 
 scaffold:
-	createuser memer -W	
+	createuser memer --pwprompt
 	createdb memestorage --owner=memer
-	psql -d memestorage -a -f sql/memescheme.sql
-	psql memestorage < sql/memestorage.dump
+	psql -U memer -d memestorage -a -f sql/memescheme.sql
+	psql -U memer memestorage < sql/memestorage.dump
