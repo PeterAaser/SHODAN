@@ -4,7 +4,6 @@ package cyborg
 import cats.effect.IO
 import cats.effect._
 
-import MEAMEutilz._
 import scala.concurrent.duration._
 import utilz._
 import fs2._
