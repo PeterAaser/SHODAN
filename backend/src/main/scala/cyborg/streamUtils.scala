@@ -256,24 +256,16 @@ object utilz {
 
 
   /**
-    Shouldn't really remain as a function when reduced to a call from the scheduler.
-    */
-  def tickSource[F[_]](period: FiniteDuration)(implicit s: Effect[F], t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
-    t.fixedRate(period)
-  }
-
-
-  /**
     Does not account for rounding errors!
 
     */
-  def throttlerPipe[F[_]: Effect,I](elementsPerSec: Int, resolution: FiniteDuration)(implicit s: Scheduler, ec: EC): Pipe[F,I,I] = {
-
+  def throttlerPipe[F[_]: Effect,I](elementsPerSec: Int, resolution: FiniteDuration)
+    (implicit s: Scheduler, ec: EC): Pipe[F,I,I] = {
     val ticksPerSecond = (1.second/resolution)
     val elementsPerTick = (elementsPerSec/ticksPerSecond).toInt
 
     _.through(vectorize(elementsPerTick))
-      .zip(tickSource(resolution))
+      .zip(s.fixedRate(resolution))
       .through(_.map(_._1))
       .through(chunkify)
   }
@@ -408,7 +400,7 @@ object utilz {
     q: Queue[F,I],
     dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
 
-    tickSource(dur).flatMap { _ =>
+    t.fixedRate(dur).flatMap { _ =>
       Stream.eval(q.size.get).through(_.map(z => say(s"Queue with name $name has a size of $z")))
     }.repeat
   }
