@@ -1,9 +1,12 @@
 package cyborg
 
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 import params._
 import fs2._
 import cats.effect._
+import utilz._
+import backendImplicits._
 
 object RBNContext {
   type State         = List[Boolean]
@@ -87,7 +90,8 @@ object RBNContext {
       // arbitrary.
       Stream.range(0, samplerate).map(
         s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
-      )
+      ) .covary[F]
+        .through(utilz.throttlerPipe[F, Int](7000, 0.05.second))
     }
   }
 
