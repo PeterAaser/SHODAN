@@ -74,11 +74,12 @@ object RBNContext {
     }
 
     /**
-      * Output state of an RBN as a stream for SHODAN backend to
+      * Output state of an RBN node as a stream for SHODAN backend to
       * interpret. For now there are only two different states, giving
       * two different spiking behaviours.
       */
-    def outputState[F[_]: Effect](node: Node, samplerate: Int)
+    def outputNodeState[F[_]: Effect](node: Node, samplerate: Int,
+      resolution: FiniteDuration = 0.05.second)
         : Stream[F, Int] = {
       val spikeFreq = if (state(node)) highFreq else lowFreq
       val spikeDistance = samplerate / spikeFreq
@@ -88,10 +89,10 @@ object RBNContext {
       // according to distance to next spike. This is just a
       // placeholder for a real signal for now. The amplitude is
       // arbitrary.
-      Stream.range(0, samplerate).map(
+      Stream.range(0, samplerate).repeat.map(
         s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
       ) .covary[F]
-        .through(utilz.throttlerPipe[F, Int](7000, 0.05.second))
+        .through(utilz.throttlerPipe[F, Int](samplerate, resolution))
     }
   }
 
