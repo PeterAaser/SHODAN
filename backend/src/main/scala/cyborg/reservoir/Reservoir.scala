@@ -94,6 +94,32 @@ object RBNContext {
       ) .covary[F]
         .through(utilz.throttlerPipe[F, Int](samplerate, resolution))
     }
+
+    /**
+      * Interleaves output from states into a new stream
+      * _deterministically_. Keeps the vectorized outputs grouped up,
+      * mostly for debugging purposes for now.
+      */
+    def interleaveNodeStates[F[_]: Effect](samplerate: Int, segmentLength: Int,
+      resolution: FiniteDuration = 0.05.seconds) : Stream[F, Vector[Int]] = {
+      val mempty = Stream(Vector[Int]()).covary[F].repeat
+      val streams = for (i <- 0 until state.length)
+        yield outputNodeState(i, samplerate, resolution)
+          .through(vectorize(segmentLength))
+
+      streams.foldRight(mempty){(s, acc) => s.zipWith(acc)(_ ++ _)}
+    }
+
+    /**
+      * Output the state of the entire RBN reservoir as one would
+      * expect from an MEA.
+      */
+    def outputState[F[_]: Effect](samplerate: Int, segmentLength: Int,
+      resolution: FiniteDuration = 0.05.seconds): Stream[F, Int] = {
+      interleaveNodeStates(samplerate, segmentLength, resolution)
+        .through(utilz.chunkify)
+        .through(logEveryNth(samplerate*state.length, z => say(s"second")))
+    }
   }
 
   /**
