@@ -100,8 +100,9 @@ object RBNContext {
       * _deterministically_. Keeps the vectorized outputs grouped up,
       * mostly for debugging purposes for now.
       */
+    // (TODO) (thomaav): Use Chunk instead of Vector?
     def interleaveNodeStates[F[_]: Effect](samplerate: Int, segmentLength: Int,
-      resolution: FiniteDuration = 0.05.seconds) : Stream[F, Vector[Int]] = {
+      resolution: FiniteDuration = 0.05.seconds): Stream[F, Vector[Int]] = {
       val mempty = Stream(Vector[Int]()).covary[F].repeat
       val streams = for (i <- 0 until state.length)
         yield outputNodeState(i, samplerate, resolution)
@@ -118,7 +119,6 @@ object RBNContext {
       resolution: FiniteDuration = 0.05.seconds): Stream[F, Int] = {
       interleaveNodeStates(samplerate, segmentLength, resolution)
         .through(utilz.chunkify)
-        .through(logEveryNth(samplerate*state.length, z => say(s"second")))
     }
   }
 
