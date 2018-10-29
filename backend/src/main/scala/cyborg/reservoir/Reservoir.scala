@@ -79,7 +79,7 @@ object RBNContext {
       * two different spiking behaviours.
       */
     def outputNodeState[F[_]: Effect](node: Node, samplerate: Int,
-      resolution: FiniteDuration = 0.05.second)
+      resolution: FiniteDuration = 0.05.second, throttle: Boolean = true)
         : Stream[F, Int] = {
       val spikeFreq = if (state(node)) highFreq else lowFreq
       val spikeDistance = samplerate / spikeFreq
@@ -89,10 +89,14 @@ object RBNContext {
       // according to distance to next spike. This is just a
       // placeholder for a real signal for now. The amplitude is
       // arbitrary.
-      Stream.range(0, samplerate).repeat.map(
+      val output = Stream.range(0, samplerate).repeat.map(
         s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
-      ) .covary[F]
-        .through(utilz.throttlerPipe[F, Int](samplerate, resolution))
+      ).covary[F]
+
+      if (throttle)
+        output.through(utilz.throttlerPipe[F, Int](samplerate, resolution))
+      else
+        output
     }
 
     /**
