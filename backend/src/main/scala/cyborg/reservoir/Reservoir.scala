@@ -109,7 +109,7 @@ object RBNContext {
       resolution: FiniteDuration = 0.05.seconds): Stream[F, Vector[Int]] = {
       val mempty = Stream(Vector[Int]()).covary[F].repeat
       val streams = for (i <- 0 until state.length)
-        yield outputNodeState(i, samplerate, resolution)
+        yield outputNodeState(i, samplerate, resolution, throttle = false)
           .through(vectorize(segmentLength))
 
       streams.foldRight(mempty){(s, acc) => s.zipWith(acc)(_ ++ _)}
@@ -120,9 +120,16 @@ object RBNContext {
       * expect from an MEA.
       */
     def outputState[F[_]: Effect](samplerate: Int, segmentLength: Int,
-      resolution: FiniteDuration = 0.05.seconds): Stream[F, Int] = {
-      interleaveNodeStates(samplerate, segmentLength, resolution)
-        .through(utilz.chunkify)
+      resolution: FiniteDuration = 0.05.seconds, throttle: Boolean)
+        : Stream[F, Int] = {
+      val output =
+        interleaveNodeStates(samplerate, segmentLength, resolution)
+          .through(utilz.chunkify)
+
+      if (throttle)
+        output.through(utilz.throttlerPipe[F, Int](samplerate*state.length, resolution))
+      else
+        output
     }
   }
 
