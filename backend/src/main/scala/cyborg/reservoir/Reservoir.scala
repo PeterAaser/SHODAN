@@ -89,9 +89,9 @@ object RBNContext {
       // according to distance to next spike. This is just a
       // placeholder for a real signal for now. The amplitude is
       // arbitrary.
-      val output = Stream.range(0, samplerate).repeat.map(
+      val output = Stream.range(0, samplerate).map(
         s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
-      ).covary[F]
+      ).repeat.covary[F]
 
       if (throttle)
         output.through(utilz.throttlerPipe[F, Int](samplerate, resolution))
