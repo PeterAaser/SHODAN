@@ -103,7 +103,7 @@ object fileIO {
 
   /**
     * Outputs a sink and path for writing an integer stream as a
-    * compressed file.
+    * compressed file. Use default values for deflate.
     */
   def writeCompressed[F[_]: Effect]: IO[(Path, Sink[F,Int])] = {
     import params.StorageParams.toplevelPath
@@ -117,6 +117,19 @@ object fileIO {
 
       (path, sink)
     }
+  }
+
+
+  /**
+    * Reads a compressed binary file of integers. Use default values
+    * for inflate.
+    */
+  def streamCompressed(filePath: String): Stream[IO,Int] = {
+    import params.StorageParams.toplevelPath
+
+    fs2.io.file.readAll[IO](Paths.get(toplevelPath + filePath), 4096)
+      .through(fs2.compress.inflate())
+      .through(bytesToIntsJVM)
   }
 
 
