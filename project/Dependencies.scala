@@ -145,6 +145,7 @@ object Dependencies {
     "co.fs2" %% "fs2-io"   % fs2Version,                      // The best library
 
     "org.graphstream" % "gs-core" % "1.3",                    // GraphStream for visualizing RBN reservoir
+    "org.jfree" % "jfreechart" % "1.5.0",                     // JFreeChart for visualizing integer streams
 
     "org.tpolecat" %% "doobie-core"       % doobieVersion,    // Databases. Unironically uses comonads
     "org.tpolecat" %% "doobie-postgres"   % doobieVersion,    // Databases. Unironically uses comonads
