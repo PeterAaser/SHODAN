@@ -56,6 +56,7 @@ object fileIO {
 
   val tfmt = DateTimeFormat.forPattern("HH:mm:ss")
   def timeString = DateTime.now().toString(tfmt)
+  def getTimeStringUnsafe: String = DateTime.now().toString(tfmt)
   def getTimeString: IO[String] = IO {
     DateTime.now().toString(tfmt)
   }

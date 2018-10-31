@@ -566,9 +566,11 @@ object utilz {
     s => s.through(_.map(z => Stream.eval(f(z)))).join(n)
 
 
-  def say(word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
+  def say(word: Any, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
+    import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
-    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+    val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + Console.RESET + s" - $word")
   }
 
   def Fsay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {
