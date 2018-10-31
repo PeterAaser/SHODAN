@@ -378,7 +378,7 @@ object utilz {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n.toLong,false) flatMap {
         case Some((seg, tl)) => {
-          say(message(seg.force.toList.head))
+          message(seg.force.toList.head)
           Pull.output(seg) >> go(tl)
         }
         case None => {
@@ -388,6 +388,11 @@ object utilz {
       }
     }
     in => go(in).stream
+  }
+
+
+  def logEveryNth[F[_],I](n: Int, message: String): Pipe[F,I,I] = {
+    logEveryNth(n, z => say(message, timestamp = true))
   }
 
 
