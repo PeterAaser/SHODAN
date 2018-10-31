@@ -1,5 +1,8 @@
 package cyborg
 
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import javax.swing.Timer
 import org.jfree._
 
 object ReservoirPlot {
@@ -18,12 +21,24 @@ object ReservoirPlot {
 
     // (TODO) (thomaav): Find a good way to plot domain (time)
     val plot: chart.plot.XYPlot = ReservoirChart.getXYPlot
-    val range = plot.getDomainAxis
-    range.setVisible(false)
+    val domain = plot.getDomainAxis
+    domain.setAutoRange(true)
+    domain.setVisible(false)
 
     val frame = new chart.ChartFrame("SHODAN", ReservoirChart)
     frame.pack()
     ui.RefineryUtilities.centerFrameOnScreen(frame)
     frame.setVisible(true)
+
+    // (TODO) (thomaav): Fix me to work with input data
+    val timer = new Timer(1, new ActionListener {
+      def actionPerformed(e: ActionEvent): Unit = {
+        dataSet.advanceTime
+        val newdater = Array[Float](0.0f)
+        dataSet.appendData(newdater)
+      }
+    })
+
+    timer.start
   }
 }
