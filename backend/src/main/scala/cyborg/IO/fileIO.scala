@@ -101,6 +101,23 @@ object fileIO {
   }
 
 
+  /**
+    * Outputs a sink and path for writing an integer stream as a
+    * compressed file.
+    */
+  def writeCompressed[F[_]: Effect]: IO[(Path, Sink[F,Int])] = {
+    import params.StorageParams.toplevelPath
+
+    getDateTimeString map {s =>
+      val path: Path = Paths.get(toplevelPath + s)
+      val sink: Sink[F, Int] = _
+        .through(utilz.intToBytes)
+        .through(fs2.compress.deflate())
+        .through(fs2.io.file.writeAll(path))
+
+      (path, sink)
+    }
+  }
 
 
   /**
