@@ -55,7 +55,7 @@ object databaseIO {
         say(s"samplerate:     ${expParams.samplerate}")
         say(s"segment length: ${expParams.segmentLength}")
         val reader = data.resourceType match {
-          case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.samplerate)
+          case CSV => fileIO.readCSV[IO](data.resourcePath)
           case GZIP => fileIO.readGZIP[IO](data.resourcePath)
         }
         reader
@@ -82,7 +82,7 @@ object databaseIO {
           say(s"samplerate:     ${expParams.samplerate}")
           say(s"segment length: ${expParams.segmentLength}")
           val reader = data.resourceType match {
-            case CSV => fileIO.readCSV[IO](data.resourcePath, expParams.samplerate)
+            case CSV => fileIO.readCSV[IO](data.resourcePath)
             case GZIP => fileIO.readGZIP[IO](data.resourcePath)
           }
           reader

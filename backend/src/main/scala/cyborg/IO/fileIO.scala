@@ -63,8 +63,7 @@ object fileIO {
 
 
   // TODO might be perf loss to go from Array to List and all that
-  def readCSV[F[_]: Effect](filePath: Path, elementsPerSec: Int)(implicit ec: EC, s: Scheduler): Stream[F,Int] = {
-    say(s"elements per sec set to $elementsPerSec")
+  def readCSV[F[_]: Effect](filePath: Path)(implicit ec: EC): Stream[F,Int] = {
     val reader = fs2.io.file.readAll[F](filePath, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
