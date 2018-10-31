@@ -37,21 +37,28 @@ object fileIO {
     dir.toFile().listFiles.filter(_.isDirectory).toList
 
 
-  val fmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
-  def timeString = DateTime.now().toString(fmt)
-  def getTimeString: IO[String] = IO {
-    DateTime.now().toString(fmt)
+  val dtfmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
+  def dateTimeString = DateTime.now().toString(dtfmt)
+  def getDateTimeString: IO[String] = IO {
+    DateTime.now().toString(dtfmt)
   }
 
 
   implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
   def sortFilesByDate(files: List[File]) =
-    files.map(_.getName).map(DateTime.parse(_, fmt)).sorted
+    files.map(_.getName).map(DateTime.parse(_, dtfmt)).sorted
 
 
   def getNewestFilename: String =
     sortFilesByDate(getListOfFiles(toplevelPath))
-      .head.toString(fmt)
+      .head.toString(dtfmt)
+
+
+  val tfmt = DateTimeFormat.forPattern("HH:mm:ss")
+  def timeString = DateTime.now().toString(tfmt)
+  def getTimeString: IO[String] = IO {
+    DateTime.now().toString(tfmt)
+  }
 
 
   // TODO might be perf loss to go from Array to List and all that
@@ -80,7 +87,7 @@ object fileIO {
 
     import params.StorageParams.toplevelPath
 
-    getTimeString map { s =>
+    getDateTimeString map { s =>
       val path: Path = Paths.get(toplevelPath + s)
       val sink: Sink[F,Int] = _
         .through(utilz.vectorize(1000))
