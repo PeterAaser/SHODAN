@@ -21,8 +21,9 @@ object ReservoirPlot {
     val range = plot.getDomainAxis
     range.setVisible(false)
 
-    val frame = new chart.ChartFrame("Reservoir", ReservoirChart)
+    val frame = new chart.ChartFrame("SHODAN", ReservoirChart)
     frame.pack()
+    ui.RefineryUtilities.centerFrameOnScreen(frame)
     frame.setVisible(true)
   }
 }
