@@ -84,7 +84,7 @@ object params {
     import java.nio.file.Paths
     val storageType      = "CSV"
     val workingDirectory = Paths.get(".").toAbsolutePath
-    val toplevelPath     = workingDirectory + "/MEAdata"
+    val toplevelPath     = workingDirectory + "/MEAdata/"
   }
 
   object perturbationTransform {

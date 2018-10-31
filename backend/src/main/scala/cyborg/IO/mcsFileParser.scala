@@ -84,7 +84,7 @@ object mcsParser {
     // Get list of recordings in the data folder
     val fileUris: Set[Path] = (
       fileIO.getListOfFiles(toplevelPath) ++
-      fileIO.getListOfFiles(toplevelPath + "/mcs_data")
+      fileIO.getListOfFiles(toplevelPath + "mcs_data")
     ).map(_.toPath()).toSet
 
 
@@ -92,7 +92,7 @@ object mcsParser {
     val uninserted = dbUris.map( dbUris => fileUris -- dbUris).map{ uris =>
       uris.map { uri =>
 
-        val metaData = fileIO.getListOfFiles(toplevelPath + "/mcs_data/metadata")
+        val metaData = fileIO.getListOfFiles(toplevelPath + "mcs_data/metadata")
           .filterNot(λ => λ.getName.eq(uri.getFileName.toString()))
           .head.toPath() // #YOLO
 
