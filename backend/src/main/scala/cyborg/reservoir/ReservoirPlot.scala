@@ -9,15 +9,17 @@ import scala.concurrent.duration._
 
 object ReservoirPlot {
   /**
-    * Plots an array of floats. Note that this currently has no notion
-    * of timing, and thus has no dynamic updating.
+    * Plots an array of floats. Note that this will not currently be
+    * able to keep up with a samplerate of 20 000 -- replaying at
+    * about 1000 should produce smooth results. Consider this a crude
+    * debugging tool.
     */
   def plot(stream: Array[Float], samplerate: Int,
-    resolution: FiniteDuration = 0.01.second): Unit = {
+    resolution: FiniteDuration = 0.001.second): Unit = {
     val ticksPerSecond = (1.second/resolution).toInt
     val elementsPerTick = (samplerate/ticksPerSecond)
     val totalTicks = (stream.length/elementsPerTick)
-    val plottedTicks = (ticksPerSecond)*2
+    val plottedTicks = (ticksPerSecond)
     val slidingWindowSize = plottedTicks * elementsPerTick
     var remainingStream = stream.drop(slidingWindowSize)
 
@@ -29,7 +31,6 @@ object ReservoirPlot {
       chart.ChartFactory.createTimeSeriesChart(
       "SHODAN", "time (undef)", "amplitude", dataSet, true, true, false)
 
-    // (TODO) (thomaav): Find a good labelling for domain (time)
     val plot: chart.plot.XYPlot = ReservoirChart.getXYPlot
     val domain = plot.getDomainAxis
     domain.setAutoRange(true)
@@ -40,8 +41,6 @@ object ReservoirPlot {
     ui.RefineryUtilities.centerFrameOnScreen(frame)
     frame.setVisible(true)
 
-    // (TODO) (thomaav): Find a way to advance time without stepping
-    // like this
     val timer = new Timer(resolution.toMillis.toInt, new ActionListener {
       def actionPerformed(e: ActionEvent): Unit = {
         val tickData = remainingStream.take(elementsPerTick)
