@@ -438,6 +438,30 @@ object utilz {
 
 
   /**
+   * Outputs a single channel from a stream of interleaved
+   * channels. The functionality is similar to that of tagPipe, the
+   * difference being that singleChannelPipe demuxes and then outputs
+   * only a single channel.
+   */
+  def singleChannelPipe[F[_]](channel: Channel, channels: Int, segmentLength: Int)
+      : Pipe[F,Int,Int] = {
+    def go(n: Channel, s: Stream[F,Int]): Pull[F,Int,Unit] = {
+      s.pull.unconsN(segmentLength.toLong, false) flatMap {
+        case None => Pull.done
+        case Some((seg,tl)) => {
+          n match {
+            case n if n == channel => Pull.output(seg) >> go((n+1)%channels, tl)
+            case _ => go((n+1)%channels, tl)
+          }
+        }
+      }
+    }
+
+    in => go(0, in).stream
+  }
+
+
+  /**
     Modifies the segment length of a stream. Not optimized
     */
   def modifySegmentLengthGCD[F[_]](originalSegmentLength: Int, newSegmentLength: Int, channels: Int = 60): Pipe[F,Int,Int] = {
