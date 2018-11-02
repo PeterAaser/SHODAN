@@ -460,6 +460,24 @@ object utilz {
     in => go(0, in).stream
   }
 
+  /**
+   * A naive implementation of downsampling that does not include an
+   * anti-aliasing filter. Loosely speaking this is just a
+   * downsampling.
+   */
+  def naiveDecimationPipe[F[_]](factor: Int): Pipe[F,Int,Int] = {
+    def go(s: Stream[F,Int]): Pull[F,Int,Unit] = {
+      s.pull.unconsN(factor.toLong, false) flatMap {
+        case None => Pull.done
+        case Some((seg,tl)) => {
+          Pull.output1(seg.force.toList.head) >> go(tl)
+        }
+      }
+    }
+
+    in => go(in).stream
+  }
+
 
   /**
     Modifies the segment length of a stream. Not optimized
