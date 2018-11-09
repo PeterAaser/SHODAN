@@ -15,43 +15,15 @@ import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import cyborg.bonus._
+
+import cyborg.DspRegisters
+import cyborg.HttpClient._
+import cyborg.utilz._
 
 object mockServer {
 
-  import cyborg.DspRegisters
-  import cyborg.HttpClient._
-  import cyborg.utilz._
-
-  case class DSPconfig(m: Map[Int, (Option[FiniteDuration], Boolean)])
-  object DSPconfig {
-    def init = DSPconfig( (0 to 2).map( x => (x, (None, false))).toMap)
-  }
-
-  implicit class DSPOps(d: DSPconfig) {
-    def updatePeriod(groupIdx: Int, period: FiniteDuration): DSPconfig =
-      d.copy(m = d.m.updated(groupIdx, (Some(period), d.m(groupIdx)._2)))
-    def toggleGroup(groupIdx: Int, toggle: Boolean): DSPconfig =
-      d.copy(m = d.m.updated(groupIdx, (d.m(groupIdx)._1, toggle)))
-
-    def update(call: DspFuncCall): DSPconfig = {
-      import cyborg.dsp.calls.DspCalls._
-      call.func match {
-        case SET_ELECTRODE_GROUP_PERIOD =>
-          call.decodeSetPeriod.foldLeft(d){ case(_, (groupIdx, period)) =>
-            d.updatePeriod(groupIdx, period) }
-
-        case ENABLE_STIM_GROUP =>
-          call.decodeToggleGroup.foldLeft(d){ case(_, (groupIdx, _)) =>
-            d.toggleGroup(groupIdx, true) }
-
-        case DISABLE_STIM_GROUP =>
-          call.decodeToggleGroup.foldLeft(d){ case(_, (groupIdx, _)) =>
-            d.toggleGroup(groupIdx, false) }
-
-        case _ => d
-      }
-    }
-  }
+  import mockDSP._
 
   case class ServerState(
     alive:           Boolean,
@@ -59,7 +31,7 @@ object mockServer {
     dataAcquisition: Boolean,
     dspFlashed:      Boolean,
     daqParams:       Option[DAQparams],
-    dspConfig:       DSPconfig
+    dspState:        DSPstate
   )
   object ServerState {
     def init = ServerState(
@@ -68,7 +40,7 @@ object mockServer {
       false,
       false,
       None,
-      DSPconfig.init
+      DSPstate.init
     )
     def fucked = init.copy(alive = false)
   }
@@ -85,6 +57,7 @@ object mockServer {
   def DAQ(s: Signal[IO,ServerState]) = HttpService[IO] {
     case req @ POST -> Root / "connect" =>
       req.decode[DAQparams] { params =>
+        Fsay[IO](s"got params $params") >>
         s.modify(_.copy(running = true, daqParams = Some(params))).flatMap(_ => Ok(""))
       }
     case GET -> Root / "start" =>
@@ -99,7 +72,7 @@ object mockServer {
       s.modify(_.copy(dspFlashed = true)).flatMap(_ => Ok(""))
     case req @ POST -> Root / "call" => {
       req.decode[HttpClient.DspFuncCall] { data =>
-        s.modify(cfg => cfg.copy(dspConfig = cfg.dspConfig.update(data))) >>
+        // s.modify(cfg => cfg.copy(dspConfig = cfg.dspConfig.update(data))) >>
           Ok("")
       }
     }
@@ -136,7 +109,7 @@ object mockServer {
     }
 
     // Already throttled
-    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(3).repeat
+    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(10).repeat
     val broadcast = Stream.eval(fs2.async.signalOf[IO,Frame](Nil)) flatMap { signal =>
       val dataIn = fromDB.through(utilz.vectorize(60))
         .through(_.map(_.map(_.data).flatten))
