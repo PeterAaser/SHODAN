@@ -460,6 +460,7 @@ object utilz {
     in => go(0, in).stream
   }
 
+
   /**
    * A naive implementation of downsampling that does not include an
    * anti-aliasing filter. Loosely speaking this is just a
@@ -476,6 +477,27 @@ object utilz {
     }
 
     in => go(in).stream
+  }
+
+
+  /**
+    * Sink for visualizing an integer stream with ReservoirPlot.
+    */
+  def vizSink[F[_]: Effect](length: Int, samplerate: Int,
+    resolution: FiniteDuration = 0.1.second)
+      : Sink[F, Int] = {
+    _.through(utilz.vectorize(length)).head.through(
+      Sink.apply(xs =>
+        Effect[F].delay(
+          {
+            val myPlot = new ReservoirPlot.TimeSeriesPlot(
+              xs.toArray.map(_.toFloat), samplerate, resolution)
+            myPlot.setRange(-500, 500)
+            myPlot.show
+          }
+        )
+      )
+    )
   }
 
 
