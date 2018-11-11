@@ -481,19 +481,26 @@ object utilz {
 
 
   /**
-    * Sink for visualizing an integer stream with ReservoirPlot.
+    * Sink for visualizing an integer stream with ReservoirPlot. The
+    * plot is owned by the Sink itself, which will periodically expand
+    * the dataset as the content of the Stream is pulled.
     */
-  def vizSink[F[_]: Effect](length: Int, samplerate: Int,
-    resolution: FiniteDuration = 0.1.second)
+  def vizSink[F[_]: Sync](samplerate: Int, resolution: FiniteDuration = 0.1.second)
       : Sink[F, Int] = {
-    _.through(utilz.vectorize(length)).head.through(
+    val plot = new ReservoirPlot.TimeSeriesPlot(
+      Seq.fill(ReservoirPlot.getSlidingWindowSize(samplerate, resolution))(0.0f).toArray,
+      samplerate, resolution
+    )
+    plot.show
+
+    // Note that the vectorization is of size samplerate, to make sure
+    // it's unlikely that Timer in ReservoirPlot will ever catch up.
+    _.through(utilz.vectorize(samplerate)).through(
       Sink.apply(xs =>
-        Effect[F].delay(
+        Sync[F].delay(
           {
-            val myPlot = new ReservoirPlot.TimeSeriesPlot(
-              xs.toArray.map(_.toFloat), samplerate, resolution)
-            myPlot.setRange(-500, 500)
-            myPlot.show
+            // Not thread safe (do we care?)
+            plot ++= xs.map(_.toFloat).toArray
           }
         )
       )
