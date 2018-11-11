@@ -508,6 +508,11 @@ object utilz {
   }
 
 
+  def attachVizPipe[F[_]](samplerate: Int, resolution: FiniteDuration = 0.1.second)
+    (implicit F: Effect[F], ec: ExecutionContext): Pipe[F,Int,Int] =
+    _.observeAsync(1024)(vizSink(samplerate, resolution))
+
+
   /**
     Modifies the segment length of a stream. Not optimized
     */
