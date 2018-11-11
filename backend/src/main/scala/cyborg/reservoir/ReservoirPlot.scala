@@ -74,16 +74,22 @@ object ReservoirPlot {
     }
 
     def updateDataset: Unit = {
-      slidingWindow = slidingWindow.drop(elementsPerTick) ++
-            remainingStream.take(elementsPerTick)
-      remainingStream = remainingStream.drop(elementsPerTick)
+      if (remainingStream.length >= elementsPerTick) {
+        slidingWindow = slidingWindow.drop(elementsPerTick) ++
+        remainingStream.take(elementsPerTick)
+        remainingStream = remainingStream.drop(elementsPerTick)
 
-      dataset = new data.time.DynamicTimeSeriesCollection(
-        1, slidingWindowSize, new data.time.Millisecond())
-      dataset.setTimeBase(new data.time.Millisecond())
-      dataset.addSeries(slidingWindow, 0, "Stream")
+        dataset = new data.time.DynamicTimeSeriesCollection(
+          1, slidingWindowSize, new data.time.Millisecond())
+        dataset.setTimeBase(new data.time.Millisecond())
+        dataset.addSeries(slidingWindow, 0, "Stream")
 
-      plot.setDataset(dataset)
+        plot.setDataset(dataset)
+      }
+    }
+
+    def ++=(stream: Array[Float]): Unit = {
+      remainingStream ++= stream
     }
 
     def show: Unit = {
