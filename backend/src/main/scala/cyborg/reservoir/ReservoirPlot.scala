@@ -47,6 +47,12 @@ object ReservoirPlot {
     var slidingWindow = stream.take(slidingWindowSize)
     var remainingStream = stream.drop(slidingWindowSize)
 
+    // Support having multiple streams of data. Note that it's still
+    // possible to interact with TimeSeriesPlot as if it has only one
+    // series.
+    var series = Array[Array[Float]](slidingWindow)
+    var remainingStreams = Array[Array[Float]](remainingStream)
+
     var dataset = new data.time.DynamicTimeSeriesCollection(
       1, slidingWindowSize, new data.time.Millisecond())
     dataset.setTimeBase(new data.time.Millisecond())
@@ -74,22 +80,34 @@ object ReservoirPlot {
     }
 
     def updateDataset: Unit = {
-      if (remainingStream.length >= elementsPerTick) {
-        slidingWindow = slidingWindow.drop(elementsPerTick) ++
-        remainingStream.take(elementsPerTick)
-        remainingStream = remainingStream.drop(elementsPerTick)
-
+      if (remainingStreams(0).length >= elementsPerTick) {
         dataset = new data.time.DynamicTimeSeriesCollection(
-          1, slidingWindowSize, new data.time.Millisecond())
+          series.length, slidingWindowSize, new data.time.Millisecond())
         dataset.setTimeBase(new data.time.Millisecond())
-        dataset.addSeries(slidingWindow, 0, "Stream")
+
+        for (i <- 0 until series.length) {
+          series(i) = series(i).drop(elementsPerTick) ++
+            remainingStreams(i).take(elementsPerTick)
+          remainingStreams(i) = remainingStreams(i).drop(elementsPerTick)
+          dataset.addSeries(series(i), i, "Stream" ++ i.toString)
+        }
 
         plot.setDataset(dataset)
       }
     }
 
+    def addStream(stream: Array[Float]): Int = {
+      series :+= stream.take(slidingWindowSize)
+      remainingStreams :+= stream.drop(slidingWindowSize)
+      series.length - 1
+    }
+
+    def extendStream(seriesNumber: Int, stream: Array[Float]): Unit = {
+      remainingStreams(seriesNumber) ++= stream
+    }
+
     def ++=(stream: Array[Float]): Unit = {
-      remainingStream ++= stream
+      extendStream(0, stream)
     }
 
     def show: Unit = {
