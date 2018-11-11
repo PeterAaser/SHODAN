@@ -23,6 +23,7 @@ object utilz {
   type Channel = Int
   case class TaggedSegment(channel: Channel, data: Vector[Int])
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
+  case class MuxedStream[F[_],I](numStreams: Int, stream: Stream[F,I])
 
   sealed trait Stoppable[F[_]] { def interrupt: F[_] }
   case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit]) extends Stoppable[F]
@@ -287,6 +288,13 @@ object utilz {
     val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
     streams.foldRight(mpty)((z,u) => zip2List(z,u))
   }
+
+
+  def flatRoundRobinL[F[_],I](streams: List[Stream[F,I]]): MuxedStream[F,I] = {
+    val muxedStream = roundRobinL(streams)
+    MuxedStream(streams.length, muxedStream.through(chunkify))
+  }
+
 
   def roundRobinQ[F[_]: Effect : Functor,I:ClassTag](streams: List[Stream[F,I]])(implicit ec: EC): Stream[F,List[I]] = {
 
