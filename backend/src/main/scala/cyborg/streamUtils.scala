@@ -489,6 +489,24 @@ object utilz {
 
 
   /**
+    * Replicate each element n times, and subsequently flatten the
+    * resulting Stream.
+    */
+  def replicateElementsPipe[F[_]](n: Int): Pipe[F,Int,Int] = {
+    def go(s: Stream[F,Int]): Pull[F,Int,Unit] = {
+      s.pull.uncons1 flatMap {
+        case None => Pull.done
+        case Some((hd,tl)) => {
+          Pull.output(Segment.seq(Seq.fill(n)(hd))) >> go(tl)
+        }
+      }
+    }
+
+    in => go(in).stream
+  }
+
+
+  /**
     * Sink for visualizing an integer stream with ReservoirPlot. The
     * plot is owned by the Sink itself, which will periodically expand
     * the dataset as the content of the Stream is pulled.
