@@ -150,21 +150,25 @@ object HttpClient {
   case class MEAMEhealth(isAlive: Boolean, dspAlive: Boolean)
   case class MEAMEstatus(isAlive: Boolean, dspAlive: Boolean, dspBroken: Boolean)
 
+  // TODO Yes, very helpful comment, and now this shit makes compiling fail.
+  // Should probably be removed. If you haven't figured out what this was
+  // supposed to do next time you see the code, just axe it.
+
   // don't have to read the docs if you just make an ugly hack
   case class DspFCS(func: Int, argAddrs: List[Int], argVals: List[Int])
   implicit val DspFCSCodec = jsonOf[IO, DspFCS]
-  implicit val encodeFoo: Encoder[DspFuncCall] = new Encoder[DspFuncCall] {
-    final def apply(a: DspFuncCall): Json = {
-      val (words, addrs) = a.args.unzip
-      DspFCS(a.func, addrs, words).asJson
-    }
-  }
+  // implicit val encodeFoo: Encoder[DspFuncCall] = new Encoder[DspFuncCall] {
+  //   final def apply(a: DspFuncCall): Json = {
+  //     val (words, addrs) = a.args.unzip
+  //     DspFCS(a.func, addrs, words).asJson
+  //   }
+  // }
 
-  implicit val regSetCodec = jsonOf[IO, RegisterSetList]
-  implicit val DAQdecoder = jsonOf[IO, DAQparams]
-  implicit val regReadCodec = jsonOf[IO, RegisterReadList]
+  implicit val regSetCodec      = jsonOf[IO, RegisterSetList]
+  implicit val DAQdecoder       = jsonOf[IO, DAQparams]
+  implicit val regReadCodec     = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  implicit val dspCallCodec = jsonOf[IO, DspFuncCall]
+  implicit val dspCallCodec     = jsonOf[IO, DspFuncCall]
   implicit val MEAMEhealthCodec = jsonOf[IO, MEAMEhealth]
   implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
 

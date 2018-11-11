@@ -16,6 +16,7 @@ import org.http4s.server.blaze.BlazeBuilder
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
+import scala.concurrent.duration._
 
 import cyborg.DspRegisters
 import cyborg.HttpClient._
@@ -67,13 +68,14 @@ object mockServer {
   }
 
 
-  def DSP(s: Signal[IO,ServerState]) = HttpService[IO] {
+  def DSP(s: Signal[IO,ServerState], q: Queue[IO, DspFuncCall]) = HttpService[IO] {
     case GET -> Root / "flash" =>
       s.modify(_.copy(dspFlashed = true)).flatMap(_ => Ok(""))
+
     case req @ POST -> Root / "call" => {
+      val hurr = req.body.through(fs2.text.utf8Decode).compile.toVector.unsafeRunSync
       req.decode[HttpClient.DspFuncCall] { data =>
-        // s.modify(cfg => cfg.copy(dspConfig = cfg.dspConfig.update(data))) >>
-          Ok("")
+        q.enqueue1(data) >> Ok("")
       }
     }
     case req @ POST -> Root / "read" => {
@@ -143,18 +145,22 @@ object mockServer {
   }
 
 
-  def assembleTestHttpServer(port: Int): Stream[IO, Server[IO]] = {
-    def mountServer(s: Signal[IO,ServerState])(implicit ev: Effect[IO]): IO[Server[IO]] = BlazeBuilder[IO]
+  def assembleTestHttpServer(port: Int): Stream[IO, (Server[IO], Stream[IO,mockDSP.Event])] = {
+    def mountServer(s: Signal[IO,ServerState], dspFuncCallQueue: Queue[IO,DspFuncCall])(implicit ev: Effect[IO]): IO[Server[IO]] = BlazeBuilder[IO]
       .bindHttp(port, "0.0.0.0")
       .mountService(hello(s), "/")
       .mountService(DAQ(s), "/DAQ")
-      .mountService(DSP(s), "/DSP")
+      .mountService(DSP(s, dspFuncCallQueue), "/DSP")
       .start
 
-    for {
-      meameState <- Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init))
-      server <- Stream.eval(mountServer(meameState))
-    } yield server
+    val dspEventSinkz: Sink[IO, Event] = _.map{ x => say(s"event: $x AAAAAAAAAAAAAAAAAAAAAAAAAAA"); x}.drain
+
+    Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init)) flatMap{ meameState =>
+      Stream.eval(fs2.async.boundedQueue[IO,DspFuncCall](20)) flatMap { dspFuncQueue =>
+        Stream.eval(mountServer(meameState, dspFuncQueue)).map( x =>
+          (x, mockDSP.startDSP(dspFuncQueue, 1.second)))
+      }
+    }
   }
 
 

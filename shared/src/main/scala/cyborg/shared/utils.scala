@@ -10,6 +10,10 @@ object bonus {
       xs.zipWithIndex.map(x => f(x._1, x._2))
 
     def zipIndexLeft: Seq[(Int, A)] = xs.zipWithIndex.map{ case(a,b) => (b,a) }
+
+    def minByOption(implicit ev: Ordering[A]): Option[A] =
+      if (xs.isEmpty) None
+      else Some(xs.min)
   }
 
   implicit class MapOps[K,V](m: Map[K,V]) {

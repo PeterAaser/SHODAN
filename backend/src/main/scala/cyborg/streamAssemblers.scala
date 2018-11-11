@@ -38,6 +38,7 @@ object Assemblers {
       conf           <- Stream.eval(assembleConfig)
       getConf        =  conf.get
       mock           <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
+      mockEvents     =  mock._2
       _              <- Ssay[IO]("mock server up")
       state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
 
@@ -45,6 +46,9 @@ object Assemblers {
       agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
       topics         <- assembleTopics.through(vectorizeList(60))
       taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
+
+      _              <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 999.millis))
+      _              <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
 
       waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
@@ -76,6 +80,7 @@ object Assemblers {
       _              <- Ssay[IO]("All systems go")
       _ <- commandQueue.dequeue.through(commandPipe)
         .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
+        .concurrently(mockEvents.through(_.map{x => say(x); x}))
 
     } yield ()
   }
@@ -208,6 +213,4 @@ object Assemblers {
 
   def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
    cyborg.io.files.mcsParser.processRecordings
-
-
 }

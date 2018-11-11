@@ -13,9 +13,9 @@ import org.http4s._
 import org.http4s.dsl.io._
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
+import scala.concurrent.duration._
 
 import cyborg.HttpClient._
 import cyborg.utilz._
@@ -28,102 +28,171 @@ object mockDSP {
   case object Inactive extends ElectrodeState
 
   sealed trait Event
-  case object StartFiring extends Event
-  case object DoneFiring  extends Event
-  case object DSPError    extends Event
+  case class StartFiring(idx: Int, tick: Int)           extends Event
+  case class DoneFiring(idx: Int, tick: Int)            extends Event
+  case class DSPError(idx: Int, msg: String, tick: Int) extends Event
 
   val fireTickLength = 400
 
-  case class StimReq(state: ElectrodeState, period: Int, nextEventTimestep: Int){
+  case class StimReq(idx: Int, state: ElectrodeState, period: Int, nextEventTimestep: Int){
     def updatePeriod(nextPeriod: Int, currentTick: Int) = {
       val diff = nextPeriod - period
       val newFiringTimestep = nextEventTimestep + diff
-      if (newFiringTimestep <= currentTick)
-        StimReq(state, nextPeriod, currentTick + 1)
+      val next = if (newFiringTimestep <= currentTick)
+        StimReq(idx, state, nextPeriod, currentTick + 1)
       else
-        StimReq(state, nextPeriod, newFiringTimestep)
+        StimReq(idx, state, nextPeriod, newFiringTimestep)
+
+      next
     }
 
 
     def toggle(active: Boolean, currentTick: Int) = {
       if(active)
-        StimReq(Idle, period, currentTick + nextEventTimestep)
+        StimReq(idx, Idle, period, currentTick + nextEventTimestep)
       else
-        StimReq(Inactive, period, nextEventTimestep)
+        StimReq(idx, Inactive, period, nextEventTimestep)
     }
 
 
-    def runTick(tick: Int): (Option[Event], StimReq) =
+    def runTick(tick: Int): (Option[Event], StimReq) = {
       state match {
-        case Firing if tick == nextEventTimestep =>
-          (Some(DoneFiring), StimReq(Idle, period, (tick - fireTickLength) + period))
-        case Idle if tick == nextEventTimestep =>
-          (Some(StartFiring), StimReq(Firing, period, tick + fireTickLength))
-        case _ =>
-          (None, StimReq(state, period, nextEventTimestep))
+        case Firing if tick == nextEventTimestep => {
+          (Some(DoneFiring(idx, tick)), StimReq(idx, Idle, period, (tick - fireTickLength) + period))
+        }
+        case Idle if tick == nextEventTimestep => {
+          (Some(StartFiring(idx, tick)), StimReq(idx, Firing, period, tick + fireTickLength))
+        }
+        case _ => {
+          (None, StimReq(idx, state, period, nextEventTimestep))
+        }
       }
+    }
   }
-  object StimReq { def init = StimReq(Inactive, 0, 0) }
 
 
-  case class DSPstate(m: Map[Int, StimReq], tick: Int){
+  case class DSPstate(m: Map[Int, StimReq], currentTick: Int){
+
+    def nextEvent: Option[Int] = {
+      val filteredNext = m.values.filter{
+        _.state match {
+          case Inactive => false
+          case _ => true
+        }
+      }
+      val next = filteredNext.map(_.nextEventTimestep).toSeq.minByOption
+      next
+    }
+
+    def ticksToNextEvent: Option[Int] = nextEvent.map(_ - currentTick)
 
     def updatePeriod(groupIdx: Int, nextPeriod: Int) = DSPstate(
-      m.updated(groupIdx, m(groupIdx).updatePeriod(nextPeriod, tick)), tick)
+      m.updated(groupIdx, m(groupIdx).updatePeriod(nextPeriod, currentTick)), currentTick)
 
     def toggleGroup(groupIdx: Int, toggle: Boolean)  = DSPstate(
-      m.updated(groupIdx, m(groupIdx).toggle(toggle, tick)), tick)
+      m.updated(groupIdx, m(groupIdx).toggle(toggle, currentTick)), currentTick)
 
-    // TODO add something more substantial than .toString
-    def runTick: (List[String], DSPstate) = {
+    def runTick(tick: Int): (List[Event], DSPstate) = {
       val (messages, next) = m.toList.map{ case(idx, stimReq) =>
-        val (event, next) = stimReq.runTick(tick)
-        (event.map(_.toString()), next)
+        val (events, next) = stimReq.runTick(tick)
+        (events, next)
       }.unzip
-      (messages.flatten, DSPstate(next.zipIndexLeft.toMap, tick + 1))
-    }
-
-    def fastForward: DSPstate = {
-      val nextEvent = m.mapValues(_.nextEventTimestep).values.min
-      DSPstate(m, nextEvent)
+      (messages.flatten, DSPstate(next.zipIndexLeft.toMap, tick))
     }
   }
-  object DSPstate { def init = DSPstate( (0 to 2).map( x => (x, StimReq.init)).toMap, 0) }
+
+  object DSPstate {
+    def init = DSPstate( (0 to 2).map( x => (x, StimReq(x, Inactive, 0,0))).toMap, 0)
+
+    def runTicks(dsp: DSPstate, ticks: Int): (List[Event], DSPstate) = {
+      def go(dsp: DSPstate, ticks: Int, log: List[Event]): (List[Event], DSPstate) = {
+        dsp.ticksToNextEvent match {
+          case Some(ticksToNext) if (ticksToNext < ticks) => {
+            val nextTick = dsp.currentTick + ticksToNext
+            val (events, next) = dsp.runTick(nextTick)
+            go(next, ticks - ticksToNext, events ::: log)
+          }
+          case Some(ticksToNext) => {
+            (log.reverse, dsp.copy(currentTick = dsp.currentTick + ticks))
+          }
+          case _ => {
+            (log.reverse, dsp.copy(currentTick = dsp.currentTick + ticks))
+          }
+        }
+      }
+      go(dsp, ticks, Nil)
+    }
+  }
 
 
-  def startDSP(requests: Stream[IO, HttpClient.DspFuncCall]): IO[Stream[IO,String]] = {
+  def decodeDspCall(call: HttpClient.DspFuncCall): DSPstate => DSPstate = {
+    import cyborg.dsp.calls.DspCalls._
+    import cyborg.DspRegisters._
 
-    def decodeDspCall(call: HttpClient.DspFuncCall): DSPstate => DSPstate = {
-      import cyborg.dsp.calls.DspCalls._
-      import cyborg.DspRegisters._
+    def idx = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_GROUP)
+    def nextPeriod = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_PERIOD)
 
-      def idx = call.args.toMap.apply(STIM_QUEUE_GROUP)
-      def nextPeriod = call.args.toMap.apply(STIM_QUEUE_PERIOD)
+    call.func match {
+      case  DUMP                            => ???
+      case  RESET                           => state => DSPstate.init
+      case  CONFIGURE_ELECTRODE_GROUP       => ???
+      case  SET_ELECTRODE_GROUP_MODE_MANUAL => ???
+      case  SET_ELECTRODE_GROUP_MODE_AUTO   => ???
+      case  COMMIT_CONFIG                   => ???
+      case  START_STIM_QUEUE                => ???
+      case  STOP_STIM_QUEUE                 => ???
 
-      call.func match {
-        case  DUMP                            => ???
-        case  RESET                           => state => DSPstate.init
-        case  CONFIGURE_ELECTRODE_GROUP       => ???
-        case  SET_ELECTRODE_GROUP_MODE_MANUAL => ???
-        case  SET_ELECTRODE_GROUP_MODE_AUTO   => ???
-        case  COMMIT_CONFIG                   => ???
-        case  START_STIM_QUEUE                => ???
-        case  STOP_STIM_QUEUE                 => ???
+      case  SET_ELECTRODE_GROUP_PERIOD      => state =>
+        state.copy(m = state.m.updateAt(idx)(_.updatePeriod(nextPeriod, state.currentTick)))
 
-        case  SET_ELECTRODE_GROUP_PERIOD      => state =>
-          state.copy(m = state.m.updateAt(idx)(_.updatePeriod(nextPeriod, state.tick)))
+      case  ENABLE_STIM_GROUP               => state =>
+        state.copy(m = state.m.updateAt(idx)(_.toggle(true, state.currentTick)))
 
-        case  ENABLE_STIM_GROUP               => state =>
-          state.copy(m = state.m.updateAt(idx)(_.toggle(true, state.tick)))
+      case  DISABLE_STIM_GROUP              => state =>
+        state.copy(m = state.m.updateAt(idx)(_.toggle(false, state.currentTick)))
 
-        case  DISABLE_STIM_GROUP              => state =>
-          state.copy(m = state.m.updateAt(idx)(_.toggle(false, state.tick)))
+      case  COMMIT_CONFIG_DEBUG             => ???
+      case  WRITE_SQ_DEBUG                  => ???
+    }
+  }
 
-        case  COMMIT_CONFIG_DEBUG             => ???
-        case  WRITE_SQ_DEBUG                  => ???
+
+  def startDSP(
+    msgQueue: Queue[IO, HttpClient.DspFuncCall],
+    resolution: FiniteDuration)(implicit ec: EC)
+      : Stream[IO,Event] =
+  {
+
+    import backendImplicits._
+    import cyborg.dsp.calls.DspCalls.FiniteDurationDSPext
+
+    /**
+      For hvert tick, kjør dsp emulatoren en gang
+      Før kjøring hentes nye oppdateringer fra msg kø
+      */
+    def go(tickSource: Stream[IO, Unit], dsp: DSPstate, messageQueue: Queue[IO, DspFuncCall]): Pull[IO, Event, Unit] = {
+      tickSource.pull.uncons1.flatMap {
+        case Some((_, tl)) => {
+          Pull.eval(messageQueue.size.get) flatMap { num =>
+            Pull.eval(messageQueue.timedDequeueBatch1(num, 1000.millis, backendImplicits.Sch)) flatMap {
+              case Some(funcCalls) => {
+                val updatedDsp: DSPstate = funcCalls.foldLeft(dsp){ case(dsp, call) =>
+                  decodeDspCall(call)(dsp)
+                }
+                val (msg, next) = DSPstate.runTicks(updatedDsp, resolution.toDSPticks)
+                Pull.outputChunk(Chunk.seq(msg)) >> go(tl, next, messageQueue)
+              }
+              case None => {
+                val (msg, next) = DSPstate.runTicks(dsp, resolution.toDSPticks)
+                Pull.outputChunk(Chunk.seq(msg)) >> go(tl, next, messageQueue)
+              }
+            }
+          }
+        }
       }
     }
 
-    ???
+    val tickSource = Sch.fixedRate[IO](resolution)
+    go(tickSource, DSPstate.init, msgQueue).stream
   }
 }
