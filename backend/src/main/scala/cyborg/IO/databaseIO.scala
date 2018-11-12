@@ -50,10 +50,10 @@ object databaseIO {
 
     val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
       Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
-        say(s"Playing record with parameters:")
-        say(s"id:             ${expParams.id}")
-        say(s"samplerate:     ${expParams.samplerate}")
-        say(s"segment length: ${expParams.segmentLength}")
+        // say(s"Playing record with parameters:")
+        // say(s"id:             ${expParams.id}")
+        // say(s"samplerate:     ${expParams.samplerate}")
+        // say(s"segment length: ${expParams.segmentLength}")
         val reader = data.resourceType match {
           case CSV => fileIO.readCSV[IO](data.resourcePath)
           case GZIP => fileIO.readGZIP[IO](data.resourcePath)
@@ -77,10 +77,10 @@ object databaseIO {
       say(s"playing experiment with id $experimentId")
       val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
         Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
-          say(s"Playing record with parameters:")
-          say(s"id:             ${expParams.id}")
-          say(s"samplerate:     ${expParams.samplerate}")
-          say(s"segment length: ${expParams.segmentLength}")
+          // say(s"Playing record with parameters:")
+          // say(s"id:             ${expParams.id}")
+          // say(s"samplerate:     ${expParams.samplerate}")
+          // say(s"segment length: ${expParams.segmentLength}")
           val reader = data.resourceType match {
             case CSV => fileIO.readCSV[IO](data.resourcePath)
             case GZIP => fileIO.readGZIP[IO](data.resourcePath)

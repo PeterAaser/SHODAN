@@ -94,7 +94,7 @@ object DspCalls {
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
-    _ <- Fsay[IO](s"stim group change period, group $group to $period (${period}) (dsp call $SET_ELECTRODE_GROUP_PERIOD")
+    // _ <- Fsay[IO](s"stim group change period, group $group to $period (${period}) (dsp call $SET_ELECTRODE_GROUP_PERIOD")
   } yield ()
 
 
