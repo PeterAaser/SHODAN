@@ -256,7 +256,7 @@ object utilz {
         case None => Pull.done
         case Some((seg,tl)) => {
           val window = seg.force.toVector
-          val avg = window.sum.toDouble / windowWidth
+          val avg = window.sum.toDouble / window.length
           Pull.output1(avg) >> go(tl)
         }
       }
