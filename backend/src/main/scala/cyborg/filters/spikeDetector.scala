@@ -89,7 +89,7 @@ object spikeDetector {
     // Replication is done to fit the size of the Stream we are
     // receiving, in particular for plotting the output.
     in => go(0, in.through(_.map(_ > threshold))).stream
-      .through(_.map(b => if (b) 1 else 0))
+      .through(_.map(b => if (b) threshold else 0))
       .through(utilz.replicateElementsPipe(spikeCooldown))
   }
 }
