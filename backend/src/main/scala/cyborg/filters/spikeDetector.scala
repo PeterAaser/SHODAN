@@ -66,7 +66,7 @@ object spikeDetector {
     * purposes, and not for real time analysis.
     */
   def unsafeSpikeDetector[F[_]: Effect](samplerate: Int,
-    threshold: Int): Pipe[F,Int,Int] = {
+    threshold: Int, replicate: Boolean = false): Pipe[F,Int,Int] = {
     val maxSpikesPerSec = params.experiment.maxSpikesPerSec
     val spikeCooldown = samplerate/maxSpikesPerSec
 
@@ -87,11 +87,15 @@ object spikeDetector {
       }
     }
 
-    // Replication is done to fit the size of the Stream we are
-    // receiving, in particular for plotting the output.
     def simpleDetector: Pipe[F,Int,Int] = _.map({x =>
       if (x > threshold) 1 else if (x < -threshold) -1 else 0})
-    in => go(0, in.through(simpleDetector)).stream
-      .through(utilz.replicateElementsPipe(spikeCooldown))
+
+    in => {
+      val spikeStream = go(0, in.through(simpleDetector)).stream
+      if (!replicate)
+        spikeStream
+      else
+        spikeStream.through(utilz.replicateElementsPipe(spikeCooldown))
+    }
   }
 }
