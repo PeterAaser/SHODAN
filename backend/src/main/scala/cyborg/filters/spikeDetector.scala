@@ -70,17 +70,18 @@ object spikeDetector {
     val maxSpikesPerSec = params.experiment.maxSpikesPerSec
     val spikeCooldown = samplerate/maxSpikesPerSec
 
-    def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F,Boolean,Unit] = {
+    def go(spikeCooldownTimer: Int, s: Stream[F,Int]): Pull[F,Int,Unit] = {
       s.pull.unconsN(spikeCooldown.toLong) flatMap {
         case None => Pull.done
         case Some((seg,tl)) => {
           val refactored = seg.force.toVector.drop(spikeCooldownTimer)
-          val spikeIndex = refactored.indexOf(true)
-          if (spikeIndex != -1) {
-            val nextCooldown = spikeCooldown - (refactored.drop(spikeIndex).tail.length)
-            Pull.output1(true) >> go(nextCooldown, tl)
+          val spike = refactored.dropWhile(x => x == 0)
+          if (spike.length != 0) {
+            val spikeSign = spike.head
+            val nextCooldown = spikeCooldown - (spike.tail.length)
+            Pull.output1(threshold*spikeSign) >> go(nextCooldown, tl)
           } else {
-            Pull.output1(false) >> go(0, tl)
+            Pull.output1(0) >> go(0, tl)
           }
         }
       }
@@ -88,8 +89,9 @@ object spikeDetector {
 
     // Replication is done to fit the size of the Stream we are
     // receiving, in particular for plotting the output.
-    in => go(0, in.through(_.map(_ > threshold))).stream
-      .through(_.map(b => if (b) threshold else 0))
+    def simpleDetector: Pipe[F,Int,Int] = _.map({x =>
+      if (x > threshold) 1 else if (x < -threshold) -1 else 0})
+    in => go(0, in.through(simpleDetector)).stream
       .through(utilz.replicateElementsPipe(spikeCooldown))
   }
 }
