@@ -247,6 +247,26 @@ object utilz {
 
 
   /**
+    * SMA as unweighted mean of previous n data points. Maps content
+    * into absolute values for spike detection.
+    */
+  def simpleMovingAverage[F[_]](windowWidth: Double): Pipe[F,Int,Double] = {
+    def go(s: Stream[F,Int]): Pull[F,Double,Unit] = {
+      s.pull.unconsN(windowWidth.toLong) flatMap {
+        case None => Pull.done
+        case Some((seg,tl)) => {
+          val window = seg.force.toVector
+          val avg = window.sum.toDouble / window.length
+          Pull.output1(avg) >> go(tl)
+        }
+      }
+    }
+
+    in => go(in.map(math.abs(_))).stream
+  }
+
+
+  /**
     Creates a list containing num topics of type T
     Requires an initial message init.
     */

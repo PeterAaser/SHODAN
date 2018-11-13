@@ -1,28 +1,12 @@
 package cyborg
 
+import java.awt.event.KeyListener
+import java.awt.event.KeyEvent
 import org.graphstream.graph.implementations._
 import org.graphstream.graph.Node
 import org.graphstream.ui.view._
 
 object ReservoirGraph {
-  /**
-    * Basic listener to respond to events within a graph viewer. This
-    * is implemented to be able to step a reservoir continuously.
-    */
-  class GraphListener(val graph: MultiGraph, var rbn: RBNContext.RBN)
-      extends ViewerListener {
-    def updateGraph: Unit = {
-      for (i <- 0 until rbn.state.length) {
-        val node: Node = graph.getNode(i.toString)
-        node.changeAttribute("ui.class", rbn.state(i).toString)
-      }
-    }
-
-    def viewClosed(x: String): Unit = { }
-    def buttonPushed(x: String): Unit = { rbn = rbn.step; updateGraph }
-    def buttonReleased(x: String): Unit = { }
-  }
-
   def initGraph(rbn: RBNContext.RBN): MultiGraph = {
     val graph: MultiGraph = new MultiGraph("RBNGraph")
 
@@ -52,15 +36,33 @@ object ReservoirGraph {
     graph
   }
 
+
+  def initViewer(graph: MultiGraph, initialRBN: RBNContext.RBN): Unit = {
+    var liveRBN = initialRBN
+    def updateGraph: Unit = {
+      for (i <- 0 until liveRBN.state.length) {
+        val node: Node = graph.getNode(i.toString)
+        node.changeAttribute("ui.class", liveRBN.state(i).toString)
+      }
+    }
+
+    val viewer = graph.display
+    viewer.getDefaultView.requestFocusInWindow
+    viewer.getDefaultView.addKeyListener(new KeyListener {
+      def keyReleased(e: KeyEvent): Unit = { }
+      def keyTyped(e: KeyEvent): Unit = { }
+      def keyPressed(e: KeyEvent): Unit = {
+        if (e.getKeyCode == KeyEvent.VK_N) {
+          liveRBN = liveRBN.step
+          updateGraph
+        }
+      }
+    })
+  }
+
+
   def run(rbn: RBNContext.RBN): Unit = {
     val graph = initGraph(rbn)
-
-    val viewer: Viewer = graph.display
-    val viewerPipe: ViewerPipe = viewer.newViewerPipe
-    viewerPipe.addViewerListener(new GraphListener(graph, rbn))
-
-    while (true) {
-      viewerPipe.pump
-    }
+    initViewer(graph, rbn)
   }
 }

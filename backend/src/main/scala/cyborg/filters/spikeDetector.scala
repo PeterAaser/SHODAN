@@ -59,4 +59,43 @@ object spikeDetector {
       .through(_.map(λ => (if(λ) 1 else 0)))
       .through(utilz.fastMovingAverage(10))
   }
+
+  /**
+    * Spike detector pipe meant to use for plug and play with any
+    * integer stream. Mostly useful for visualization and debugging
+    * purposes, and not for real time analysis.
+    */
+  def unsafeSpikeDetector[F[_]: Effect](samplerate: Int,
+    threshold: Int, replicate: Boolean = false): Pipe[F,Int,Int] = {
+    val maxSpikesPerSec = params.experiment.maxSpikesPerSec
+    val spikeCooldown = samplerate/maxSpikesPerSec
+
+    def go(spikeCooldownTimer: Int, s: Stream[F,Int]): Pull[F,Int,Unit] = {
+      s.pull.unconsN(spikeCooldown.toLong) flatMap {
+        case None => Pull.done
+        case Some((seg,tl)) => {
+          val refactored = seg.force.toVector.drop(spikeCooldownTimer)
+          val spike = refactored.dropWhile(x => x == 0)
+          if (spike.length != 0) {
+            val spikeSign = spike.head
+            val nextCooldown = spikeCooldown - (spike.tail.length)
+            Pull.output1(threshold*spikeSign) >> go(nextCooldown, tl)
+          } else {
+            Pull.output1(0) >> go(0, tl)
+          }
+        }
+      }
+    }
+
+    def simpleDetector: Pipe[F,Int,Int] = _.map({x =>
+      if (x > threshold) 1 else if (x < -threshold) -1 else 0})
+
+    in => {
+      val spikeStream = go(0, in.through(simpleDetector)).stream
+      if (!replicate)
+        spikeStream
+      else
+        spikeStream.through(utilz.replicateElementsPipe(spikeCooldown))
+    }
+  }
 }

@@ -2,6 +2,8 @@ package cyborg
 
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
+import java.awt.event.KeyListener
+import java.awt.event.KeyEvent
 import javax.swing.Timer
 import org.jfree._
 
@@ -13,6 +15,7 @@ object ReservoirPlot {
     val lowerBound = -500
     val upperBound = 500
   }
+
 
   /**
    * Helper function for pre-calculating the size of the sliding
@@ -29,6 +32,7 @@ object ReservoirPlot {
 
     slidingWindowSize
   }
+
 
   /**
     * Plots a stream. Consider this a crude debugging tool.
@@ -66,11 +70,20 @@ object ReservoirPlot {
     val plot: chart.plot.XYPlot = reservoirChart.getXYPlot
     val frame = new chart.ChartFrame("SHODAN", reservoirChart)
 
+    var playing = true
+    var timer = new Timer(resolution.toMillis.toInt, new ActionListener {
+      def actionPerformed(e: ActionEvent): Unit = {
+        updateDataset
+      }
+    })
+
+
     def hideDomain: Unit = {
       val domain = plot.getDomainAxis
       domain.setAutoRange(true)
       domain.setVisible(false)
     }
+
 
     def setRange(min: Int, max: Int): Unit = {
       minRangeValue = min
@@ -78,6 +91,21 @@ object ReservoirPlot {
       val range = plot.getRangeAxis
       range.setRange(minRangeValue, maxRangeValue)
     }
+
+
+    def addPauseListener: Unit = {
+      frame.addKeyListener(new KeyListener {
+        def keyReleased(e: KeyEvent): Unit = { }
+        def keyTyped(e: KeyEvent): Unit = { }
+        def keyPressed(e: KeyEvent): Unit = {
+          if (e.getKeyCode == KeyEvent.VK_P) {
+            if (playing) pause else unpause
+            playing = !playing
+          }
+        }
+      })
+    }
+
 
     def updateDataset: Unit = {
       if (remainingStreams(0).length >= elementsPerTick) {
@@ -96,34 +124,48 @@ object ReservoirPlot {
       }
     }
 
+
     def addStream(stream: Array[Float]): Int = {
       series :+= stream.take(slidingWindowSize)
       remainingStreams :+= stream.drop(slidingWindowSize)
       series.length - 1
     }
 
+
     def extendStream(seriesNumber: Int, stream: Array[Float]): Unit = {
       remainingStreams(seriesNumber) ++= stream
     }
+
 
     def ++=(stream: Array[Float]): Unit = {
       extendStream(0, stream)
     }
 
+
     def show: Unit = {
       hideDomain
       setRange(minRangeValue, maxRangeValue)
+      addPauseListener
 
       frame.pack()
       ui.RefineryUtilities.centerFrameOnScreen(frame)
       frame.setVisible(true)
 
-      val timer = new Timer(resolution.toMillis.toInt, new ActionListener {
+      timer.start
+    }
+
+
+    def pause: Unit = {
+      timer.stop
+    }
+
+
+    def unpause: Unit = {
+      timer = new Timer(resolution.toMillis.toInt, new ActionListener {
         def actionPerformed(e: ActionEvent): Unit = {
           updateDataset
         }
       })
-
       timer.start
     }
   }
