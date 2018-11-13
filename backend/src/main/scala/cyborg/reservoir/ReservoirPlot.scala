@@ -4,8 +4,10 @@ import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.event.KeyListener
 import java.awt.event.KeyEvent
+import java.awt.Color
 import javax.swing.Timer
 import org.jfree._
+import org.jfree.chart.annotations.XYTextAnnotation
 
 import scala.concurrent.duration._
 
@@ -70,6 +72,10 @@ object ReservoirPlot {
     val plot: chart.plot.XYPlot = reservoirChart.getXYPlot
     val frame = new chart.ChartFrame("SHODAN", reservoirChart)
 
+    // Buffer annotation is optional
+    var plotCenter = 0.0
+    var bufferAnnotation: Option[XYTextAnnotation] = None
+
     var playing = true
     var timer = new Timer(resolution.toMillis.toInt, new ActionListener {
       def actionPerformed(e: ActionEvent): Unit = {
@@ -121,6 +127,7 @@ object ReservoirPlot {
         }
 
         plot.setDataset(dataset)
+        updateBufferAnnotation
       }
     }
 
@@ -137,6 +144,34 @@ object ReservoirPlot {
     }
 
 
+    def updatePlotCenter: Unit = {
+      val upperBound = dataset.getDomainUpperBound(false)
+      val lowerBound = dataset.getDomainLowerBound(false)
+      plotCenter = upperBound / 2 + lowerBound / 2
+    }
+
+
+    def addBufferAnnotation: Unit = {
+      // Needed to position annotations correctly, as we are using
+      // milliseconds as range
+      bufferAnnotation = Some(new chart.annotations.XYTextAnnotation(
+        remainingStreams(0).length.toString,
+        plotCenter,
+        PlotConfig.lowerBound + 20.0))
+      bufferAnnotation.foreach(plot.addAnnotation(_))
+    }
+
+
+    def updateBufferAnnotation: Unit = {
+      updatePlotCenter
+      bufferAnnotation.foreach(annotation => {
+        annotation.setText("Buffered data available: " ++
+          remainingStreams(0).length.toString)
+        annotation.setX(plotCenter)
+      })
+    }
+
+
     def ++=(stream: Array[Float]): Unit = {
       extendStream(0, stream)
     }
@@ -146,6 +181,7 @@ object ReservoirPlot {
       hideDomain
       setRange(minRangeValue, maxRangeValue)
       addPauseListener
+      addBufferAnnotation
 
       frame.pack()
       ui.RefineryUtilities.centerFrameOnScreen(frame)
