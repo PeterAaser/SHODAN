@@ -8,6 +8,10 @@ import java.awt.Color
 import javax.swing.Timer
 import org.jfree._
 import org.jfree.chart.annotations.XYTextAnnotation
+import org.jfree.data.time.DynamicTimeSeriesCollection
+import org.jfree.data.time.{Second, Millisecond}
+import org.jfree.chart.JFreeChart
+import org.jfree.chart.ChartFactory
 
 import scala.concurrent.duration._
 
@@ -59,15 +63,15 @@ object ReservoirPlot {
     var series = Array[Array[Float]](slidingWindow)
     var remainingStreams = Array[Array[Float]](remainingStream)
 
-    var dataset = new data.time.DynamicTimeSeriesCollection(
-      1, slidingWindowSize, new data.time.Millisecond())
-    dataset.setTimeBase(new data.time.Millisecond())
+    var dataset = new DynamicTimeSeriesCollection(
+      1, slidingWindowSize, new Millisecond())
+    dataset.setTimeBase(new Millisecond())
     dataset.addSeries(slidingWindow, 0, "Stream")
 
     // These are the actual chart and plot that are used to modify
     // what's displayed directly. Not very FP friendly.
-    val reservoirChart: chart.JFreeChart =
-      chart.ChartFactory.createTimeSeriesChart(
+    val reservoirChart: JFreeChart =
+      ChartFactory.createTimeSeriesChart(
         "SHODAN", "time (undef)", "amplitude", dataset, true, true, false)
     val plot: chart.plot.XYPlot = reservoirChart.getXYPlot
     val frame = new chart.ChartFrame("SHODAN", reservoirChart)
@@ -115,9 +119,9 @@ object ReservoirPlot {
 
     def updateDataset: Unit = {
       if (remainingStreams(0).length >= elementsPerTick) {
-        dataset = new data.time.DynamicTimeSeriesCollection(
-          series.length, slidingWindowSize, new data.time.Millisecond())
-        dataset.setTimeBase(new data.time.Millisecond())
+        dataset = new DynamicTimeSeriesCollection(
+          series.length, slidingWindowSize, new Millisecond())
+        dataset.setTimeBase(new Millisecond())
 
         for (i <- 0 until series.length) {
           series(i) = series(i).drop(elementsPerTick) ++
@@ -154,7 +158,7 @@ object ReservoirPlot {
     def addBufferAnnotation: Unit = {
       // Needed to position annotations correctly, as we are using
       // milliseconds as range
-      bufferAnnotation = Some(new chart.annotations.XYTextAnnotation(
+      bufferAnnotation = Some(new XYTextAnnotation(
         remainingStreams(0).length.toString,
         plotCenter,
         PlotConfig.lowerBound + 20.0))
