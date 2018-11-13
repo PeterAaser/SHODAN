@@ -30,6 +30,7 @@ trait MainServerRPC {
   def stopRecording: Unit
 
   def startLive: Unit
+  def startAgent: Unit
 
   def flashDsp: Unit
 

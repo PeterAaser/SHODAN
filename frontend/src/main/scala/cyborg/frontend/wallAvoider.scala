@@ -17,7 +17,7 @@ object Visualizer {
 
   class VisualizerControl(
     canvas: html.Canvas,
-    var newestAgent: Agent) {
+    agentQueue: scala.collection.mutable.Queue[Agent]) {
 
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
@@ -30,6 +30,23 @@ object Visualizer {
     renderer.textBaseline = "middle"
 
     val PI = 3.14
+
+    // TODO what in the name of fuck it this running variable???
+    var running = false
+    scalajs.js.timers.setInterval(25) {
+      if(!running){
+        running = true
+        if(agentQueue.size > 50){
+          println("UH OH AGENT QUEUE OVERFLOWING")
+          println(agentQueue.size)
+        }
+        if(agentQueue.size > 0){
+          run(agentQueue.dequeue)
+        }
+        running = false
+      }
+    }
+
 
     def drawWalls(): Unit = {
       renderer.save()
@@ -109,23 +126,12 @@ object Visualizer {
       renderer.fillStyle = "black"
       val memeString1 = s"x: ${agent.loc.x}"
       val memeString2 = s"y: ${agent.loc.y}"
-      val eyeString1 = s"eye 1: ${agent.distances(0)}"
-      val eyeString2 = s"eye 2: ${agent.distances(1)}"
-      val eyeString3 = s"eye 3: ${agent.distances(2)}"
-      val eyeString4 = s"eye 4: ${agent.distances(3)}"
       renderer.fillText(memeString1, 200, 200)
       renderer.fillText(memeString2, 200, 230)
-      renderer.fillText(eyeString1, 200, 260)
-      renderer.fillText(eyeString2, 200, 290)
-      renderer.fillText(eyeString3, 200, 320)
-      renderer.fillText(eyeString4, 200, 350)
       renderer.restore();
     }
 
 
-    scalajs.js.timers.setInterval(40) {
-      run(newestAgent)
-    }
 
     def run(agent: Agent): Unit = {
       renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)

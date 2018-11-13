@@ -29,33 +29,33 @@ object Assemblers {
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
 
-    // val meameFeedbackSink: Sink[IO,List[Double]] = _.drain
+
     val meameFeedbackSink: Sink[IO,List[Double]] =
       _.through(PerturbationTransform.toStimReq())
         .to(cyborg.dsp.DSP.stimuliRequestSink())
 
     for {
-      conf           <- Stream.eval(assembleConfig)
-      getConf        =  conf.get
-      mock           <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
-      mockEvents     =  mock._2
-      _              <- Ssay[IO]("mock server up")
-      state          <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
+      conf              <- Stream.eval(assembleConfig)
+      getConf           =  conf.get
+      mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
+      mockEvents        =  mock._2
+      _                 <- Ssay[IO]("mock server up")
+      state             <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
 
-      commandQueue   <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
-      agentQueue     <- Stream.eval(fs2.async.unboundedQueue[IO,Agent])
-      topics         <- assembleTopics.through(vectorizeList(60))
-      taggedSeqTopic <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
+      commandQueue      <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
+      agentTopic        <- Stream.eval(fs2.async.topic[IO, Agent](Agent.init))
+      topics            <- assembleTopics.through(vectorizeList(60))
+      taggedSeqTopic    <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
-      _              <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 999.millis))
-      _              <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 999.millis))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
 
       waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
 
-      rpcServer      = Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
+      rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                      commandQueue,
-                                     agentQueue.dequeue,
+                                     agentTopic.subscribe(2000),
                                      taggedSeqTopic,
                                      waveformListeners,
                                      agentListeners,
@@ -63,24 +63,22 @@ object Assemblers {
                                      conf))
 
 
-      agentSink      = agentQueue.enqueue
-      commandPipe    <- Stream.eval(staging.commandPipe(
+      commandPipe       <- Stream.eval(staging.commandPipe(
                                       topics,
                                       taggedSeqTopic,
                                       meameFeedbackSink,
-                                      agentSink,
+                                      agentTopic,
                                       state,
                                       getConf,
                                       waveformListeners,
                                       agentListeners))
 
-      frontend       <- rpcServer
-      _              <- Stream.eval(frontend.start)
+      frontend          <- rpcServer
+      _                 <- Stream.eval(frontend.start)
 
-      _              <- Ssay[IO]("All systems go")
-      _ <- commandQueue.dequeue.through(commandPipe)
-        .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
-        .concurrently(mockEvents.through(_.map{x => say(x); x}))
+      _                 <- Ssay[IO]("All systems go")
+      _                 <- commandQueue.dequeue.through(commandPipe)
+                             .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
 
     } yield ()
   }
@@ -91,10 +89,10 @@ object Assemblers {
     detector, before aggregating spikes from each channel into ANN input vectors
     */
   def assembleInputFilter(
-    broadcastSource: List[Topic[IO,TaggedSegment]],
-    spikeDetector: Pipe[IO,Int,Double],
-    getConf: IO[FullSettings]
-  )(implicit ec: EC): IO[Stream[IO,ffANNinput]] = getConf map { conf =>
+    broadcastSource : List[Topic[IO,TaggedSegment]],
+    spikeDetector   : Pipe[IO,Int,Double],
+    getConf         : IO[FullSettings]
+  )(implicit ec     : EC) : IO[Stream[IO,ffANNinput]] = getConf map { conf =>
 
     val channels = conf.filterSettings.inputChannels
 
@@ -118,10 +116,9 @@ object Assemblers {
     Returns a tuple of the stream and a cancel action
     */
   def broadcastDataStream(
-    source: Stream[IO,TaggedSegment],
-    topics: List[Topic[IO,TaggedSegment]],
-    rawSink: Sink[IO,TaggedSegment]
-  )(implicit ec: EC): IO[InterruptableAction[IO]] = {
+    source      : Stream[IO,TaggedSegment],
+    topics      : List[Topic[IO,TaggedSegment]],
+    rawSink     : Sink[IO,TaggedSegment])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
 
     val interrupted = signalOf[IO,Boolean](false)
 
@@ -165,14 +162,15 @@ object Assemblers {
 
 
   /**
-    Assembles a GA run from an input topic and returns a byte stream to MEAME
+    Assembles a GA run from an input topic and returns a byte stream to MEAME and observes
+    the agent updates via the frontEndAgentObserver
     */
   def assembleGA(
-    dataSource: List[Topic[IO,TaggedSegment]],
-    inputChannels: List[Channel],
-    frontendAgentObserver: Sink[IO,Agent],
-    feedbackSink: Sink[IO,List[Double]],
-    getConf: IO[FullSettings])(implicit ec: EC): IO[InterruptableAction[IO]] = {
+    dataSource            : List[Topic[IO,TaggedSegment]],
+    inputChannels         : List[Channel],
+    frontendAgentObserver : Sink[IO,Agent],
+    feedbackSink          : Sink[IO,List[Double]],
+    getConf               : IO[FullSettings])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
 
     getConf flatMap { conf =>
 

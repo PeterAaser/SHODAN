@@ -21,15 +21,12 @@ object WfClient extends WfClientRPC {
   var wfRunning = false
   // var num = 0
 
+
   override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
 
   // Kinda magical on the registering front
   def register(q: mutable.Queue[Array[Int]]): Unit = {
-    onWfUpdate = (data: Array[Int]) => {
-      // say(s"got packet $num")
-      // num = num + 1
-      q.enqueue(data)
-    }
+    onWfUpdate = (data: Array[Int]) => q.enqueue(data)
 
     wfRunning = true
     Context.serverRpc.registerWaveform
@@ -43,5 +40,22 @@ object WfClient extends WfClientRPC {
 }
 
 object AgentClient extends AgentClientRPC {
-  override def agentPush(agent: Agent): Unit = ()
+
+  var onAgentUpdate: Agent => Unit = (_: Agent) => ()
+  var agentRunning = false
+
+  override def agentPush(agent: Agent): Unit = onAgentUpdate(agent)
+
+  def register(agentQueue: mutable.Queue[Agent]): Unit = {
+    onAgentUpdate = (agent: Agent) => agentQueue.enqueue(agent)
+
+    agentRunning = true
+    Context.serverRpc.registerAgent
+  }
+
+  def unregister(): Unit = {
+    agentRunning = false
+
+    Context.serverRpc.unregisterAgent
+  }
 }

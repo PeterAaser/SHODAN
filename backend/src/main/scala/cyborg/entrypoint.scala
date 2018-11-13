@@ -43,16 +43,15 @@ object staging {
 
 
   def commandPipe(
-    topics:            List[Topic[IO,TaggedSegment]],
-    rawDataTopic:      Topic[IO,TaggedSegment],
-    meameFeedbackSink: Sink[IO,List[Double]],
-    frontendAgentSink: Sink[IO,Agent],
-    state:             Signal[IO,ProgramState],
-    getConf:           IO[Setting.FullSettings],
-    waveformListeners: Ref[IO,List[ClientId]],
-    agentListeners:    Ref[IO,List[ClientId]])(
-    implicit ec:       EC
-  ): IO[Sink[IO,UserCommand]] = {
+    topics             : List[Topic[IO,TaggedSegment]],
+    rawDataTopic       : Topic[IO,TaggedSegment],
+    meameFeedbackSink  : Sink[IO,List[Double]],
+    frontendAgentTopic : Topic[IO,Agent],
+    state              : Signal[IO,ProgramState],
+    getConf            : IO[Setting.FullSettings],
+    waveformListeners  : Ref[IO,List[ClientId]],
+    agentListeners     : Ref[IO,List[ClientId]])(
+    implicit ec        : EC) : IO[Sink[IO,UserCommand]] = {
 
     def handleMEAMEstateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.meameRunning)).changes.tail map { start =>
@@ -105,13 +104,14 @@ object staging {
       tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
+
     def handleAgentStateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.agentRunning)).changes.tail map { start =>
         say(s"handle agent state change with new state $start")
         if(start) {
           for {
             conf  <- getConf
-            agent <- Assemblers.assembleGA(topics, conf.filterSettings.inputChannels, frontendAgentSink, meameFeedbackSink, getConf)
+            agent <- Assemblers.assembleGA(topics, conf.filterSettings.inputChannels, frontendAgentTopic.publish, meameFeedbackSink, getConf)
             _     <- actions.modify(_.copy(stopAgent = agent.interrupt))
             _     <- agent.action
           } yield ()
@@ -159,7 +159,7 @@ object staging {
     def handleFrontendVisualizer(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.playbackRunning))).changes.tail map { case(a, b) =>
         if(a || b) for {
-          _         <- configureAndAttachFrontendSink(getConf, waveformListeners, rawDataTopic.subscribe(10))
+          _         <- configureAndAttachFrontendWFSink(getConf, waveformListeners, rawDataTopic.subscribe(10))
         } yield ()
         else for {
           _         <- IO.unit
@@ -168,6 +168,22 @@ object staging {
 
       tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
+
+
+    // TODO: See above
+    def handleFrontendAgentVisualizer(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+      val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.agentRunning))).changes.tail map { case(a, b) =>
+        if(a || b) for {
+          _         <- configureAndAttachFrontendAgentSink(getConf, agentListeners, frontendAgentTopic.subscribe(10))
+        } yield ()
+        else for {
+          _         <- IO.unit
+        } yield ()
+      }
+
+      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+    }
+
 
 
     def doTheThing(stopSignal: Signal[IO,Boolean], action: Signal[IO,ProgramActions]): Pipe[IO,UserCommand,IO[Unit]] = _.map{ c =>
@@ -216,7 +232,7 @@ object staging {
     for {
       stopSignal  <- signalOf[IO,Boolean](false)
       actions     <- signalOf[IO,ProgramActions](ProgramActions())
-      meameHealth <- HttpClient.getMEAMEhealthCheck
+      // meameHealth <- HttpClient.getMEAMEhealthCheck
     } yield { _.through(doTheThing(stopSignal, actions))
                .map(Stream.eval).joinUnbounded
                .concurrently(handleMEAMEstateChange(state,actions))
@@ -224,18 +240,42 @@ object staging {
                .concurrently(handleAgentStateChange(state,actions))
                .concurrently(handlePlaybackStateChange(state,actions))
                .concurrently(handleFrontendVisualizer(state,actions))
+               .concurrently(handleFrontendAgentVisualizer(state,actions))
     }
   }
 
 
   // Configures the frontend sink,
-  def configureAndAttachFrontendSink(getConf: IO[Setting.FullSettings], getListeners: Ref[IO,List[ClientId]], rawStream: Stream[IO,TaggedSegment])(implicit ec: EC): IO[Unit] = {
+  def configureAndAttachFrontendWFSink(
+    getConf              : IO[Setting.FullSettings],
+    getWaveformListeners : Ref[IO,List[ClientId]],
+    rawStream            : Stream[IO,TaggedSegment])(implicit ec : EC) : IO[Unit] = {
+
     import cyborg.backend.server.ApplicationServer
-    val t = Stream.eval(ApplicationServer.waveformSink(getListeners, getConf)).flatMap { sink =>
-      rawStream.through(sink)
-    }
+    val t = for {
+      sink <- Stream.eval(ApplicationServer.waveformSink(getWaveformListeners, getConf))
+      _    <- rawStream.through(sink)
+    } yield ()
+
     t.compile.drain
   }
+
+
+  // Configures the frontend agent sink,
+  def configureAndAttachFrontendAgentSink(
+    getConf              : IO[Setting.FullSettings],
+    getAgentListeners    : Ref[IO,List[ClientId]],
+    agentStream          : Stream[IO,Agent])(implicit ec : EC) : IO[Unit] = {
+
+    import cyborg.backend.server.ApplicationServer
+    val t = for {
+      sink <- Stream.eval(ApplicationServer.agentSink(getAgentListeners, getConf))
+      _    <- agentStream.through(sink)
+    } yield ()
+
+    t.compile.drain
+  }
+
 
   // TODO: figure out how to idiomatically handle this stuff
   def handleGetSHODANstate(p: Promise[IO,EquipmentState]): IO[Unit] = {

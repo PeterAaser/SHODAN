@@ -81,8 +81,7 @@ object waveformVisualizer {
     var running = false
     var num = 0
 
-    say(s"groupSize $groupSize")
-
+    // TODO what in the name of fuck it this running variable???
     scalajs.js.timers.setInterval(25) {
       if(!running){
         running = true

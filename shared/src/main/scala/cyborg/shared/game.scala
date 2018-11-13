@@ -62,7 +62,7 @@ object wallAvoid {
   }
   object Agent {
 
-    val dummy = Agent(Coord(0.0, 0.0), 0.0, 0)
+    val init = Agent(Coord(3000.0, 4000.0), 0.0, 0)
 
     def updateAgent(a: Agent, input: List[Double]): Agent = {
 

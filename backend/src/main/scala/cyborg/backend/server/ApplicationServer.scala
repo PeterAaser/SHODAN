@@ -16,25 +16,41 @@ import cats.effect._
 import cyborg.wallAvoid.Agent
 import _root_.io.udash.rpc._
 
+import cyborg.backend.rpc.ClientRPChandle
+
 object ApplicationServer {
+
+
+  // Is it overkill to use conf effects here?? (yes, it is)
+  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,Agent]] = {
+
+    def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
+      listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
+    }
+
+    def go(s: Stream[IO, Agent]): Pull[IO, Unit, Unit] = {
+      s.pull.uncons1 flatMap {
+        case Some((agent, tl)) => Pull.eval(pushAgent(agent, listeners)) >> go(tl)
+        case None => Pull.done
+      }
+    }
+
+    getConf map { _ =>
+      in => go(in).stream
+    }
+  }
 
 
   def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,TaggedSegment]] = {
 
-    import cyborg.backend.rpc.ClientRPChandle
-
-    var hurr = 0
-
     def sendData: Sink[IO,Array[Int]] = {
-
-      // Gets listeners, pushes waveform to each listener.
       def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
         listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
       }
 
       def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
-          case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners: Ref[IO, List[ClientId]])) >> go(tl)
+          case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners)) >> go(tl)
           case None => Pull.done
         }
       }
@@ -56,8 +72,6 @@ object ApplicationServer {
       val targetSegmentLength = 200/40
 
       val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
-      say(s"made downsampler with params: pointsPerSec: $pointsPerSec, pointsNeededPerSec: $pointsNeededPerSec, downsampled seg length: $downsampledSegmentLength")
-      say(s"TargetSegLen: $targetSegmentLength, downsampledSegLength: $downsampledSegmentLength")
 
       in => in.through(_.map(_.data)).through(chunkify)
         .through(downsampler)

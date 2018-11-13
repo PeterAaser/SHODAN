@@ -1,5 +1,6 @@
 package cyborg.frontend.views
 
+import cyborg.wallAvoid.Agent
 import io.udash.bootstrap.form.UdashInputGroup
 import org.scalajs.dom.html.Input
 import cyborg.frontend.routing._
@@ -24,7 +25,7 @@ import org.scalajs.dom.document
 import org.scalajs.dom.html
 import scalatags.generic.TypedTag
 
-class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanvas: html.Canvas) extends ContainerView with CssView {
+class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanvas: html.Canvas, agentCanvas: html.Canvas) extends ContainerView with CssView {
 
   val playButton = UdashButton()(Icons.FontAwesome.play)
   val recordButton = UdashButton()(Icons.FontAwesome.circle)
@@ -52,6 +53,7 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
     div(
       UdashBootstrap.loadFontAwesome(),
       wfCanvas.render,
+      agentCanvas.render,
       playButton.render,
       showIf(model.subProp(_.isRecording).transform(!_))(recordButton.render),
       showIf(model.subProp(_.isRecording))(stopRecordButton.render),
@@ -69,18 +71,27 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
 }
 
 
-class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas) extends Presenter[LiveState.type] {
+class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agentCanvas: html.Canvas) extends Presenter[LiveState.type] {
 
   import cyborg.frontend.services.rpc._
   import cyborg.frontend.Context
 
   val wfQueue = new scala.collection.mutable.Queue[Array[Int]]()
+  val agentQueue = new scala.collection.mutable.Queue[Agent]()
+  agentQueue.enqueue(Agent.init)
 
   def onPlayClicked(btn: UdashButton) = {
     say("play canvas clicked")
+    say("registering waveform stuff")
     WfClient.register(wfQueue)
     model.subProp(_.isRunning).set(true)
+
+    say("registering agent stuff")
+    AgentClient.register(agentQueue)
+
+    say("play shows all green")
     Context.serverRpc.startLive
+    Context.serverRpc.startAgent
   }
 
 
@@ -110,6 +121,7 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas) exte
 
   override def handleState(state: LiveState.type): Unit = {
     new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
+    new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
   }
 }
 
@@ -119,10 +131,11 @@ case object LiveViewFactory extends ViewFactory[LiveState.type] {
   override def create(): (View, Presenter[LiveState.type]) = {
 
     val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+    val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
     val model = ModelProperty( LiveModel(false, false, RecordingForm()) )
-    val presenter = new LivePresenter(model, wfCanvas)
-    val view = new LiveView(model, presenter, wfCanvas)
+    val presenter = new LivePresenter(model, wfCanvas, agentCanvas)
+    val view = new LiveView(model, presenter, wfCanvas, agentCanvas)
     (view, presenter)
   }
 }

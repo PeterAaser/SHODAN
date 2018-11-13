@@ -41,14 +41,10 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
                        (implicit ci: ClientId, ec: EC) extends MainServerRPC {
 
 
-  override def registerWaveform: Unit   = {
-    say(s"registered $ci")
-    wfListeners.modify(cis => (ci :: cis).toSet.toList).unsafeRunSync()
-  }
-
-  override def registerAgent      : Unit = agentListeners.modify(ci :: _).unsafeRunSync()
-
+  override def registerWaveform   : Unit = wfListeners.modify(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
   override def unregisterWaveform : Unit = wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+
+  override def registerAgent      : Unit = agentListeners.modify(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
   override def unregisterAgent    : Unit = agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
 
 
@@ -88,12 +84,10 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
     userQ.enqueue1(RunFromDB(recording)).unsafeRunSync()
   }
 
-  override def startRecording: Unit = userQ.enqueue1(DBstartRecord).unsafeRunSync()
-  override def stopRecording: Unit  = userQ.enqueue1(DBstopRecord).unsafeRunSync()
-
-  override def startLive : Unit = {
-    userQ.enqueue1(StartMEAME).unsafeRunSync()
-  }
+  override def startRecording : Unit = userQ.enqueue1(DBstartRecord).unsafeRunSync()
+  override def stopRecording  : Unit = userQ.enqueue1(DBstopRecord).unsafeRunSync()
+  override def startLive      : Unit = userQ.enqueue1(StartMEAME).unsafeRunSync()
+  override def startAgent     : Unit = userQ.enqueue1(AgentStart).unsafeRunSync()
 
 
   import dsp.DSP._
