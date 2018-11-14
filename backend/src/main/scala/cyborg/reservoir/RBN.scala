@@ -77,6 +77,22 @@ case class RBN(
 
 
   /**
+    * Print RBN state in the standard, trajectory way, where time
+    * flows downwards the lattice.
+    */
+  def printStateANSI: Unit = {
+    state.map{s =>
+      if (s) {
+        print(s"${Console.WHITE_B} ${Console.RESET}")
+      } else {
+        print(s"${Console.BLACK_B} ${Console.RESET}")
+      }
+    }
+    println
+  }
+
+
+  /**
     * Finds an attractor. Does not output the basin leading to the
     * given attractor, i.e. you'll only get the actual cycle.
     */
