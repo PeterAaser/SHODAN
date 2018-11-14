@@ -46,14 +46,19 @@ object mockServer {
     def fucked = init.copy(alive = false)
   }
 
-  implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
+
   def hello(s: Signal[IO,ServerState]) = HttpService[IO] {
     case GET -> Root => s.get flatMap { serverState =>
       if(!serverState.alive) InternalServerError()
       else Ok("")
     }
-    case GET -> Root / "status" =>
+    case GET -> Root / "status" => {
+      import org.http4s.circe._
+      import _root_.io.circe.generic.auto._
+      import _root_.io.circe.syntax._
+      implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
       Ok(MEAMEhealth(true,true).asJson)
+    }
   }
 
 
