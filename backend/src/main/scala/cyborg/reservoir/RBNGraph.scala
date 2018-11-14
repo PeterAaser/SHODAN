@@ -6,8 +6,8 @@ import org.graphstream.graph.implementations._
 import org.graphstream.graph.Node
 import org.graphstream.ui.view._
 
-object ReservoirGraph {
-  def initGraph(rbn: RBNContext.RBN): MultiGraph = {
+object RBNGraph {
+  def initGraph(rbn: RBN): MultiGraph = {
     val graph: MultiGraph = new MultiGraph("RBNGraph")
 
     // Adding _all_ nodes before we start adding edges is easier
@@ -37,7 +37,7 @@ object ReservoirGraph {
   }
 
 
-  def initViewer(graph: MultiGraph, initialRBN: RBNContext.RBN): Unit = {
+  def initViewer(graph: MultiGraph, initialRBN: RBN): Unit = {
     var liveRBN = initialRBN
     def updateGraph: Unit = {
       for (i <- 0 until liveRBN.state.length) {
@@ -61,7 +61,7 @@ object ReservoirGraph {
   }
 
 
-  def run(rbn: RBNContext.RBN): Unit = {
+  def run(rbn: RBN): Unit = {
     val graph = initGraph(rbn)
     initViewer(graph, rbn)
   }
