@@ -172,4 +172,15 @@ object RBNContext {
       }
     }}
   }
+
+  /**
+    * Continuously output an RBN, changing as its signal is updated
+    * from elsewhere.
+    */
+  def outputRBNNodeState[F[_]: Effect](rbn: RBN, node: Node, samplerate: Int,
+    resolution: FiniteDuration = 0.05.second, throttle: Boolean = true)
+      : Stream[F, Int] = {
+    rbn.outputNodeState(node, samplerate, throttle = throttle).take(samplerate) ++
+    outputRBNNodeState(rbn.step, node, samplerate, resolution, throttle)
+  }
 }
