@@ -15,7 +15,7 @@ object RBN {
   type Node          = Int
   type Edges         = List[List[Node]]
   type Perturbation  = (Node, Boolean)
-  type Rule          = List[Boolean] => Boolean
+  type Rule          = List[Boolean]
 }
 
 
@@ -23,7 +23,7 @@ import RBN._
 case class RBN(
   state: State,
   edges: Edges,
-  rule:  Rule,
+  rules:  List[Rule],
   lowFreq: Double  = 3.0,
   highFreq: Double = 8.0
 ) {
@@ -36,9 +36,18 @@ case class RBN(
   }
 
 
+  /**
+    * Not exactly a fast way to achieve this -- maybe consider using
+    * Ints as states.
+    */
+  def sumNeighbors(node: Node): Int = {
+    neighbors(node).map(b => if (b) 1 else 0).sum
+  }
+
+
   def step: RBN = {
     copy(state = state.zipWithIndex.map{t =>
-      rule(neighbors(t._2))
+      rules(t._2)(sumNeighbors(t._2))
     })
   }
 
