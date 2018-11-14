@@ -46,12 +46,14 @@ object mockServer {
     def fucked = init.copy(alive = false)
   }
 
-
+  implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
   def hello(s: Signal[IO,ServerState]) = HttpService[IO] {
     case GET -> Root => s.get flatMap { serverState =>
       if(!serverState.alive) InternalServerError()
       else Ok("")
     }
+    case GET -> Root / "status" =>
+      Ok(MEAMEhealth(true,true).asJson)
   }
 
 
@@ -68,16 +70,18 @@ object mockServer {
   }
 
 
+  // server
   def DSP(s: Signal[IO,ServerState], q: Queue[IO, DspFuncCall]) = HttpService[IO] {
-    case GET -> Root / "flash" =>
-      s.modify(_.copy(dspFlashed = true)).flatMap(_ => Ok(""))
+    case GET -> Root / "flash" => {
+      s.modify(_.copy(dspFlashed = true)) >> Fsay[IO]("flashing OK") >> Ok("hur")
+    }
 
     case req @ POST -> Root / "call" => {
-      val hurr = req.body.through(fs2.text.utf8Decode).compile.toVector.unsafeRunSync
       req.decode[HttpClient.DspFuncCall] { data =>
         q.enqueue1(data) >> Ok("")
       }
     }
+
     case req @ POST -> Root / "read" => {
       req.decode[DspRegisters.RegisterReadList] { data =>
         Fsay[IO](s"got dsp read request: $data") >> Ok("")
@@ -152,8 +156,6 @@ object mockServer {
       .mountService(DAQ(s), "/DAQ")
       .mountService(DSP(s, dspFuncCallQueue), "/DSP")
       .start
-
-    val dspEventSinkz: Sink[IO, Event] = _.map{ x => say(s"event: $x AAAAAAAAAAAAAAAAAAAAAAAAAAA"); x}.drain
 
     Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init)) flatMap{ meameState =>
       Stream.eval(fs2.async.boundedQueue[IO,DspFuncCall](20)) flatMap { dspFuncQueue =>

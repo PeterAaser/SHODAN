@@ -101,6 +101,7 @@ object mockDSP {
     }
   }
 
+
   object DSPstate {
     def init = DSPstate( (0 to 2).map( x => (x, StimReq(x, Inactive, 0,0))).toMap, 0)
 
@@ -133,14 +134,14 @@ object mockDSP {
     def nextPeriod = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_PERIOD)
 
     call.func match {
-      case  DUMP                            => ???
+      case  DUMP                            => state => state
       case  RESET                           => state => DSPstate.init
-      case  CONFIGURE_ELECTRODE_GROUP       => ???
-      case  SET_ELECTRODE_GROUP_MODE_MANUAL => ???
-      case  SET_ELECTRODE_GROUP_MODE_AUTO   => ???
-      case  COMMIT_CONFIG                   => ???
-      case  START_STIM_QUEUE                => ???
-      case  STOP_STIM_QUEUE                 => ???
+      case  CONFIGURE_ELECTRODE_GROUP       => state => state
+      case  SET_ELECTRODE_GROUP_MODE_MANUAL => state => state
+      case  SET_ELECTRODE_GROUP_MODE_AUTO   => state => state
+      case  COMMIT_CONFIG                   => state => state
+      case  START_STIM_QUEUE                => state => state
+      case  STOP_STIM_QUEUE                 => state => state
 
       case  SET_ELECTRODE_GROUP_PERIOD      => state =>
         state.copy(m = state.m.updateAt(idx)(_.updatePeriod(nextPeriod, state.currentTick)))
@@ -151,8 +152,8 @@ object mockDSP {
       case  DISABLE_STIM_GROUP              => state =>
         state.copy(m = state.m.updateAt(idx)(_.toggle(false, state.currentTick)))
 
-      case  COMMIT_CONFIG_DEBUG             => ???
-      case  WRITE_SQ_DEBUG                  => ???
+      case  COMMIT_CONFIG_DEBUG             => state => state
+      case  WRITE_SQ_DEBUG                  => state => state
     }
   }
 

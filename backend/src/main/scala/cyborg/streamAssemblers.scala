@@ -47,9 +47,6 @@ object Assemblers {
       topics            <- assembleTopics.through(vectorizeList(60))
       taggedSeqTopic    <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
 
-      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 999.millis))
-      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
-
       waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
 
@@ -79,6 +76,7 @@ object Assemblers {
       _                 <- Ssay[IO]("All systems go")
       _                 <- commandQueue.dequeue.through(commandPipe)
                              .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
+                             .concurrently(mockEvents.drain)
 
     } yield ()
   }

@@ -41,7 +41,8 @@ object Visualizer {
           println(agentQueue.size)
         }
         if(agentQueue.size > 0){
-          run(agentQueue.dequeue)
+          run(agentQueue.last)
+          agentQueue.dequeueAll(_ => true)
         }
         running = false
       }
