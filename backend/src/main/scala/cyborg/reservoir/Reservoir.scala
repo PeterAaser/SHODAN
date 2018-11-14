@@ -4,6 +4,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import params._
 import fs2._
+import fs2.async.mutable.Signal
 import cats.effect._
 import utilz._
 import backendImplicits._
@@ -97,6 +98,17 @@ object RBNContext {
         output.through(utilz.throttlerPipe[F, Int](samplerate, resolution))
       else
         output
+    }
+
+    /**
+      * Output the state of an RBN node, interruptible by a
+      * Signal. Meant to be expanded to do useful stuff in the future.
+      */
+    def outputNodeStateInterruptible[F[_]: Effect](node: Node, samplerate: Int,
+      interrupter: Signal[F, Boolean], resolution: FiniteDuration = 0.05.second,
+      throttle: Boolean = true): Stream[F, Int] = {
+      outputNodeState(node, samplerate, resolution = resolution, throttle = throttle)
+        .interruptWhen(interrupter)
     }
 
     /**
