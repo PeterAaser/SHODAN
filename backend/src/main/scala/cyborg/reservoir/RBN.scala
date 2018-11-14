@@ -31,7 +31,7 @@ case class RBN(
     * Neighbors are defined as the edges _into_ the node in
     * question, which may be confusing if thought of in CA terms.
     */
-  def neighbors(node: Node): List[Boolean] = {
+  def neighborStates(node: Node): List[Boolean] = {
     edges(node).map(neighbor => state(neighbor))
   }
 
@@ -40,14 +40,16 @@ case class RBN(
     * Not exactly a fast way to achieve this -- maybe consider using
     * Ints as states.
     */
-  def sumNeighbors(node: Node): Int = {
-    neighbors(node).map(b => if (b) 1 else 0).sum
+  def sumNeighborStates(node: Node): Int = {
+    val powers = (0 until edges.head.length).map(math.pow(2, _).toInt)
+    val states = neighborStates(node).map(b => if (b) 1 else 0)
+    (powers, states).zipped.map(_ * _).sum
   }
 
 
   def step: RBN = {
     copy(state = state.zipWithIndex.map{t =>
-      rules(t._2)(sumNeighbors(t._2))
+      rules(t._2)(sumNeighborStates(t._2))
     })
   }
 
