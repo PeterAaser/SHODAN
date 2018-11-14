@@ -19,7 +19,7 @@ object RBNGraph {
 
     for ((neighbors, i) <- rbn.edges.zipWithIndex) {
       for (neighbor <- neighbors) {
-        graph.addEdge(i.toString + neighbor.toString,
+        graph.addEdge(i.toString + '-' + neighbor.toString,
           neighbor.toString, i.toString, true)
         ()
       }
