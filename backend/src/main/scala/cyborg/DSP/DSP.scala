@@ -14,9 +14,10 @@ object DSP {
   import HttpClient.DSP._
 
   /**
-    Configures stimulus with a square waveform and only group 0 active
+    Setup flashes the DSP, resets state, uploads a test wave, configures the electrodes
+    specified by the settings, and starts the stim queue.
     */
-  val defaultConfig:  IO[Unit] = DspCalls.defaultSetup
+  val setup:          Setting.ExperimentSettings => IO[Unit] = DspCalls.setup
   val stopStimQueue:  IO[Unit] = DspCalls.stopStimQueue
   val resetStimQueue: IO[Unit] = DspCalls.resetStimQueue
   val startStimQueue: IO[Unit] = for {
@@ -26,18 +27,16 @@ object DSP {
 
   def setStimgroupPeriod(group: Int, period: FiniteDuration): IO[Unit] =
     DspCalls.stimGroupChangePeriod(group, period)
-
   def enableStimGroup(group: Int): IO[Unit] =
     DspCalls.enableStimReqGroup(group)
   def disableStimGroup(group: Int): IO[Unit] =
     DspCalls.disableStimReqGroup(group)
 
-
   /**
     Resets the device before configuring electrodes.
     Piecewise configuration is therefore not possible.
     */
-  def configureElectrodes(electrodes: List[List[Int]]): IO[Unit] = {
+  def configureElectrodesManual(electrodes: List[List[Int]]): IO[Unit] = {
     for {
       _ <- DspCalls.resetStimQueue
       _ <- DspCalls.configureStimGroup(0, electrodes.lift(0).getOrElse(Nil))
@@ -45,6 +44,9 @@ object DSP {
       _ <- DspCalls.configureStimGroup(2, electrodes.lift(2).getOrElse(Nil))
     } yield ()
   }
+
+  val configureElectrodes: Setting.ExperimentSettings => IO[Unit] = conf =>
+    configureElectrodesManual(conf.stimulusElectrodes)
 
 
   /**

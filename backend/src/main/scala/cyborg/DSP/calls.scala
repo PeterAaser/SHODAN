@@ -111,20 +111,18 @@ object DspCalls {
   } yield ()
 
 
-
-  def defaultSetup: IO[Unit] = for {
+  val setup: Setting.ExperimentSettings => IO[Unit] = config =>
+  for {
+    _ <- cyborg.dsp.DSP.flashDSP
     _ <- stopStimQueue
     _ <- resetStimQueue
-    _ <- uploadSquareTest(20.millis, 20)
+    _ <- uploadSquareTest(20.millis, 200)
     _ <- setElectrodeModes("manual")
-    _ <- configureStimGroup(0, List(1,2,3))
-    _ <- stimGroupChangePeriod(0, 500.millis)
-    _ <- enableStimReqGroup(0)
-    _ <- sayElectrodeConfig
+    _ <- cyborg.dsp.DSP.configureElectrodes(config)
     _ <- commitConfig
-    _ <- sayElectrodeConfig
     _ <- startStimQueue
   } yield ()
+
 
 
   def uploadWave(upload: IO[Unit]): IO[Unit] = for {
@@ -235,13 +233,12 @@ object DspCalls {
     _ <- Fsay[IO](s"shots fired: $s")
   } yield ()
 
-  val checkForErrors: IO[Unit] = for {
+  val checkForErrors: IO[Option[String]] = for {
     error <- readRegistersRequest(RegisterReadList(List(ERROR_FLAG)))
-    _ <- if(error.values.head != 0)
-    Fsay[IO](s"error code:\n${lookupErrorName(error.values.head)}")
-         else
-           Fsay[IO]("no errors")
-  } yield ()
+  } yield {
+      if(error.values.head == 0) None
+      else Some(lookupErrorName(error.values.head))
+  }
 
   val checkSteps: IO[Unit] = for {
     steps <- readRegistersRequest(RegisterReadList(List(STEP_COUNTER)))

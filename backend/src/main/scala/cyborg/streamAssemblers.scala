@@ -37,6 +37,7 @@ object Assemblers {
     for {
       conf              <- Stream.eval(assembleConfig)
       getConf           =  conf.get
+      staleConf         <- Stream.eval(conf.get)
       mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
       mockEvents        =  mock._2
       _                 <- Ssay[IO]("mock server up")
@@ -49,6 +50,13 @@ object Assemblers {
 
       waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
+
+      _                 <- Ssay[IO]("Starting DSP...")
+      _                 <- Stream.eval(cyborg.dsp.DSP.setup(staleConf.experimentSettings))
+      _                 <- Ssay[IO]("Applying stimuli")
+      _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 300.millis))
+      _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
+      _                 <- Ssay[IO]("In the pipe, 5 by 5")
 
       rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                      commandQueue,
@@ -76,7 +84,7 @@ object Assemblers {
       _                 <- Ssay[IO]("All systems go")
       _                 <- commandQueue.dequeue.through(commandPipe)
                              .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
-                             .concurrently(mockEvents.drain)
+                             .concurrently(mockEvents.through(logEveryNth(1, (x: mockDSP.Event) => s"DSP event $x")).drain)
 
     } yield ()
   }

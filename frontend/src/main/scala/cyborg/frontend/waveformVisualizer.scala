@@ -11,7 +11,7 @@ object waveformVisualizer {
   class WFVisualizerControl(canvas: html.Canvas,
                             dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
 
-    var maxVal = 200
+  var maxVal = 40800
 
     import params.waveformVisualizer._
 

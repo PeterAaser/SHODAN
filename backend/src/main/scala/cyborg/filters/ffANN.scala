@@ -10,11 +10,11 @@ object Filters {
   {
 
     import FeedForward._
-    require((layout.size > 1), "No point making a single layer ANN")
+    // require((layout.size > 1), "No point making a single layer ANN. If you want a perceptron that's actually two layers")
 
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
     if(neededWeights != weights.length){
-      // say(" ffANN error ")
+      say(" ffANN error ")
     }
     require(
       neededWeights == weights.length,
@@ -22,7 +22,7 @@ object Filters {
     )
     val neededBias = layout.tail.sum
     if(neededBias != bias.length){
-      // say(" ffANN error ")
+      say(" ffANN error ")
     }
     require(
       neededBias == bias.length,
@@ -66,12 +66,16 @@ object Filters {
 
     type Layout = List[Int]
 
-
-    def randomNetWithLayout(configuration: Setting.FilterSettings): FeedForward = {
-      // say("Created random net with layout")
+    def randomNetWithLayout(configuration: Setting.ReadoutSettings): FeedForward = {
 
       import configuration._
-      val layout = configuration.ANNlayout
+
+      /**
+        Prepend the amount of inputs to the network, and append the two outputs.
+        This means that the empty list is a valid network as it ends up being a perceptron
+        (well, two perceptrons, whatever)
+        */
+      val layout = configuration.inputChannels.size :: configuration.ANNlayout ::: List(2)
 
       val neededBias = layout.tail.sum
       val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
@@ -80,7 +84,6 @@ object Filters {
       val weights = (0 until neededWeights).map(_ => (Random.nextDouble() * (weightMax - weightMin)) - weightMin).toList
 
       FeedForward(layout, bias, weights)
-
     }
 
     def sliceVector(points: List[Int], victim: List[Double]): List[List[Double]] =

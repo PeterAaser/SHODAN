@@ -49,7 +49,7 @@ object mockDSP {
 
     def toggle(active: Boolean, currentTick: Int) = {
       if(active)
-        StimReq(idx, Idle, period, currentTick + nextEventTimestep)
+        StimReq(idx, Idle, period, currentTick + 1)
       else
         StimReq(idx, Inactive, period, nextEventTimestep)
     }
@@ -68,6 +68,7 @@ object mockDSP {
         }
       }
     }
+    override def toString = s"StimReq $idx. state: $state, period: $period, nextEventTimestep: $nextEventTimestep"
   }
 
 
@@ -79,7 +80,7 @@ object mockDSP {
           case Inactive => false
           case _ => true
         }
-      }
+      }.filter(_.period > 0)
       val next = filteredNext.map(_.nextEventTimestep).toSeq.minByOption
       next
     }
@@ -100,8 +101,6 @@ object mockDSP {
       (messages.flatten, DSPstate(next.zipIndexLeft.toMap, tick))
     }
   }
-
-
   object DSPstate {
     def init = DSPstate( (0 to 2).map( x => (x, StimReq(x, Inactive, 0,0))).toMap, 0)
 
@@ -175,7 +174,7 @@ object mockDSP {
       tickSource.pull.uncons1.flatMap {
         case Some((_, tl)) => {
           Pull.eval(messageQueue.size.get) flatMap { num =>
-            Pull.eval(messageQueue.timedDequeueBatch1(num, 1000.millis, backendImplicits.Sch)) flatMap {
+            Pull.eval(messageQueue.timedDequeueBatch1(num, 100.millis, backendImplicits.Sch)) flatMap {
               case Some(funcCalls) => {
                 val updatedDsp: DSPstate = funcCalls.foldLeft(dsp){ case(dsp, call) =>
                   decodeDspCall(call)(dsp)

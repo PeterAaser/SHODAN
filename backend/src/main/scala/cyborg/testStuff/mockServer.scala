@@ -83,7 +83,10 @@ object mockServer {
 
     case req @ POST -> Root / "call" => {
       req.decode[HttpClient.DspFuncCall] { data =>
-        q.enqueue1(data) >> Ok("")
+        s.get.flatMap{ state =>
+          if (!state.dspFlashed) say("Possible error: DSP is not flashed")
+          q.enqueue1(data) >> Ok("")
+        }
       }
     }
 
@@ -165,7 +168,7 @@ object mockServer {
     Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init)) flatMap{ meameState =>
       Stream.eval(fs2.async.boundedQueue[IO,DspFuncCall](20)) flatMap { dspFuncQueue =>
         Stream.eval(mountServer(meameState, dspFuncQueue)).map( x =>
-          (x, mockDSP.startDSP(dspFuncQueue, 1.second)))
+          (x, mockDSP.startDSP(dspFuncQueue, 100.millis)))
       }
     }
   }

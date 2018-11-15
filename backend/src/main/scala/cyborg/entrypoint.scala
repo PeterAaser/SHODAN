@@ -124,7 +124,11 @@ object staging {
           } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      // tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {
+      //                                                                      say(z)
+      //                                                                      say(z.getStackTrace.toList.mkString("\n"))
+      //                                                                      throw z})
+      Stream.eval(IO.unit)
     }
 
 
@@ -232,7 +236,6 @@ object staging {
     for {
       stopSignal  <- signalOf[IO,Boolean](false)
       actions     <- signalOf[IO,ProgramActions](ProgramActions())
-      // meameHealth <- HttpClient.getMEAMEhealthCheck
     } yield { _.through(doTheThing(stopSignal, actions))
                .map(Stream.eval).joinUnbounded
                .concurrently(handleMEAMEstateChange(state,actions))

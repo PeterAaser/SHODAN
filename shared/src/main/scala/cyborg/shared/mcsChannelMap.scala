@@ -3,7 +3,6 @@ package cyborg
 object mcsChannelMap {
 
 
-  val SHODANtoMEAME = MEAMEtoSHODAN.toList.map(x => (x._2, x._1)).toMap
   val MEAMEtoSHODAN = Map(
     12 ->  20,
     13 ->  18,
@@ -65,6 +64,8 @@ object mcsChannelMap {
     85 ->  45,
     86 ->  48,
     87 ->  50)
+
+  val SHODANtoMEAME = MEAMEtoSHODAN.toList.map(x => (x._2, x._1)).toMap
 
   val getMCSchannel = Map(
     0  -> MEAMEtoSHODAN(21),

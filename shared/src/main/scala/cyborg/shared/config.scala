@@ -4,15 +4,17 @@ import com.avsystem.commons.serialization.{ GenCodec, HasGenCodec }
 import pprint._
 
 object Setting {
+  import mcsChannelMap._
+
   case class ExperimentSettings(
     samplerate         : Int,
-    stimulusElectrodes : List[Int],
+    stimulusElectrodes : List[List[Int]],
     segmentLength      : Int)
 
   object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
     val default = ExperimentSettings(
       samplerate         = 10000,
-      stimulusElectrodes = Nil,
+      stimulusElectrodes = List(47, 7, 12).map(getMCSchannel).map(List(_)),
       segmentLength      = 1000
     )}
 
@@ -45,14 +47,13 @@ object Setting {
     ANNlayout       : List[Int]
   )
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
-    import mcsChannelMap._
 
     val default = ReadoutSettings(
         weightMin       = -2.0,
         weightMax       = 2.0,
         MAGIC_THRESHOLD = 1000,
         ANNlayout       = List(), // empty list encodes a perceptron
-        inputChannels   = List(0, 1, 2, 3, 4, 5, 54, 55, 56, 57, 58, 59).map(getMCSchannel.apply)
+        inputChannels   = List(0, 1, 2, 3, 4, 5, 54, 55, 56, 57, 58, 59).map(getMCSchannel)
       )}
 
 

@@ -76,7 +76,7 @@ object wallAvoid {
 
   def createChallenges: List[Agent] = {
 
-    val loc = Coord(7000.0, 5000.0)
+    val loc = Coord(9000.0, 5000.0)
     val firstAngle  = PI + PI/6.0
     val secondAngle = PI + PI/12.0
     val thirdAngle  = PI + .0
