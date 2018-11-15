@@ -1,4 +1,4 @@
-package cyborg.io
+package cyborg
 
 object mcsChannelMap {
 
@@ -66,7 +66,7 @@ object mcsChannelMap {
     86 ->  48,
     87 ->  50)
 
-  val WfvizToChannel = Map(
+  val getMCSchannel = Map(
     0  -> MEAMEtoSHODAN(21),
     1  -> MEAMEtoSHODAN(31),
     2  -> MEAMEtoSHODAN(41),

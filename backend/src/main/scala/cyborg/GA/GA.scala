@@ -16,7 +16,7 @@ import seqUtils._
 
   Currently not really a GA, just a mockup for the sake of API and some results
   */
-class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.FilterSettings) {
+class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSettings) {
 
   type ReservoirOutput = Vector[Double]
   type FilterOutput    = List[Double]

@@ -62,11 +62,9 @@ object agentPipe {
           case Some((agentInput, tl)) => {
             val nextAgent = Agent.updateAgent(agent, agentInput)
             if (ticks > 0){
-              // say(s"eval pipe evaling $ticks")
               Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             }
             else {
-              say("eval pipe indicates we're done")
               Pull.output1(nextAgent) >> Pull.done
             }
           }
@@ -84,7 +82,6 @@ object agentPipe {
               .map(_.distanceToClosest)
               .min
 
-            say("!!!!! eval run outputting an evaluation")
             Pull.output1(closest) >> Pull.done
           }
           case _ => {
