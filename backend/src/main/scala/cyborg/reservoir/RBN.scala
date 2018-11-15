@@ -15,7 +15,7 @@ object RBN {
   type Node          = Int
   type Edges         = List[List[Node]]
   type Perturbation  = (Node, Boolean)
-  type Rule          = List[Boolean] => Boolean
+  type Rule          = List[Boolean]
 }
 
 
@@ -23,7 +23,7 @@ import RBN._
 case class RBN(
   state: State,
   edges: Edges,
-  rule:  Rule,
+  rules:  List[Rule],
   lowFreq: Double  = 3.0,
   highFreq: Double = 8.0
 ) {
@@ -31,14 +31,25 @@ case class RBN(
     * Neighbors are defined as the edges _into_ the node in
     * question, which may be confusing if thought of in CA terms.
     */
-  def neighbors(node: Node): List[Boolean] = {
+  def neighborStates(node: Node): List[Boolean] = {
     edges(node).map(neighbor => state(neighbor))
+  }
+
+
+  /**
+    * Not exactly a fast way to achieve this -- maybe consider using
+    * Ints as states.
+    */
+  def sumNeighborStates(node: Node): Int = {
+    val powers = (0 until edges.head.length).map(math.pow(2, _).toInt)
+    val states = neighborStates(node).map(b => if (b) 1 else 0)
+    (powers, states).zipped.map(_ * _).sum
   }
 
 
   def step: RBN = {
     copy(state = state.zipWithIndex.map{t =>
-      rule(neighbors(t._2))
+      rules(t._2)(sumNeighborStates(t._2))
     })
   }
 
@@ -80,79 +91,5 @@ case class RBN(
     }
 
     go(List(), this, maxLength).map(_.reverse)
-  }
-
-
-  /**
-    * Output state of an RBN node as a stream for SHODAN backend to
-    * interpret. For now there are only two different states, giving
-    * two different spiking behaviours.
-    */
-  def outputNodeState[F[_]: Effect](node: Node, samplerate: Int,
-    resolution: FiniteDuration = 0.05.second, throttle: Boolean = true)
-      : Stream[F, Int] = {
-    val spikeFreq = if (state(node)) highFreq else lowFreq
-    val spikeDistance = samplerate / spikeFreq
-    val amplitude = 500.0
-
-    // Create a uniform stream that creates sawtooth waves
-    // according to distance to next spike. This is just a
-    // placeholder for a real signal for now. The amplitude is
-    // arbitrary.
-    val output = Stream.range(0, samplerate).map(
-      s => ((s % spikeDistance / spikeDistance) * amplitude).toInt
-    ).repeat.covary[F]
-
-    if (throttle)
-      output.through(utilz.throttlerPipe[F, Int](samplerate, resolution))
-    else
-      output
-  }
-
-
-  /**
-    * Output the state of an RBN node, interruptible by a
-    * Signal. Meant to be expanded to do useful stuff in the future.
-    */
-  def outputNodeStateInterruptible[F[_]: Effect](node: Node, samplerate: Int,
-    interrupter: Signal[F, Boolean], resolution: FiniteDuration = 0.05.second,
-    throttle: Boolean = true): Stream[F, Int] = {
-    outputNodeState(node, samplerate, resolution = resolution, throttle = throttle)
-      .interruptWhen(interrupter)
-  }
-
-
-  /**
-    * Interleaves output from states into a new stream
-    * _deterministically_. Keeps the vectorized outputs grouped up,
-    * mostly for debugging purposes for now.
-    */
-  // (TODO) (thomaav): Use Chunk instead of Vector?
-  def interleaveNodeStates[F[_]: Effect](samplerate: Int, segmentLength: Int,
-    resolution: FiniteDuration = 0.05.seconds): Stream[F, Vector[Int]] = {
-    val mempty = Stream(Vector[Int]()).covary[F].repeat
-    val streams = for (i <- 0 until state.length)
-    yield outputNodeState(i, samplerate, resolution, throttle = false)
-      .through(vectorize(segmentLength))
-
-    streams.foldRight(mempty){(s, acc) => s.zipWith(acc)(_ ++ _)}
-  }
-
-
-  /**
-    * Output the state of the entire RBN reservoir as one would
-    * expect from an MEA.
-    */
-  def outputState[F[_]: Effect](samplerate: Int, segmentLength: Int,
-    resolution: FiniteDuration = 0.05.seconds, throttle: Boolean)
-      : Stream[F, Int] = {
-    val output =
-      interleaveNodeStates(samplerate, segmentLength, resolution)
-        .through(utilz.chunkify)
-
-    if (throttle)
-      output.through(utilz.throttlerPipe[F, Int](samplerate*state.length, resolution))
-    else
-      output
   }
 }

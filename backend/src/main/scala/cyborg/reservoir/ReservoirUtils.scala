@@ -6,6 +6,7 @@ import fs2.async.mutable.Signal
 import cats.effect._
 import backendImplicits._
 import RBN._
+import RBNStreams._
 
 
 object ReservoirUtils {
