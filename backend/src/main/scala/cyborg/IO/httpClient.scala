@@ -16,7 +16,7 @@ import org.http4s.circe._
 import _root_.io.circe.literal._
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.syntax._
-import _root_.io.circe.{ Encoder, Json }
+import _root_.io.circe.{ Encoder, Decoder, Json }
 
 
 import DspRegisters._
@@ -150,25 +150,24 @@ object HttpClient {
   case class MEAMEhealth(isAlive: Boolean, dspAlive: Boolean)
   case class MEAMEstatus(isAlive: Boolean, dspAlive: Boolean, dspBroken: Boolean)
 
-  // TODO Yes, very helpful comment, and now this shit makes compiling fail.
-  // Should probably be removed. If you haven't figured out what this was
-  // supposed to do next time you see the code, just axe it.
+  case class DspFCS(func: Int, argAddrs: List[Int], argVals: List[Int]){
+    def toFC: DspFuncCall = DspFuncCall(func, argAddrs zip argVals)
+  }
+  object DspFCS {
+    def fromFC(fc: DspFuncCall): DspFCS = {
+      val (words, addrs) = fc.args.unzip
+      DspFCS( fc.func, addrs, words )
+    }
+  }
 
-  // don't have to read the docs if you just make an ugly hack
-  case class DspFCS(func: Int, argAddrs: List[Int], argVals: List[Int])
   implicit val DspFCSCodec = jsonOf[IO, DspFCS]
-  // implicit val encodeFoo: Encoder[DspFuncCall] = new Encoder[DspFuncCall] {
-  //   final def apply(a: DspFuncCall): Json = {
-  //     val (words, addrs) = a.args.unzip
-  //     DspFCS(a.func, addrs, words).asJson
-  //   }
-  // }
+  implicit val DspFuncCallCodec = DspFCSCodec.map(_.toFC)
+  implicit val DspFuncCallEncoder: Encoder[DspFuncCall] = x => DspFCS.fromFC(x).asJson
 
   implicit val regSetCodec      = jsonOf[IO, RegisterSetList]
   implicit val DAQdecoder       = jsonOf[IO, DAQparams]
   implicit val regReadCodec     = jsonOf[IO, RegisterReadList]
   implicit val regReadRespCodec = jsonOf[IO, RegisterReadResponse]
-  implicit val dspCallCodec     = jsonOf[IO, DspFuncCall]
   implicit val MEAMEhealthCodec = jsonOf[IO, MEAMEhealth]
   implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
 
