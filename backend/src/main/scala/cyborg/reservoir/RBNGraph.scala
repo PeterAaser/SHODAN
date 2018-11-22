@@ -53,6 +53,7 @@ object RBNGraph {
       def keyTyped(e: KeyEvent): Unit = { }
       def keyPressed(e: KeyEvent): Unit = {
         if (e.getKeyCode == KeyEvent.VK_N) {
+          liveRBN.printStateANSI
           liveRBN = liveRBN.step
           updateGraph
         }
