@@ -53,4 +53,29 @@ object bonus {
       c <- m2.get(a)
     } yield a -> (b, c)
 
+
+  implicit class IntOps(i: Int) {
+    def asBinary(size: Int = 0): String = {
+      val l  = i.toBinaryString
+      val padLen = if(size == 0) 0 else size - l.size
+      val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
+      pad + l
+      i.toBinaryString
+    }
+
+    def asBinarySpaced: String = {
+      val l  = i.toBinaryString
+      val padLen = 32 - l.size
+      val pad = ("" /: (0 until padLen).map(_ => "0"))(_+_)
+      val s = pad + l
+      s.take(8).grouped(2).map(_ + " ").toList.mkString + " " +
+        s.drop(8).take(8).grouped(2).map(_ + " ").toList.mkString + " " +
+        s.drop(16).take(8).grouped(2).map(_ + " ").toList.mkString + " " +
+        s.drop(24).take(8).grouped(2).map(_ + " ").toList.mkString + " "
+    }
+
+    def asBinarySpaced2: String = {
+      i.toBinaryString.grouped(2).map(_ + " ").toList.mkString("")
+    }
+  }
 }

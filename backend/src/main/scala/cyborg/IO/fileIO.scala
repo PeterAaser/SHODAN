@@ -1,5 +1,6 @@
 package cyborg.io.files
 import cyborg._
+import fs2.async.mutable.Topic
 
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
@@ -80,6 +81,12 @@ object fileIO {
   def readGZIP[F[_]: Effect](filePath: Path)(implicit ec: ExecutionContext): Stream[F,Int] = ???
 
 
+  def getTimestampedFilename: IO[Path] = {
+    import params.StorageParams.toplevelPath
+    getDateTimeString.map(s => Paths.get(toplevelPath + s))
+  }
+
+
   /**
     Creates a new file and returns the path, plus a sink for writing to said file
     */
@@ -97,6 +104,17 @@ object fileIO {
 
       (path, sink)
     }
+  }
+
+
+  /**
+    Writes events to a file
+    */
+  def eventWriter[F[_]: Effect]: Path => Sink[F,String] = { path =>
+    val eventPath = Paths.get(path.toString() + "_events")
+    s => s
+      .through(text.utf8Encode)
+      .through(fs2.io.file.writeAll(eventPath))
   }
 
 

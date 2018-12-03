@@ -48,8 +48,6 @@ object WaveformGenerator {
         }
       }._1
 
-    say(points)
-
     case class StimWord(timeBase: Int, repeats: Int, stimValue: Int){
       def invoke: Int = {
         val timeWord = if(timeBase == 1) 0 else (1 << 25)
@@ -97,9 +95,6 @@ object WaveformGenerator {
       SBSWord(1, (totalpoints % 1000) + 1)
     )
 
-
-    say(stimWords)
-    say(SBSWords)
 
     val stimResetAddres = 0x920c + (channel*0x20)
     val SBSResetAddres = 0x920c + ((channel+1)*0x20)

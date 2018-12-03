@@ -40,6 +40,28 @@ object mcsChannelMap {
 
 
   /**
+    As with everything else, the mapping between the stim channel register on the DSP and the
+    actual electrode is nonsensical and arbitrary.
+
+    Say you want to stimulate electrode 2, 4 and 12, then the corresponding MCS channels are
+    23, 28 and 38.
+
+    Fun fact, there is a pattern here, but for the fourth quadrant that pattern is reversed.
+    Incredible...
+    */
+  val getMCSstimChannel = Map(
+                  0  -> 23,   1  -> 25,   2  -> 28,   3  -> 31,   4  -> 34,   5  -> 36,
+      6  -> 20,   7  -> 21,   8  -> 24,   9  -> 29,   10 -> 30,   11 -> 35,   12 -> 38,   13 -> 39,
+      14 -> 18,   15 -> 19,   16 -> 22,   17 -> 27,   18 -> 32,   19 -> 37,   20 -> 40,   21 -> 41,
+      25 -> 26,   26 -> 33,   27 -> 42,   28 -> 43,   29 -> 44,   22 -> 15,   23 -> 16,   24 -> 17,
+      38 -> 11,   39 -> 10,   40 -> 7,    41 -> 2,    42 -> 57,   43 -> 52,   44 -> 49,   45 -> 48,
+      46 -> 9,    47 -> 8,    48 -> 5,    49 -> 0,    50 -> 59,   51 -> 54,   52 -> 51,   53 -> 50,
+      30 -> 14,   31 -> 13,   32 -> 12,   33 -> 3,    34 -> 56,   35 -> 47,   36 -> 46,   37 -> 45,
+                  54 -> 6,    55 -> 4,    56 -> 1,    57 -> 58,   58 -> 55,   59 -> 53,
+  )
+
+
+  /**
     Gets the corresponding segment offset for a SHODAN channel. For SHODAN channel 13, the corresponding
     MCS channel is 82, which in turn has offset 39 in the datastream
     */

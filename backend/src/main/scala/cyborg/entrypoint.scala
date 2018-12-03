@@ -128,6 +128,7 @@ object staging {
       //                                                                      say(z)
       //                                                                      say(z.getStackTrace.toList.mkString("\n"))
       //                                                                      throw z})
+      say("WARNING, AGENT IS COMMENTED OUT")
       Stream.eval(IO.unit)
     }
 

@@ -14,7 +14,7 @@ object Setting {
   object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
     val default = ExperimentSettings(
       samplerate         = 10000,
-      stimulusElectrodes = List(47, 7, 12).map(getMCSchannel).map(List(_)),
+      stimulusElectrodes = List(21, 30, 31).map(getMCSstimChannel).map(List(_)),
       segmentLength      = 1000
     )}
 

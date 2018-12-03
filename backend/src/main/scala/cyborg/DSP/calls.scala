@@ -45,15 +45,17 @@ object DspCalls {
 
 
   def configureStimGroup(group: Int, electrodes: List[Int]) = {
+    val groupField = group
     val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
     val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
     for {
       _ <- dspCall( CONFIGURE_ELECTRODE_GROUP,
+                    group -> STIM_QUEUE_GROUP,
                     elec0  -> STIM_QUEUE_ELEC0,
                     elec1  -> STIM_QUEUE_ELEC1).void
       _ <- Fsay[IO](s"Enabling electrodes for stim group $group (dsp call $CONFIGURE_ELECTRODE_GROUP)")
-      _ <- Fsay[IO](s"elec0: $elec0")
-      _ <- Fsay[IO](s"elec1: $elec1")
+      _ <- Fsay[IO](s"elec0: ${elec0.asBinarySpaced}")
+      _ <- Fsay[IO](s"elec1: ${elec1.asBinarySpaced}")
     } yield ()
   }
 
@@ -94,7 +96,7 @@ object DspCalls {
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
-    // _ <- Fsay[IO](s"stim group change period, group $group to $period (${period}) (dsp call $SET_ELECTRODE_GROUP_PERIOD")
+    _ <- Fsay[IO](s"stim group change period, group $group to $period (${period}) (dsp call $SET_ELECTRODE_GROUP_PERIOD")
   } yield ()
 
 
@@ -119,6 +121,8 @@ object DspCalls {
     _ <- uploadSquareTest(20.millis, 200)
     _ <- setElectrodeModes("manual")
     _ <- cyborg.dsp.DSP.configureElectrodes(config)
+    s <- readElectrodeConfig
+    _ <- Fsay[IO](s"Reading debug config:\n$s")
     _ <- commitConfig
     _ <- startStimQueue
   } yield ()
@@ -132,18 +136,19 @@ object DspCalls {
 
 
   def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
-    _ <- IO { say(s"Uploading square wave. period: $period, amplitude: ${amplitude}mV") }
+    _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
     _ <- uploadWave( WaveformGenerator.squareWave(0, (period/2), (period/2), 0, amplitude) )
   } yield ()
 
 
   def uploadSineTest(period: FiniteDuration, amplitude: Int): IO[Unit] = for {
-    _ <- IO { say(s"Uploading square wave. period: $period, amplitude: ${amplitude}mV") }
+    _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
     _ <- uploadWave( WaveformGenerator.sineWave(0, period, amplitude) )
   } yield ()
 
 
   val readElectrodeConfig: IO[String] = for {
+    _ <- Fsay[IO](s"reading electrode config")
     _ <- dspCall(COMMIT_CONFIG_DEBUG)
     config <- readRegistersRequest(
       RegisterReadList(List(
@@ -160,16 +165,16 @@ object DspCalls {
     } yield {
       List(
         "ELECTRODE CFG IS:",
-        s"CFG_DEBUG_ELEC0 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_ELEC0)).w)}",
-        s"CFG_DEBUG_ELEC1 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_ELEC1)).w)}",
-        s"CFG_DEBUG_MODE0 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_MODE0)).w)}",
-        s"CFG_DEBUG_MODE1 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_MODE1)).w)}",
-        s"CFG_DEBUG_MODE2 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_MODE2)).w)}",
-        s"CFG_DEBUG_MODE3 <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_MODE3)).w)}",
-        s"CFG_DEBUG_DAC0  <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_DAC0 )).w)}",
-        s"CFG_DEBUG_DAC1  <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_DAC1 )).w)}",
-        s"CFG_DEBUG_DAC2  <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_DAC2 )).w)}",
-        s"CFG_DEBUG_DAC3  <- ${as32BinarySpaced(config.asMap(Reg(CFG_DEBUG_DAC3 )).w)}"
+        s"CFG_DEBUG_ELEC0 <- ${config.asMap(Reg(CFG_DEBUG_ELEC0)).w.asBinarySpaced}",
+        s"CFG_DEBUG_ELEC1 <- ${config.asMap(Reg(CFG_DEBUG_ELEC1)).w.asBinarySpaced}",
+        s"CFG_DEBUG_MODE0 <- ${config.asMap(Reg(CFG_DEBUG_MODE0)).w.asBinarySpaced}",
+        s"CFG_DEBUG_MODE1 <- ${config.asMap(Reg(CFG_DEBUG_MODE1)).w.asBinarySpaced}",
+        s"CFG_DEBUG_MODE2 <- ${config.asMap(Reg(CFG_DEBUG_MODE2)).w.asBinarySpaced}",
+        s"CFG_DEBUG_MODE3 <- ${config.asMap(Reg(CFG_DEBUG_MODE3)).w.asBinarySpaced}",
+        s"CFG_DEBUG_DAC0  <- ${config.asMap(Reg(CFG_DEBUG_DAC0 )).w.asBinarySpaced}",
+        s"CFG_DEBUG_DAC1  <- ${config.asMap(Reg(CFG_DEBUG_DAC1 )).w.asBinarySpaced}",
+        s"CFG_DEBUG_DAC2  <- ${config.asMap(Reg(CFG_DEBUG_DAC2 )).w.asBinarySpaced}",
+        s"CFG_DEBUG_DAC3  <- ${config.asMap(Reg(CFG_DEBUG_DAC3 )).w.asBinarySpaced}"
       ).mkString("\n","\n","\n")
     }
 
