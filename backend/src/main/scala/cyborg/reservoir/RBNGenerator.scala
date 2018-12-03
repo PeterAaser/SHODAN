@@ -4,7 +4,7 @@ import cyborg.RBN._
 
 object RBNGen {
   object ActiveRBNs {
-    val randomRBN = createRandomRBN(60, 2, 0.5)
+    val randomRBN = createRandomRBN(60, 3, 0.5)
   }
 
 
@@ -41,8 +41,6 @@ object RBNGen {
     val edges = nodes.map{i =>
       Random.shuffle(nodes.filter(n => n != i)).take(connectivity).toList
     }
-
-    println(rules)
 
     RBN(state, edges, rules)
   }
