@@ -65,5 +65,6 @@ object mcsChannelMap {
     Gets the corresponding segment offset for a SHODAN channel. For SHODAN channel 13, the corresponding
     MCS channel is 82, which in turn has offset 39 in the datastream
     */
-  val getMCSchannel = SHODANvizToMCS.toList.map{ case(idx, channel) => (idx, MCStoSHODAN(channel)) }.toMap
+  val getMCSdataChannel = SHODANvizToMCS.toList.map{ case(idx, channel) => (idx, MCStoSHODAN(channel)) }.toMap
+
 }

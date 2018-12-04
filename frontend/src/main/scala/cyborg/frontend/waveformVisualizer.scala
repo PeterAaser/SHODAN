@@ -151,7 +151,7 @@ object waveformVisualizer {
 
     def drawPixelArrays(): Unit = {
       val windows = channelsWithCoordinates.zipWithIndex
-      windows.foreach(window => drawPixelArray( mcsChannelMap.getMCSchannel(window._2), window._1._1, window._1._2))
+      windows.foreach(window => drawPixelArray( mcsChannelMap.getMCSdataChannel(window._2), window._1._1, window._1._2))
     }
 
     println(canvas.width)

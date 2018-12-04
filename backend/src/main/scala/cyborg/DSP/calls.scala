@@ -96,11 +96,16 @@ object DspCalls {
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
-    _ <- Fsay[IO](s"stim group change period, group $group to $period (${period}) (dsp call $SET_ELECTRODE_GROUP_PERIOD")
+    _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
   } yield ()
 
 
   def enableStimReqGroup(group: Int): IO[Unit] = for {
+    errors <- checkForErrors
+    _ <- errors match {
+      case Some(s) => Fsay[IO](s"error: $s")
+      case None    => Fsay[IO](s"No DSP error flags raised")
+    }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
     _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
@@ -136,8 +141,10 @@ object DspCalls {
 
 
   def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
-    _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
-    _ <- uploadWave( WaveformGenerator.squareWave(0, (period/2), (period/2), 0, amplitude) )
+    _ <- Fsay[IO](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(0, 2.millis, 200))
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(1, 2.millis, 200))
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(2, 2.millis, 200))
   } yield ()
 
 

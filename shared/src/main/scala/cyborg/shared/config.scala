@@ -14,7 +14,11 @@ object Setting {
   object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
     val default = ExperimentSettings(
       samplerate         = 10000,
-      stimulusElectrodes = List(21, 30, 31).map(getMCSstimChannel).map(List(_)),
+      stimulusElectrodes = List(
+        List(54, 55, 56, 57, 58, 59),
+        List(0,  1,  2,  3,  4,  5),
+        List(6,  14, 22, 30, 38, 46),
+      ).map(_.map(getMCSstimChannel)),
       segmentLength      = 1000
     )}
 
@@ -52,8 +56,11 @@ object Setting {
         weightMin       = -2.0,
         weightMax       = 2.0,
         MAGIC_THRESHOLD = 1000,
-        ANNlayout       = List(), // empty list encodes a perceptron
-        inputChannels   = List(0, 1, 2, 3, 4, 5, 54, 55, 56, 57, 58, 59).map(getMCSchannel)
+        ANNlayout       = List(), // empty list encodes a network with no hidden outputs
+        inputChannels   = List(16, 17, 18, 19, 20, 21,
+                               24, 25, 26, 27, 28, 29,
+                               32, 33, 34, 35, 36, 37,
+                               40, 41, 42, 43, 44, 45).map(getMCSdataChannel)
       )}
 
 

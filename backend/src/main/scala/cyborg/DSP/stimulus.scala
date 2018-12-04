@@ -17,6 +17,9 @@ object WaveformGenerator {
   val dspVoltageOffset = 0x8000
   val mVperUnit = 0.571
 
+  def mvToDSPVoltage(mv: mV): Int = (mv*mVperUnit).toInt + dspVoltageOffset
+  def DSPvoltageToMv(word: Int): mV = (word - dspVoltageOffset)*(1.0/mVperUnit)
+
   // Simply generates and adds datapoints from a function for some range of time
   def uploadWave(
     duration: FiniteDuration,
@@ -24,12 +27,16 @@ object WaveformGenerator {
     generator: FiniteDuration => mV): IO[Unit] =
   {
 
-    val channelAddress = (channel * 4) + 0x9f20
+    val mcsChannel = channel*2
+    val channelAddress = (mcsChannel * 4) + 0x9f20
+    say(s"Uploading wave to channel $channel. address: 0x${channelAddress.toHexString}, SBS address: 0x${(channelAddress + 4).toHexString}")
 
     // for instance 2 seconds, 20 µs per point means we need 2s/20µs = 100 000 points
     val totalpoints = (duration/dspTimeStep).toInt
 
     case class StimPoint(ticks: Int, voltage: Int)
+    val maxVoltage = 1000
+    val minVoltage = -maxVoltage
 
     // Generates a list of steps and duration in multiple of 20µs the step should be held
     val points = (0 until totalpoints)
@@ -96,22 +103,41 @@ object WaveformGenerator {
     )
 
 
-    val stimResetAddres = 0x920c + (channel*0x20)
-    val SBSResetAddres = 0x920c + ((channel+1)*0x20)
+    val stimResetAddress = 0x920c + (mcsChannel*0x20)
+    val SBSResetAddress  = 0x920c + ((mcsChannel+1)*0x20)
 
-    val stimReset = RegisterSetList(List(0x0 -> stimResetAddres))
-    val SBSReset = RegisterSetList(List(0x0 -> SBSResetAddres))
+    val stimReset   = RegisterSetList(List(0x0 -> stimResetAddress))
+    val SBSReset    = RegisterSetList(List(0x0 -> SBSResetAddress))
     val stimUploads = RegisterSetList(stimWords.map(λ => (λ.invoke, channelAddress)))
-    val SBSUploads = RegisterSetList(SBSWords.map(λ => (λ.invoke, channelAddress + 4)))
+    val SBSUploads  = RegisterSetList(SBSWords.map(λ  => (λ.invoke, channelAddress + 4)))
+
+    import cats.syntax._
+    import cats.implicits._
+
+    val isValid = points.map(p => if ((DSPvoltageToMv(p.voltage) > maxVoltage) || (DSPvoltageToMv(p.voltage) < minVoltage)){
+                               say(s"mike pence point detected: $p")
+                               None
+                             }
+                             else {
+                               Some(p)
+                             }
+    ).sequence.isDefined
 
     import HttpClient._
 
-    for {
-      _ <- setRegistersRequest(stimReset)
-      _ <- setRegistersRequest(stimUploads)
-      _ <- setRegistersRequest(SBSReset)
-      _ <- setRegistersRequest(SBSUploads)
-    } yield ()
+    if(isValid)
+      for {
+        _ <- setRegistersRequest(stimReset)
+        _ <- setRegistersRequest(stimUploads)
+        _ <- setRegistersRequest(SBSReset)
+        _ <- setRegistersRequest(SBSUploads)
+      } yield ()
+    else
+      for {
+        _ <- Fsay[IO]("!!!! STIMULUS IS OUT OF RANGE")
+        _ <- Fsay[IO]("Here's a mike pence error asshole")
+        _ <- IO.raiseError(new Exception("Mike Pence error"))
+      } yield ()
   }
 
 
@@ -135,6 +161,21 @@ object WaveformGenerator {
     val z: mV = 0
 
     def generator(t: FiniteDuration) = offset + (if (t > lowDuration) amplitude else (z))
+
+    uploadWave(period, channel, generator)
+  }
+
+  /**
+    Balanced signifies that the voltage integral over t is close to 0 which is better for electrode health.
+    Thus no offset or low/high duration
+    */
+  def balancedSquareWave(
+    channel: Int,
+    period: FiniteDuration,
+    amplitude: mV): IO[Unit] = {
+
+    val lowDuration: FiniteDuration = period/2
+    def generator(t: FiniteDuration) = if (t > lowDuration) amplitude/2 else -(amplitude/2)
 
     uploadWave(period, channel, generator)
   }
