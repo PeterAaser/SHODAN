@@ -2,9 +2,10 @@ package cyborg
 
 import cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.Signal
+import fs2.async.mutable.{ Queue, Signal }
 import fs2.async.mutable.Topic
 import _root_.io.udash.rpc.ClientId
+import java.nio.file.Paths
 import org.joda.time.Seconds
 import scala.language.higherKinds
 import cats.effect.IO
@@ -19,6 +20,10 @@ import cyborg.utilz._
 
 import scala.concurrent.duration._
 
+import backendImplicits._
+import cats.effect.implicits._
+import cats.effect.Timer
+
 object Assemblers {
 
   type ffANNinput = Vector[Double]
@@ -28,6 +33,10 @@ object Assemblers {
     Assembles the necessary components to start SHODAN
     */
   def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
+
+    val shittyPath = Paths.get("/home/peteraa/memez")
+    val shittyEventSink = cyborg.io.files.fileIO.timestampedEventWriter[IO]
+    val hurr = shittyEventSink(shittyPath)
 
 
     val meameFeedbackSink: Sink[IO,List[Double]] =
@@ -43,6 +52,8 @@ object Assemblers {
       _                 <- Ssay[IO]("mock server up")
       state             <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
 
+      eventQueue        <- Stream.eval(fs2.async.unboundedQueue[IO,String])
+
       commandQueue      <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
       agentTopic        <- Stream.eval(fs2.async.topic[IO, Agent](Agent.init))
       topics            <- assembleTopics.through(vectorizeList(60))
@@ -53,9 +64,6 @@ object Assemblers {
 
       _                 <- Ssay[IO]("Starting DSP...")
       _                 <- Stream.eval(cyborg.dsp.DSP.setup(staleConf.experimentSettings))
-      _                 <- Ssay[IO]("Applying stimuli")
-      _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 300.millis))
-      _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
       _                 <- Ssay[IO]("In the pipe, 5 by 5")
 
       rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
@@ -75,6 +83,7 @@ object Assemblers {
                                       agentTopic,
                                       state,
                                       getConf,
+                                      eventQueue,
                                       waveformListeners,
                                       agentListeners))
 
@@ -85,6 +94,8 @@ object Assemblers {
       _                 <- commandQueue.dequeue.through(commandPipe)
                              .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
                              .concurrently(mockEvents.through(logEveryNth(1, (x: mockDSP.Event) => s"DSP event $x")).drain)
+                             .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
+                             .concurrently(eventQueue.dequeue.through(hurr))
 
     } yield ()
   }
@@ -176,6 +187,7 @@ object Assemblers {
     inputChannels         : List[Channel],
     frontendAgentObserver : Sink[IO,Agent],
     feedbackSink          : Sink[IO,List[Double]],
+    eventLogger           : Queue[IO,String],
     getConf               : IO[FullSettings])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
 
     getConf flatMap { conf =>
@@ -185,7 +197,7 @@ object Assemblers {
 
       val gaRunner = new GArunner(conf.gaSettings, conf.filterSettings)
 
-      val experimentPipe: Pipe[IO, Vector[Double], Agent] = gaRunner.gaPipe
+      val experimentPipe: Pipe[IO, Vector[Double], Agent] = gaRunner.gaPipe(eventLogger)
 
       signalOf[IO,Boolean](false).map { interruptSignal =>
         val interruptTask = for {
