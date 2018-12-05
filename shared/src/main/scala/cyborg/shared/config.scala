@@ -16,8 +16,8 @@ object Setting {
       samplerate         = 10000,
       stimulusElectrodes = List(
         List(54, 55, 56, 57, 58, 59),
-        List(0,  1,  2,  3,  4,  5),
-        List(6,  14, 22, 30, 38, 46),
+        List(0,   1,  2,  3,  4,  5),
+        List(6,  14, 22,     38, 46),
       ).map(_.map(getMCSstimChannel)),
       segmentLength      = 1000
     )}

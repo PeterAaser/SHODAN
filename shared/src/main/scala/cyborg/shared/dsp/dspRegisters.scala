@@ -19,6 +19,8 @@ object DspRegisters {
 
   object RegisterSetList extends HasGenCodec[RegisterSetList] {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)
+
+    // value -> address
     def apply(r: (Int, Int)*): RegisterSetList = RegisterSetList(r.unzip._2.toList, r.unzip._1.toList)
   }
 
@@ -29,6 +31,16 @@ object DspRegisters {
   object RegisterReadResponse extends HasGenCodec[RegisterReadResponse] {
   }
 
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ///// HS1
+  val HS1_BASE           = (0x8000)
+  val BLANKING_EN1       = (HS1_BASE + 0x150)
+  val BLANKING_EN2       = (HS1_BASE + 0x154)
+
+  val BLANKING_PROT1     = (HS1_BASE + 0x140)
+  val BLANKING_PROT2     = (HS1_BASE + 0x144)
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////////////////////////////////////////
@@ -85,6 +97,17 @@ object DspRegisters {
   val STIM_REQ3_ACTIVE               = STIM_QUEUE_BASE + 0x84
   val STIM_REQ3_PERIOD               = STIM_QUEUE_BASE + 0x88
   val STIM_REQ3_NEXT_FIRING_TIMESTEP = STIM_QUEUE_BASE + 0x8C
+
+  val BLANKING_EN_ELECTRODES1 = (STIM_QUEUE_BASE + 0xA0)
+  val BLANKING_EN_ELECTRODES2 = (STIM_QUEUE_BASE + 0xA4)
+
+  val BLANK_PROT_EN_ELECTRODES1 = (STIM_QUEUE_BASE + 0xA8)
+  val BLANK_PROT_EN_ELECTRODES2 = (STIM_QUEUE_BASE + 0xAC)
+
+  val ELECTRODE_MODE_ARG1 = (STIM_QUEUE_BASE + 0xB0)
+  val ELECTRODE_MODE_ARG2 = (STIM_QUEUE_BASE + 0xB4)
+  val ELECTRODE_MODE_ARG3 = (STIM_QUEUE_BASE + 0xB8)
+  val ELECTRODE_MODE_ARG4 = (STIM_QUEUE_BASE + 0xBC)
 
 
   val LOG_START          = (0x1100)

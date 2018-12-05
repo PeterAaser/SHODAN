@@ -21,19 +21,22 @@ import HttpClient.DSP._
 object DspCalls {
 
 
-  val DUMP                            = 1
-  val RESET                           = 2
-  val CONFIGURE_ELECTRODE_GROUP       = 3
-  val SET_ELECTRODE_GROUP_MODE_MANUAL = 4
-  val SET_ELECTRODE_GROUP_MODE_AUTO   = 5
-  val COMMIT_CONFIG                   = 6
-  val START_STIM_QUEUE                = 7
-  val STOP_STIM_QUEUE                 = 8
-  val SET_ELECTRODE_GROUP_PERIOD      = 9
-  val ENABLE_STIM_GROUP               = 10
-  val DISABLE_STIM_GROUP              = 11
-  val COMMIT_CONFIG_DEBUG             = 12
-  val WRITE_SQ_DEBUG                  = 13
+  val DUMP                                 = 1
+  val RESET                                = 2
+  val CONFIGURE_ELECTRODE_GROUP            = 3
+  val SET_ELECTRODE_GROUP_MODE             = 4
+  /// mystery!
+  val COMMIT_CONFIG                        = 6
+  val START_STIM_QUEUE                     = 7
+  val STOP_STIM_QUEUE                      = 8
+  val SET_ELECTRODE_GROUP_PERIOD           = 9
+  val ENABLE_STIM_GROUP                    = 10
+  val DISABLE_STIM_GROUP                   = 11
+  val COMMIT_CONFIG_DEBUG                  = 12
+  val WRITE_SQ_DEBUG                       = 13
+  val SET_BLANKING                         = 14
+  val SET_BLANKING_PROTECTION              = 15
+
 
   implicit class FiniteDurationDSPext(t: FiniteDuration) {
     def toDSPticks = (t.toMicros/20).toInt
@@ -45,7 +48,6 @@ object DspCalls {
 
 
   def configureStimGroup(group: Int, electrodes: List[Int]) = {
-    val groupField = group
     val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
     val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
     for {
@@ -59,17 +61,28 @@ object DspCalls {
     } yield ()
   }
 
-  // hurr stringz
-  def setElectrodeModes(mode: String) = {
-    val callNumber =
-      if(mode == "manual")
-        SET_ELECTRODE_GROUP_MODE_MANUAL
-      else
-        SET_ELECTRODE_GROUP_MODE_AUTO
-    for {
-      _ <- dspCall(callNumber)
-      _ <- Fsay[IO](s"setting electrode mode to $mode (dsp call $callNumber)")
-    } yield ()
+
+  /**
+    Toggles electrode mode to auto for all listed electrodes.
+    An empty list signifies setting all electrodes to manual (0)
+    */
+  def setElectrodeModes(electrodes: List[Int]) = {
+    val elec0 = electrodes.filter(idx => (idx >= 0  && idx < 15)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel -  0) * 2)) }
+    val elec1 = electrodes.filter(idx => (idx >= 15 && idx < 30)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 15) * 2)) }
+    val elec2 = electrodes.filter(idx => (idx >= 30 && idx < 45)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 30) * 2)) }
+    val elec3 = electrodes.filter(idx => (idx >= 45 && idx < 60)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 45) * 2)) }
+
+    say("set elec mode payload is:")
+    say(s"elec0: ${elec0.asBinarySpaced}")
+    say(s"elec1: ${elec1.asBinarySpaced}")
+    say(s"elec2: ${elec2.asBinarySpaced}")
+    say(s"elec3: ${elec3.asBinarySpaced}")
+
+    dspCall(SET_ELECTRODE_GROUP_MODE,
+        elec0 -> ELECTRODE_MODE_ARG1,
+        elec1 -> ELECTRODE_MODE_ARG2,
+        elec2 -> ELECTRODE_MODE_ARG3,
+        elec3 -> ELECTRODE_MODE_ARG4)
   }
 
   val commitConfig = for {
@@ -123,11 +136,19 @@ object DspCalls {
     _ <- cyborg.dsp.DSP.flashDSP
     _ <- stopStimQueue
     _ <- resetStimQueue
-    _ <- uploadSquareTest(20.millis, 200)
-    _ <- setElectrodeModes("manual")
+
+    _ <- Fsay[IO](s"Configuring blanking & blanking protection")
+    _ <- setBlanking((0 to 59).toList)
+    _ <- setBlankingProtection((0 to 59).toList)
+
+    _ <- Fsay[IO](s"Uploading stimulus")
+    _ <- uploadSquareTest(10.millis, 200)
+
     _ <- cyborg.dsp.DSP.configureElectrodes(config)
     s <- readElectrodeConfig
     _ <- Fsay[IO](s"Reading debug config:\n$s")
+
+    _ <- Fsay[IO](s"Committing config, we're LIVE")
     _ <- commitConfig
     _ <- startStimQueue
   } yield ()
@@ -190,7 +211,7 @@ object DspCalls {
     dbg <- readRegistersRequest(
       RegisterReadList(
         List(
-          DEBUG1, 
+          DEBUG1,
           DEBUG2,
           DEBUG3,
           DEBUG4
@@ -256,6 +277,34 @@ object DspCalls {
     steps <- readRegistersRequest(RegisterReadList(List(STEP_COUNTER)))
     _ <- Fsay[IO](s"steps taken $steps")
   } yield ()
+
+
+  /**
+    Toggles blanking on supplied electrodes. If an empty list is passed
+    this is equivalent to untoggling blanking for all electrodes.
+    */
+  def setBlanking(electrodes: List[Int]): IO[Unit] = {
+    val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+    val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+
+    dspCall(SET_BLANKING,
+            elec0 -> BLANKING_EN_ELECTRODES1,
+            elec1 -> BLANKING_EN_ELECTRODES2)
+  }
+
+
+  /**
+    Toggles blanking on supplied electrodes. If an empty list is passed
+    this is equivalent to untoggling blanking for all electrodes.
+    */
+  def setBlankingProtection(electrodes: List[Int]): IO[Unit] = {
+    val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+    val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+
+    dspCall(SET_BLANKING_PROTECTION,
+            elec0 -> BLANK_PROT_EN_ELECTRODES1,
+            elec1 -> BLANK_PROT_EN_ELECTRODES2)
+  }
 
 
   def lookupErrorName(errorCode: Int): String = {

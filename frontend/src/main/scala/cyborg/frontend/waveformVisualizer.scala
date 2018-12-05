@@ -11,7 +11,7 @@ object waveformVisualizer {
   class WFVisualizerControl(canvas: html.Canvas,
                             dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
 
-  var maxVal = 40800
+    var maxVal = 1800
 
     import params.waveformVisualizer._
 
@@ -20,6 +20,18 @@ object waveformVisualizer {
 
     say(canvas.height)
     say(canvas.width)
+
+
+    canvas.onmousewheel = { (e: dom.WheelEvent) =>
+      if(e.deltaY < 0){
+        if(maxVal > 128)
+          maxVal = maxVal/2
+      }
+      if(e.deltaY > 0){
+        if(maxVal < 65536)
+          maxVal *= 2
+      }
+    }
 
     var testan = 0
 

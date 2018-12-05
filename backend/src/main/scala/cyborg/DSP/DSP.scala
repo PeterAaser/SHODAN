@@ -35,6 +35,12 @@ object DSP {
   /**
     Resets the device before configuring electrodes.
     Piecewise configuration is therefore not possible.
+
+    Enables electrodes, configures source DAC and sets stimulating
+    electrodes to auto mode.
+    Please don't ask questions about what the fuck auto mode does,
+    you'll never be able to understand the brilliant 5D chess of the
+    electro-engineers anyways.
     */
   def configureElectrodesManual(electrodes: List[List[Int]]): IO[Unit] = {
     for {
@@ -42,6 +48,7 @@ object DSP {
       _ <- DspCalls.configureStimGroup(0, electrodes.lift(0).getOrElse(Nil))
       _ <- DspCalls.configureStimGroup(1, electrodes.lift(1).getOrElse(Nil))
       _ <- DspCalls.configureStimGroup(2, electrodes.lift(2).getOrElse(Nil))
+      _ <- DspCalls.setElectrodeModes(electrodes.flatten)
     } yield ()
   }
 
@@ -52,8 +59,8 @@ object DSP {
   /**
     Should always be set to manual
     */
-  def setElectrodeMode(mode: String = "manual"): IO[Unit] =
-    DspCalls.setElectrodeModes(mode)
+  def setElectrodeMode(electrodes: List[Int]): IO[Unit] =
+    DspCalls.setElectrodeModes(electrodes)
 
   /**
     Creates a square wave with only high duty at 400 mV
@@ -68,5 +75,4 @@ object DSP {
     DspCalls.stimuliRequestSink(allowed)
 
   def flashDSP: IO[Unit] = HttpClient.DSP.flashDsp
-
 }
