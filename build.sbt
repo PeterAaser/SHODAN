@@ -25,6 +25,9 @@ inThisBuild(Seq(
   ),
 ))
 
+resolvers += Resolver.sonatypeRepo("releases")
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
+
 val TestAndCompileDep = "test->test;compile->compile"
 
 // Custom SBT tasks
@@ -76,7 +79,7 @@ lazy val shared = crossProject
   .jsSettings(commonJSSettings)
   .settings(
     libraryDependencies ++= Dependencies.crossDeps.value,
-    libraryDependencies ++= Dependencies.crossTestDeps.value
+    // libraryDependencies ++= Dependencies.crossTestDeps.value
   )
 
 lazy val sharedJVM = shared.jvm
