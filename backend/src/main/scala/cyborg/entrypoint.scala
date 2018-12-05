@@ -1,6 +1,6 @@
 package cyborg
 
-import fs2.async.mutable.Signal
+import fs2.async.mutable.{ Queue, Signal }
 import _root_.io.udash.rpc.ClientId
 import java.io.IOException
 import cats.implicits._
@@ -49,6 +49,7 @@ object staging {
     frontendAgentTopic : Topic[IO,Agent],
     state              : Signal[IO,ProgramState],
     getConf            : IO[Setting.FullSettings],
+    eventQueue         : Queue[IO,String],
     waveformListeners  : Ref[IO,List[ClientId]],
     agentListeners     : Ref[IO,List[ClientId]])(
     implicit ec        : EC) : IO[Sink[IO,UserCommand]] = {
@@ -111,7 +112,7 @@ object staging {
         if(start) {
           for {
             conf  <- getConf
-            agent <- Assemblers.assembleGA(topics, conf.filterSettings.inputChannels, frontendAgentTopic.publish, meameFeedbackSink, getConf)
+            agent <- Assemblers.assembleGA(topics, conf.filterSettings.inputChannels, frontendAgentTopic.publish, meameFeedbackSink, eventQueue, getConf)
             _     <- actions.modify(_.copy(stopAgent = agent.interrupt))
             _     <- agent.action
           } yield ()
@@ -124,12 +125,12 @@ object staging {
           } yield ()
       }
 
-      // tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {
-      //                                                                      say(z)
-      //                                                                      say(z.getStackTrace.toList.mkString("\n"))
-      //                                                                      throw z})
-      say("WARNING, AGENT IS COMMENTED OUT")
-      Stream.eval(IO.unit)
+      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {
+                                                                           say(z)
+                                                                           say(z.getStackTrace.toList.mkString("\n"))
+                                                                           throw z})
+      // say("WARNING, AGENT IS COMMENTED OUT")
+      // Stream.eval(IO.unit)
     }
 
 

@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect._
 import fs2._
 import fs2.Stream._
+import fs2.async.mutable.Queue
 import wallAvoid._
 import utilz._
 import Filters._
@@ -62,7 +63,7 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
     This is the genetic algorithm. As per spec it must emit a default, initial element.
     Internally it keeps a store of pipe generators (one generation).
     */
-  def filterGenerator: Pipe[IO, Double, Pipe[IO, ReservoirOutput, Option[FilterOutput]]] = {
+  def filterGenerator(filterLogger: Queue[IO,String]): Pipe[IO, Double, Pipe[IO, ReservoirOutput, Option[FilterOutput]]] = {
 
     def init(s: Stream[IO,Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
       val initNetworks = (0 until pipesPerGeneration)
@@ -70,6 +71,7 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
         .toList
 
       say(s"Outputting $pipesPerGeneration pipes")
+      Pull.eval(filterLogger.enqueue1(initNetworks.mkString("\n","\n","\n"))) >>
       Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))).toSegment) >> go(initNetworks, s)
     }
 
@@ -81,6 +83,7 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
           val scoredPipes = ScoredSeq(segment.force.toList.zip(previous).toVector)
           val nextPop = generate(scoredPipes)
           val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))
+          Pull.eval(filterLogger.enqueue1(nextPop.mkString("\n","\n","\n"))) >>
           Pull.output(Chunk.seq(nextPipes).toSegment) >> go(nextPop,tl)
         }
         case None => {
@@ -130,7 +133,7 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
   }
 
 
-  def gaPipe(implicit ec: EC) = Feedback.experimentPipe(createSimRunner, evaluator, filterGenerator)
+  def gaPipe(filterLogger: Queue[IO,String])(implicit ec: EC) = Feedback.experimentPipe(createSimRunner, evaluator, filterGenerator(filterLogger))
 
 }
 

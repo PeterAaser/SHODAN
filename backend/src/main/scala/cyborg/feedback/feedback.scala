@@ -31,7 +31,7 @@ object Feedback {
   def experimentPipe[F[_], ReservoirOutput, FilterOutput, O](
     createSimRunner: () => Pipe[F, FilterOutput, O], // resettable
     evaluator:             Pipe[F, O, Double],
-    filterGenerator:       Pipe[F, Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]]
+    filterGenerator:       Pipe[F, Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]],
   )(implicit ec: ExecutionContext, eff: Effect[F]): Pipe[F, ReservoirOutput, O] = { inStream =>
 
     type Filter = Pipe[F, ReservoirOutput, Option[FilterOutput]]
@@ -87,7 +87,9 @@ object Feedback {
       evalSink        = (in: Stream[F,Double]) => in.through(evaluationQueue.enqueue)
       generateFilters = evaluationQueue.dequeue.through(filterGenerator).through(filterQueue.enqueue)
 
-      output          <- loop(filterQueue, inputQueue, evalSink).concurrently(enqueueInput).concurrently(generateFilters)
+      output          <- loop(filterQueue, inputQueue, evalSink)
+                           .concurrently(enqueueInput)
+                           .concurrently(generateFilters)
 
     } yield (output)
   }

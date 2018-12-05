@@ -110,11 +110,20 @@ object fileIO {
   /**
     Writes events to a file
     */
-  def eventWriter[F[_]: Effect]: Path => Sink[F,String] = { path =>
+  def timestampedEventWriter[F[_]: Effect](implicit ev: Timer[F]): Path => Sink[F,String] = { path =>
     val eventPath = Paths.get(path.toString() + "_events")
     s => s
+      .through(timeStamp)
       .through(text.utf8Encode)
       .through(fs2.io.file.writeAll(eventPath))
+  }
+
+  /**
+    Attaches an eventWriter to a stream
+    */
+  def attachEventWriter[F[_]: Effect : Timer, O](writer: Sink[F,String], serialize: O => String)(implicit ec: EC): Pipe[F,O,O] = {
+    val writeSink: Sink[F,O] = s => s.through(_.map(serialize)).through(writer)
+    s => s.observeAsync(100)(writeSink)
   }
 
 

@@ -725,14 +725,12 @@ object utilz {
   }
 
 
-
   def indexTupler[F[_],I]: Pipe[F,Seq[I],(I,Int)] =
     _.through(_.map(_.zipWithIndex)).through(chunkify)
 
 
   def timeStamp[F[_]: Functor](implicit ev: Timer[F]): Pipe[F,String,String] = {
     val getTime = ev.clockMonotonic(MILLISECONDS)
-    _.evalMap(s => getTime.map(time => time + ":" + s))
+    _.evalMap(s => getTime.map(time => time + ":" + s + "\n"))
   }
-
 }

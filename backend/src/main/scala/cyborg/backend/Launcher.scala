@@ -6,6 +6,8 @@ import scala.concurrent.duration._
 import cyborg._
 import utilz._
 import cats.effect._
+import fs2._
+import backendImplicits._
 
 import cyborg.dsp.calls.DspCalls._
 
@@ -30,7 +32,13 @@ object Launcher {
     // } yield ()
     // hurr.unsafeRunSync()
 
-
     Assemblers.startSHODAN.compile.drain.unsafeRunSync()
+
+    // val hurr = Stream("hello, ", "world, ", "this ", "is ", "a ", "test.").repeat.take(20)
+    //   .covary[IO]
+    //   .through(throttlerPipe[IO,String](1, 1.second))
+    //   .through(timeStamp)
+    //   .through(_.map{x => say(x); x})
+    //   .compile.drain.unsafeRunSync()
   }
 }
