@@ -1,11 +1,11 @@
 package cyborg
 
+import cats.effect.Concurrent
 import fs2._
 import fs2.Stream._
 
 import cats.effect.Effect
-import fs2.async.mutable.Queue
-import scala.concurrent.ExecutionContext
+import fs2.concurrent.Queue
 
 import utilz._
 import scala.concurrent.duration._
@@ -28,11 +28,11 @@ object Feedback {
     This pipe MUST emit a default pipe!!
 
     */
-  def experimentPipe[F[_], ReservoirOutput, FilterOutput, O](
+  def experimentPipe[F[_]: Concurrent, ReservoirOutput, FilterOutput, O](
     createSimRunner: () => Pipe[F, FilterOutput, O], // resettable
     evaluator:             Pipe[F, O, Double],
     filterGenerator:       Pipe[F, Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]],
-  )(implicit ec: ExecutionContext, eff: Effect[F]): Pipe[F, ReservoirOutput, O] = { inStream =>
+    ): Pipe[F, ReservoirOutput, O] = { inStream =>
 
     type Filter = Pipe[F, ReservoirOutput, Option[FilterOutput]]
 
@@ -46,8 +46,7 @@ object Feedback {
 
       This pipe should terminate after running its course
       */
-    def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double])(implicit ec: EC): Pipe[F, ReservoirOutput, O] = {
-      // say("assembling an evaluator!")
+    def assembleEvaluator(filter: Filter, evalSink: Sink[F,Double]): Pipe[F, ReservoirOutput, O] = {
       reservoirData =>
       reservoirData.through(filter).unNoneTerminate
         .through( createSimRunner() )
@@ -79,9 +78,9 @@ object Feedback {
 
     for {
 
-      inputQueue      <- Stream.eval(fs2.async.boundedQueue[F,ReservoirOutput](100000))
-      evaluationQueue <- Stream.eval(fs2.async.boundedQueue[F,Double](100))
-      filterQueue     <- Stream.eval(fs2.async.boundedQueue[F,Filter](10))
+      inputQueue      <- Stream.eval(fs2.concurrent.Queue.bounded[F,ReservoirOutput](100000))
+      evaluationQueue <- Stream.eval(fs2.concurrent.Queue.bounded[F,Double](100))
+      filterQueue     <- Stream.eval(fs2.concurrent.Queue.bounded[F,Filter](10))
 
       enqueueInput    = inStream.through(inputQueue.enqueue)
       evalSink        = (in: Stream[F,Double]) => in.through(evaluationQueue.enqueue)

@@ -1,25 +1,25 @@
 package cyborg.io.network
+import cats._
+import cats.implicits._
+import cats.effect._
 import cyborg._
 
-import cats.effect.{ Effect, IO }
 import fs2._
 import fs2.Stream._
-import fs2.async.mutable.Topic
+import fs2.concurrent.Topic
 import fs2.io.tcp._
 
 import java.net.InetSocketAddress
 
-import java.net.InetSocketAddress
-import scala.concurrent.ExecutionContext
 
 import scala.language.higherKinds
 
 import utilz._
+import backendImplicits._
+import params.TCP._
 
 object networkIO {
 
-  import backendImplicits._
-  import params.TCP._
 
   val reuseAddress = true
   val keepAlive = true
@@ -31,7 +31,7 @@ object networkIO {
 
   val maxQueued = 3
 
-  def socketStream[F[_]: Effect](port: Int)(implicit ec: EC): Stream[F, Socket[F]] =
+  def socketStream[F[_]: ConcurrentEffect : ContextShift](port: Int): Resource[F, Socket[F]] =
     client(
       new InetSocketAddress(ip, port),
       reuseAddress,
@@ -42,28 +42,28 @@ object networkIO {
 
 
 
-  def streamAllChannels[F[_]: Effect](implicit ec: EC): Stream[F, Int] = {
-    say(s"streaming from IP: $ip, port: $port")
-    socketStream[F](port) flatMap { socket =>
+  def streamAllChannels[F[_]: ConcurrentEffect : ContextShift]: Stream[F, Int] = {
+    Stream.resource(socketStream[F](port)) flatMap { socket =>
       socket.reads(1024*1024).through(utilz.bytesToInts(params.TCP.format))
     }
   }
 
 
-  def channelServer[F[_]: Effect](topics: List[Topic[F,TaggedSegment]])(implicit ec: EC): Stream[F,F[Unit]] = {
+  /**
+    Untested crashy ghetto shit
+    */
+  def channelServer[F[_]: ConcurrentEffect : ContextShift](topics: List[Topic[F,TaggedSegment]]): Stream[F,F[Unit]] = {
     def hoseData(socket: Socket[F]): F[Unit] = {
       socket.reads(16, None)
         .through(_.map(_.toInt)).flatMap { channel =>
-          say(s"$channel")
           topics(channel).subscribe(100)
-            .through{
-              _.map{ d =>
-                val bb = java.nio.ByteBuffer.allocate(d.data.length*4)
-                for(ii <- 0 until d.data.length){
-                  bb.putInt(d.data(ii))
-                }
-                bb.array().toVector
-              }}
+            .map{ d =>
+              val bb = java.nio.ByteBuffer.allocate(d.data.size*4)
+              for(ii <- 0 until d.data.size){
+                bb.putInt(d.data(ii))
+              }
+              Chunk.seq(bb.array())
+            }
             .through(chunkify)
             .through(socket.writes(None))
         }.compile.drain
@@ -72,7 +72,7 @@ object networkIO {
     server(new InetSocketAddress("0.0.0.0", hosePort)).flatMap {
       say("opening server")
       sockets => {
-        sockets.map{ socket =>
+        Stream.resource(sockets).map{ socket =>
           say(s"got a socket")
           hoseData(socket)
         }

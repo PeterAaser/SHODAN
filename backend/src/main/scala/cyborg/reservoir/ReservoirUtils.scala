@@ -2,7 +2,7 @@ package cyborg
 
 import scala.concurrent.duration._
 import fs2._
-import fs2.async.mutable.Signal
+import fs2.concurrent.Signal
 import cats.effect._
 import backendImplicits._
 import RBN._
@@ -40,7 +40,7 @@ object RBNUtils {
     * Continuously output an RBN, changing as its signal is updated
     * from elsewhere.
     */
-  def outputRBNNodeState[F[_]: Effect](rbn: RBN, node: Node, samplerate: Int,
+  def outputRBNNodeState[F[_]: Concurrent : Timer](rbn: RBN, node: Node, samplerate: Int,
     resolution: FiniteDuration = 0.05.second, throttle: Boolean = true)
       : Stream[F, Int] = {
     rbn.outputNodeState(node, samplerate, throttle = throttle).take(samplerate) ++

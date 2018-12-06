@@ -1,12 +1,14 @@
 package cyborg
 
+import cats.data.Chain
 import cats.effect._
 import cats._
+import cats.effect.concurrent.Ref
 import cats.syntax._
 import cats.implicits._
 import fs2._
-import fs2.async.Ref
-import fs2.async.mutable.{ Queue, Signal }
+import cats.effect.{ Async, Concurrent, Effect, Sync, Timer }
+import fs2.concurrent.{ InspectableQueue, Queue, Signal }
 import fs2.io.tcp.Socket
 import java.net.InetSocketAddress
 import org.http4s._
@@ -157,10 +159,7 @@ object mockDSP {
 
 
   def startDSP(
-    msgQueue: Queue[IO, HttpClient.DspFuncCall],
-    resolution: FiniteDuration)(implicit ec: EC)
-      : Stream[IO,Event] =
-  {
+    messages: Ref[IO, Chain[HttpClient.DspFuncCall]], resolution: FiniteDuration): Stream[IO,Event] = {
 
     import backendImplicits._
     import cyborg.dsp.calls.DspCalls.FiniteDurationDSPext
@@ -169,29 +168,22 @@ object mockDSP {
       For hvert tick, kjør dsp emulatoren en gang
       Før kjøring hentes nye oppdateringer fra msg kø
       */
-    def go(tickSource: Stream[IO, Unit], dsp: DSPstate, messageQueue: Queue[IO, DspFuncCall]): Pull[IO, Event, Unit] = {
+    def go(tickSource: Stream[IO, Unit], dsp: DSPstate): Pull[IO, Event, Unit] = {
       tickSource.pull.uncons1.flatMap {
         case Some((_, tl)) => {
-          Pull.eval(messageQueue.size.get) flatMap { num =>
-            Pull.eval(messageQueue.timedDequeueBatch1(num, 100.millis, backendImplicits.Sch)) flatMap {
-              case Some(funcCalls) => {
-                val updatedDsp: DSPstate = funcCalls.foldLeft(dsp){ case(dsp, call) =>
-                  decodeDspCall(call)(dsp)
-                }
-                val (msg, next) = DSPstate.runTicks(updatedDsp, resolution.toDSPticks)
-                Pull.outputChunk(Chunk.seq(msg)) >> go(tl, next, messageQueue)
-              }
-              case None => {
-                val (msg, next) = DSPstate.runTicks(dsp, resolution.toDSPticks)
-                Pull.outputChunk(Chunk.seq(msg)) >> go(tl, next, messageQueue)
-              }
+          Pull.eval(messages.getAndSet(Chain.nil)) flatMap { funcCalls =>
+            val updatedDsp: DSPstate = funcCalls.foldLeft(dsp){ case(dsp, call) =>
+              decodeDspCall(call)(dsp)
             }
+            val (msg, next) = DSPstate.runTicks(updatedDsp, resolution.toDSPticks)
+            Pull.output(Chunk.seq(msg)) >> go(tl, next)
           }
         }
+        case None => Pull.done
       }
     }
 
-    val tickSource = Sch.fixedRate[IO](resolution)
-    go(tickSource, DSPstate.init, msgQueue).stream
+    val tickSource = Stream.fixedRate(resolution)
+    go(tickSource, DSPstate.init).stream
   }
 }

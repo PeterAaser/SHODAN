@@ -259,3 +259,12 @@
    [[file:img/blank/good2.png]]
   
    Only the two top rows are active, the lower half is for STG 2 in a 120 electrode setup
+   
+   From MCS MEA2100 manual(?)
+   Blanking disconnects all electrodes for a short period of time during the stimulation pulse, to reduce stimulation artefacts. 
+   Dedicated Stimulation electrodes will permanently connect the selected stimulation electrodes to the respective 
+   stimulator units, instead of switching back and forth between recording and stimulation
+
+   This will decrease artefacts even more, but the stimulation electrodes are lost for recording. With this function
+   activated the stimulation electrodes will show an increased noise level and no signals whatsoever. 
+   

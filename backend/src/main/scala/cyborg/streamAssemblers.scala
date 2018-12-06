@@ -1,17 +1,18 @@
 package cyborg
 
-import cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.{ Queue, Signal }
-import fs2.async.mutable.Topic
+import fs2.concurrent.{ Queue, Signal, SignallingRef, Topic }
+import cats.effect.implicits._
+import cats.effect.Timer
+import cats.effect.concurrent.{ Ref }
+
+import cyborg.wallAvoid.Agent
 import _root_.io.udash.rpc.ClientId
 import java.nio.file.Paths
 import org.joda.time.Seconds
 import scala.language.higherKinds
 import cats.effect.IO
 import cats.effect._
-import fs2.async._
-import fs2.async.mutable.Topic
 import cats.implicits._
 
 import cyborg.backend.server.ApplicationServer
@@ -21,8 +22,6 @@ import cyborg.utilz._
 import scala.concurrent.duration._
 
 import backendImplicits._
-import cats.effect.implicits._
-import cats.effect.Timer
 
 object Assemblers {
 
@@ -43,24 +42,25 @@ object Assemblers {
       _.through(PerturbationTransform.toStimReq())
         .to(cyborg.dsp.DSP.stimuliRequestSink())
 
+
     for {
       conf              <- Stream.eval(assembleConfig)
       getConf           =  conf.get
       staleConf         <- Stream.eval(conf.get)
-      mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
-      mockEvents        =  mock._2
+      // mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
+      // mockEvents        =  mock._2
       _                 <- Ssay[IO]("mock server up")
-      state             <- Stream.eval(signalOf[IO,ProgramState](ProgramState()))
+      state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
 
-      eventQueue        <- Stream.eval(fs2.async.unboundedQueue[IO,String])
+      eventQueue        <- Stream.eval(Queue.unbounded[IO,String])
 
-      commandQueue      <- Stream.eval(fs2.async.unboundedQueue[IO,UserCommand])
-      agentTopic        <- Stream.eval(fs2.async.topic[IO, Agent](Agent.init))
-      topics            <- assembleTopics.through(vectorizeList(60))
-      taggedSeqTopic    <- Stream.eval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1, Vector[Int]())))
+      commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
+      agentTopic        <- Stream.eval(Topic[IO, Agent](Agent.init))
+      topics            <- assembleTopics.chunkN(60,false)
+      taggedSeqTopic    <- Stream.eval(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]())))
 
-      waveformListeners <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
-      agentListeners    <- Stream.eval(fs2.async.Ref[IO,List[ClientId]](List[ClientId]()))
+      waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
+      agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
 
       _                 <- Ssay[IO]("Starting DSP...")
       _                 <- Stream.eval(cyborg.dsp.DSP.setup(staleConf.experimentSettings))
@@ -77,7 +77,7 @@ object Assemblers {
 
 
       commandPipe       <- Stream.eval(staging.commandPipe(
-                                      topics,
+                                      topics.toList,
                                       taggedSeqTopic,
                                       meameFeedbackSink,
                                       agentTopic,
@@ -93,7 +93,7 @@ object Assemblers {
       _                 <- Ssay[IO]("All systems go")
       _                 <- commandQueue.dequeue.through(commandPipe)
                              .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
-                             .concurrently(mockEvents.through(logEveryNth(1, (x: mockDSP.Event) => s"DSP event $x")).drain)
+                             .concurrently(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port))
                              .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
                              .concurrently(eventQueue.dequeue.through(hurr))
 
@@ -137,7 +137,7 @@ object Assemblers {
     topics      : List[Topic[IO,TaggedSegment]],
     rawSink     : Sink[IO,TaggedSegment])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
 
-    val interrupted = signalOf[IO,Boolean](false)
+    val interrupted = SignallingRef[IO,Boolean](false)
 
     def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
@@ -175,7 +175,7 @@ object Assemblers {
 
 
   def assembleTopics(implicit ec: EC): Stream[IO,Topic[IO,TaggedSegment]] =
-    Stream.repeatEval(fs2.async.topic[IO,TaggedSegment](TaggedSegment(-1,Vector[Int]())))
+    Stream.repeatEval(Topic[IO,TaggedSegment](TaggedSegment(-1,Chunk[Int]())))
 
 
   /**
@@ -199,7 +199,7 @@ object Assemblers {
 
       val experimentPipe: Pipe[IO, Vector[Double], Agent] = gaRunner.gaPipe(eventLogger)
 
-      signalOf[IO,Boolean](false).map { interruptSignal =>
+      SignallingRef[IO,Boolean](false).map { interruptSignal =>
         val interruptTask = for {
           _ <- interruptSignal.set(true)
         } yield ()
@@ -224,9 +224,5 @@ object Assemblers {
 
 
   def assembleConfig(implicit ec: EC): IO[Signal[IO, FullSettings]] =
-    fs2.async.signalOf[IO,FullSettings](FullSettings.default)
-
-
-  def assembleMcsFileReader(implicit ec: EC): Stream[IO, Unit] =
-   cyborg.io.files.mcsParser.processRecordings
+    SignallingRef[IO,FullSettings](FullSettings.default)
 }

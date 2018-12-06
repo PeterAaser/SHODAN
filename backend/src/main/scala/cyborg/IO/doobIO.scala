@@ -1,7 +1,6 @@
 package cyborg.io.database
 import cyborg._
 
-import cats.effect.IO
 import doobie.imports._
 import doobie.postgres.imports._
 import org.joda.time._
@@ -27,8 +26,6 @@ object DoobieQueries {
   case object DataRecording { def apply(rpath: String, rtype: String): DataRecording = DataRecording(Paths.get(rpath), parseResourceType(rtype)) }
 
   case class ExperimentParams(id: Int, samplerate: Int, segmentLength: Int)
-
-  import yo.y._
 
   def checkQuery[A](q: Query0[A]): Unit = ()
   // def checkQuery[A](q: Query0[A]): Unit = q.check.unsafeRunSync()
@@ -123,8 +120,6 @@ object DoobieQueries {
       WHERE id = $id
     """
 
-    say("check")
-    q.update.check.unsafeRunSync()
     q.update.run
   }
 
@@ -151,7 +146,7 @@ object DoobieQueries {
   }
 
 
-  def getExperimentsByMEA(MEAid: Int): Stream[IO, Int] = {
+  def getExperimentsByMEA[F[_]](MEAid: Int): Stream[F, Int] = {
     say("warning, calling NYI method, might clog")
     ???
   }
@@ -185,12 +180,12 @@ object DoobieQueries {
 
   def getAllExperiments(): ConnectionIO[List[Int]] =
     sql"SELECT id FROM experimentInfo"
-      .query[Int].list
+      .query[Int].to[List]
 
 
   def getAllExperimentUris(): ConnectionIO[List[Path]] =
     sql"SELECT resourcePath from dataRecording"
-      .query[String].list
+      .query[String].to[List]
       .map(_.map(Paths.get(_)))
 
 
@@ -199,12 +194,13 @@ object DoobieQueries {
   import org.joda.time.{ DateTime, Instant }
 
 
-  implicit val InstantMeta: Meta[Instant] = Meta[Timestamp].nxmap(
+  // TODO just moved nxmap to xmap. YOLO
+  implicit val InstantMeta: Meta[Instant] = Meta[Timestamp].xmap(
     (t: Timestamp) => new Instant(t.getTime),
     (i: Instant) => new Timestamp(i.getMillis)
   )
 
-  implicit val DateTimeMeta: Meta[DateTime] = Meta[Timestamp].nxmap(
+  implicit val DateTimeMeta: Meta[DateTime] = Meta[Timestamp].xmap(
     (t: Timestamp) => new DateTime(t.getTime),
     (d: DateTime) => new Timestamp(d.getMillis)
   )
@@ -219,19 +215,6 @@ object DoobieQueries {
                             AND ${interval.getEnd()})
       """.query[Int]
 
-    q.list
+    q.to[List]
   }
-}
-
-
-object yo {
-  val superdupersecretPassword = "memes"
-
-  val xa = Transactor.fromDriverManager[IO](
-    "org.postgresql.Driver",
-    "jdbc:postgresql:memestorage",
-    "postgres",
-    s"$superdupersecretPassword"
-  )
-  val y = xa.yolo
 }

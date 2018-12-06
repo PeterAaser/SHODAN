@@ -1,6 +1,9 @@
 package cyborg
 
-import fs2.async.mutable.{ Queue, Signal }
+import cats.effect.concurrent.Deferred
+import fs2.concurrent.{ Queue, Signal, Topic, SignallingRef }
+import cats.effect.concurrent.{ Ref }
+
 import _root_.io.udash.rpc.ClientId
 import java.io.IOException
 import cats.implicits._
@@ -8,8 +11,6 @@ import cats.implicits._
 import RPCmessages._
 import cyborg.wallAvoid.Agent
 import fs2._
-import fs2.async.mutable.Topic
-import fs2.async._
 
 import cats.effect.IO
 import cats.effect._
@@ -23,6 +24,7 @@ import sIO.DB._
 import sIO.File._
 import sIO.Network._
 
+import backendImplicits._
 
 object staging {
 
@@ -33,8 +35,8 @@ object staging {
     stopData        : IO[Unit] = IO.unit,
   )
 
-  type Actions = Signal[IO, ProgramActions]
-  type State = Signal[IO, ProgramState]
+  type Actions = SignallingRef[IO, ProgramActions]
+  type State = SignallingRef[IO, ProgramState]
 
   import cats.kernel.Eq
   implicit val eqPS: Eq[ProgramState] = Eq.fromUniversalEquals
@@ -47,21 +49,20 @@ object staging {
     rawDataTopic       : Topic[IO,TaggedSegment],
     meameFeedbackSink  : Sink[IO,List[Double]],
     frontendAgentTopic : Topic[IO,Agent],
-    state              : Signal[IO,ProgramState],
+    state              : SignallingRef[IO,ProgramState],
     getConf            : IO[Setting.FullSettings],
     eventQueue         : Queue[IO,String],
     waveformListeners  : Ref[IO,List[ClientId]],
-    agentListeners     : Ref[IO,List[ClientId]])(
-    implicit ec        : EC) : IO[Sink[IO,UserCommand]] = {
+    agentListeners     : Ref[IO,List[ClientId]]) : IO[Sink[IO,UserCommand]] = {
 
-    def handleMEAMEstateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handleMEAMEstateChange(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.meameRunning)).changes.tail map { start =>
         say(s"handle meame state change with new state $start")
         if(start) {
           HttpClient.startMEAMEserver(getConf).attempt flatMap{ e =>
             e match {
               case Left(_) => for {
-                _         <- state.modify(_.copy( meameRunning = false))
+                _         <- state.update(_.copy( meameRunning = false))
                 _         <- IO { say("MEAME not responding") }
               } yield ()
 
@@ -70,8 +71,8 @@ object staging {
                 conf      <- getConf
                 tcp       =  streamFromTCP(conf.experimentSettings.segmentLength)
                 broadcast <- Assemblers.broadcastDataStream(tcp, topics, rawDataTopic.publish)
-                _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
-                _         <- state.modify(_.copy(dbRecording = false))
+                _         <- actions.update(_.copy(stopData = broadcast.interrupt))
+                _         <- state.update(_.copy(dbRecording = false))
                 _         <- broadcast.action
               } yield ()
             }
@@ -80,40 +81,40 @@ object staging {
         else for {
           a         <- actions.get
           _         <- a.stopData
-          _         <- actions.modify(_.copy(stopData = IO {say("Running no-op stop data from handle MEAME state change")}))
+          _         <- actions.update(_.copy(stopData = IO {say("Running no-op stop data from handle MEAME state change")}))
         } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
-    def handleRecordingStateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handleRecordingStateChange(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.dbRecording)).changes.tail map { start =>
         say(s"handle recording state change with new state $start")
         if(start) for {
           record <- streamToDatabase(rawDataTopic.subscribe(10000), "", getConf)
-          _      <- actions.modify(_.copy(stopRecording = record.interrupt))
+          _      <- actions.update(_.copy(stopRecording = record.interrupt))
           _      <- record.action
         } yield ()
         else for {
           a      <- actions.get
           _      <- a.stopRecording
-          _      <- actions.modify(_.copy(stopRecording = IO { say("Running no op action stop recording from handle recording state change")} ))
+          _      <- actions.update(_.copy(stopRecording = IO { say("Running no op action stop recording from handle recording state change")} ))
         } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
 
-    def handleAgentStateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handleAgentStateChange(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.agentRunning)).changes.tail map { start =>
         say(s"handle agent state change with new state $start")
         if(start) {
           for {
             conf  <- getConf
             agent <- Assemblers.assembleGA(topics, conf.filterSettings.inputChannels, frontendAgentTopic.publish, meameFeedbackSink, eventQueue, getConf)
-            _     <- actions.modify(_.copy(stopAgent = agent.interrupt))
+            _     <- actions.update(_.copy(stopAgent = agent.interrupt))
             _     <- agent.action
           } yield ()
         }
@@ -121,11 +122,11 @@ object staging {
           for {
             a     <- actions.get
             _     <- a.stopRecording
-            _     <- actions.modify(_.copy(stopAgent = IO { say("Running no-op handle stopAgent from handle agent state change") } ))
+            _     <- actions.update(_.copy(stopAgent = IO { say("Running no-op handle stopAgent from handle agent state change") } ))
           } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {
                                                                            say(z)
                                                                            say(z.getStackTrace.toList.mkString("\n"))
                                                                            throw z})
@@ -137,24 +138,24 @@ object staging {
     /**
       When playback is requested the broadcaster transmits data from a file.
       */
-    def handlePlaybackStateChange(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handlePlaybackStateChange(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(z => (z.playbackId, z.playbackRunning))).changes.tail map { case(id, start) =>
         if(start) for {
           _         <- IO.unit
           data      =  streamFromDatabaseThrottled(id)
           broadcast <- Assemblers.broadcastDataStream(data, topics, rawDataTopic.publish)
-          _         <- actions.modify(_.copy(stopData = broadcast.interrupt))
-          _         <- state.modify(_.copy(dbRecording = false))
+          _         <- actions.update(_.copy(stopData = broadcast.interrupt))
+          _         <- state.update(_.copy(dbRecording = false))
           _         <- broadcast.action
         } yield ()
         else for {
           a <- actions.get
           _ <- a.stopData
-          _ <- actions.modify(_.copy(stopData = IO { say("Running no-op handle stopData from handle playback state change") }))
+          _ <- actions.update(_.copy(stopData = IO { say("Running no-op handle stopData from handle playback state change") }))
         } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
 
@@ -162,7 +163,7 @@ object staging {
       Create and populate frontend viz
       */
     // TODO: I would like this to not be its own method, but it will do for now.
-    def handleFrontendVisualizer(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handleFrontendVisualizer(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.playbackRunning))).changes.tail map { case(a, b) =>
         if(a || b) for {
           _         <- configureAndAttachFrontendWFSink(getConf, waveformListeners, rawDataTopic.subscribe(10))
@@ -172,12 +173,12 @@ object staging {
         } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
 
     // TODO: See above
-    def handleFrontendAgentVisualizer(state: State, actions: Actions)(implicit ec: EC): Stream[IO,Unit] = {
+    def handleFrontendAgentVisualizer(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.agentRunning))).changes.tail map { case(a, b) =>
         if(a || b) for {
           _         <- configureAndAttachFrontendAgentSink(getConf, agentListeners, frontendAgentTopic.subscribe(10))
@@ -187,39 +188,40 @@ object staging {
         } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).joinUnbounded.handleErrorWith(z => {say(z); throw z})
+      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {say(z); throw z})
     }
 
 
 
-    def doTheThing(stopSignal: Signal[IO,Boolean], action: Signal[IO,ProgramActions]): Pipe[IO,UserCommand,IO[Unit]] = _.map{ c =>
+    def doTheThing(stopSignal: Signal[IO,Boolean], action: SignallingRef[IO,ProgramActions]): Pipe[IO,UserCommand,IO[Unit]] = _.map{ c =>
       say(s"got action token guy named $c")
       c match {
         case StartMEAME =>
-          state.modify( _.copy( meameRunning = true )).void
+          state.update( _.copy( meameRunning = true )).void
 
         case StopMEAME =>
-          state.modify( _.copy( meameRunning = false )).void
+          state.update( _.copy( meameRunning = false )).void
 
         case DBstartRecord =>
-          state.modify( _.copy( dbRecording = true )).void
+          state.update( _.copy( dbRecording = true )).void
 
         case DBstopRecord =>
-          state.modify( _.copy( dbRecording = false )).void
+          state.update( _.copy( dbRecording = false )).void
 
         case RunFromDB(recording) =>
-          state.modify( _.copy( playbackRunning = true,
+          state.update( _.copy( playbackRunning = true,
                                 playbackId      = recording.id )).void
 
         case StopData =>
-          state.modify( _.copy( playbackRunning = false,
+          state.update( _.copy( playbackRunning = false,
                                 meameRunning    = false )).void
 
         case AgentStart =>
-          state.modify(s => s.copy( agentRunning = true )).void
+          state.update(s => s.copy( agentRunning = true )).void
 
-        case GetSHODANstate(p) => handleGetSHODANstate(p)
-        case GetRecordings(p) => handleGetRecordings(p)
+          // TODO: add back in!!!
+        // case GetSHODANstate(p) => handleGetSHODANstate(p)
+        // case GetRecordings(p) => handleGetRecordings(p)
 
         case DspBarf =>
           DspLog.printDspLog
@@ -236,10 +238,10 @@ object staging {
 
 
     for {
-      stopSignal  <- signalOf[IO,Boolean](false)
-      actions     <- signalOf[IO,ProgramActions](ProgramActions())
+      stopSignal  <- SignallingRef[IO,Boolean](false)
+      actions     <- SignallingRef[IO,ProgramActions](ProgramActions())
     } yield { _.through(doTheThing(stopSignal, actions))
-               .map(Stream.eval).joinUnbounded
+               .map(Stream.eval).parJoinUnbounded
                .concurrently(handleMEAMEstateChange(state,actions))
                .concurrently(handleRecordingStateChange(state,actions))
                .concurrently(handleAgentStateChange(state,actions))
@@ -254,7 +256,7 @@ object staging {
   def configureAndAttachFrontendWFSink(
     getConf              : IO[Setting.FullSettings],
     getWaveformListeners : Ref[IO,List[ClientId]],
-    rawStream            : Stream[IO,TaggedSegment])(implicit ec : EC) : IO[Unit] = {
+    rawStream            : Stream[IO,TaggedSegment]) : IO[Unit] = {
 
     import cyborg.backend.server.ApplicationServer
     val t = for {
@@ -270,7 +272,7 @@ object staging {
   def configureAndAttachFrontendAgentSink(
     getConf              : IO[Setting.FullSettings],
     getAgentListeners    : Ref[IO,List[ClientId]],
-    agentStream          : Stream[IO,Agent])(implicit ec : EC) : IO[Unit] = {
+    agentStream          : Stream[IO,Agent]) : IO[Unit] = {
 
     import cyborg.backend.server.ApplicationServer
     val t = for {
@@ -283,7 +285,7 @@ object staging {
 
 
   // TODO: figure out how to idiomatically handle this stuff
-  def handleGetSHODANstate(p: Promise[IO,EquipmentState]): IO[Unit] = {
+  def handleGetSHODANstate(p: Deferred[IO,EquipmentState]): IO[Unit] = {
     def accumulateError(errors: Either[List[EquipmentFailure], Unit])(error: Option[EquipmentFailure]): Either[List[EquipmentFailure], Unit] = {
       error match {
         case Some(err) => errors match {
@@ -312,7 +314,7 @@ object staging {
   }
 
 
-  def handleGetRecordings(p: Promise[IO,List[RecordingInfo]])(implicit ec: EC): IO[Unit] = for {
+  def handleGetRecordings(p: Deferred[IO,List[RecordingInfo]]): IO[Unit] = for {
     experiments <- getAllExperiments
     _ <- p.complete(experiments)
   } yield ()

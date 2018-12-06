@@ -6,8 +6,8 @@ package cyborg.backend.rpc
 ////////////////////////////////////////
 
 import cyborg.wallAvoid.Coord
-import fs2.async.Ref
-import fs2.async.mutable.Signal
+import cats.effect.concurrent.{ Ref, Deferred }
+import fs2.concurrent.{ Signal, Queue, Topic }
 import io.udash.rpc._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
@@ -21,12 +21,11 @@ import cyborg.RPCmessages._
 
 import cats.effect._
 import fs2._
-import fs2.async.mutable.Queue
-import fs2.async.mutable.Topic
 import cyborg.wallAvoid.Agent
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
 
 import sharedImplicits._
+import backendImplicits._
 
 object ClientRPChandle {
   def apply(target: ClientRPCTarget)
@@ -41,11 +40,11 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
                        (implicit ci: ClientId, ec: EC) extends MainServerRPC {
 
 
-  override def registerWaveform   : Unit = wfListeners.modify(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
-  override def unregisterWaveform : Unit = wfListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+  override def registerWaveform   : Unit = wfListeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
+  override def unregisterWaveform : Unit = wfListeners.update(_.filter(_ == ci)).unsafeRunSync()
 
-  override def registerAgent      : Unit = agentListeners.modify(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
-  override def unregisterAgent    : Unit = agentListeners.modify(_.filter(_ == ci)).unsafeRunSync()
+  override def registerAgent      : Unit = agentListeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
+  override def unregisterAgent    : Unit = agentListeners.update(_.filter(_ == ci)).unsafeRunSync()
 
 
   //TODO move to token?
@@ -60,7 +59,7 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
 
   override def getSHODANstate: Future[EquipmentState] = {
     val action = for {
-      promise <- async.promise[IO,EquipmentState]
+      promise <- Deferred[IO,EquipmentState]
       _       <- userQ.enqueue1(GetSHODANstate(promise))
       res     <- promise.get
     } yield (res)
@@ -71,7 +70,7 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
 
   override def getRecordings: Future[List[RecordingInfo]] = {
     val action = for {
-      promise <- async.promise[IO,List[RecordingInfo]]
+      promise <- Deferred[IO,List[RecordingInfo]]
       _       <- userQ.enqueue1(GetRecordings(promise))
       res     <- promise.get
     } yield (res)
@@ -105,5 +104,4 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
 
   override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
     HttpClient.DSP.readRegistersRequest(reads).unsafeToFuture()
-
 }

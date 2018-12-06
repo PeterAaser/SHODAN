@@ -23,6 +23,7 @@ import DspRegisters._
 import scala.concurrent.duration.FiniteDuration
 import utilz._
 
+import backendImplicits._
 
 object HttpClient {
 
@@ -74,14 +75,14 @@ object HttpClient {
 
     def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
     {
-      val req = POST(buildUri("DSP/write"), regs.asJson)
+      val req = POST(regs.asJson, buildUri("DSP/write"))
       httpClient.expect[String](req).void
     }
 
 
     def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
     {
-      val req = POST(buildUri("DSP/read"), regs.asJson)
+      val req = POST(regs.asJson, buildUri("DSP/read"))
       httpClient.expect[RegisterReadResponse](req)
     }
 
@@ -89,7 +90,7 @@ object HttpClient {
     def dspCall(call: Int, args: (Int,Int)*): IO[Unit] =
     {
       val funcCall = DspFuncCall(call, args.toList)
-      val req = POST(buildUri("DSP/call"), funcCall.asJson)
+      val req = POST(funcCall.asJson, buildUri("DSP/call"))
       httpClient.expect[String](req).void
     }
   }
@@ -101,7 +102,7 @@ object HttpClient {
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[Unit] =
   {
-    val req = POST(buildUri("DAQ/connect"), params.asJson)
+    val req = POST(params.asJson, buildUri("DAQ/connect"))
     httpClient.expect[String](req).void
   }
 
@@ -118,7 +119,7 @@ object HttpClient {
   ////////////////////////////////////////
   // Auxillary
   def meameConsoleLog(s: String): IO[Unit] =
-    httpClient.expect[String](POST(buildUri("aux/logmsg"), s)).void
+    httpClient.expect[String](POST(s, buildUri("aux/logmsg"))).void
 
 
 
@@ -171,5 +172,11 @@ object HttpClient {
   implicit val MEAMEhealthCodec = jsonOf[IO, MEAMEhealth]
   implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
 
-  val httpClient = PooledHttp1Client[IO]()
+  // #YOLO
+  // TODO: This is janktastic.
+  import org.http4s.client._
+  import scala.concurrent.ExecutionContext
+  import java.util.concurrent._
+  val blockingEC = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
+  val httpClient: Client[IO] = JavaNetClientBuilder[IO](blockingEC).create
 }

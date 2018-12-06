@@ -1,6 +1,5 @@
 package cyborg.backend
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 import cyborg._

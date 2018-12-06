@@ -1,7 +1,7 @@
 package cyborg
 
-import fs2.async.Promise
-import cats.effect.IO
+import cats.effect.concurrent.Deferred
+
 import cyborg.RPCmessages._
 
 sealed trait UserCommand
@@ -13,17 +13,15 @@ case object StopData   extends UserCommand
 case object AgentStart extends UserCommand
 case object AgentStop  extends UserCommand
 
-// case object StartWaveformVisualizer extends UserCommand
-// case object ConfigureMEAME extends UserCommand
+case class  RunFromDB(info: RecordingInfo)                           extends UserCommand
+case object DBstartRecord                                            extends UserCommand
+case object DBstopRecord                                             extends UserCommand
 
-case class  RunFromDB(info: RecordingInfo) extends UserCommand
-case object DBstartRecord                  extends UserCommand
-case object DBstopRecord                   extends UserCommand
+// TODO Fails in entrypoint cause effects
+case class GetSHODANstate[F[_]](ret: Deferred[F,EquipmentState])     extends UserCommand
+case class GetRecordings[F[_]](ret: Deferred[F,List[RecordingInfo]]) extends UserCommand
 
-case class GetSHODANstate(ret: Promise[IO,EquipmentState]) extends UserCommand
-case class GetRecordings(ret: Promise[IO,List[RecordingInfo]]) extends UserCommand
-
-case object Shutdown                       extends UserCommand
+case object Shutdown                                                 extends UserCommand
 
 // Not that relevant now
 case object DspSet  extends UserCommand

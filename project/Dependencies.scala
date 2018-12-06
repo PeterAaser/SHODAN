@@ -7,7 +7,7 @@ object Dependencies {
   // val versionOfScala = "2.13.0-M5"
 
   val doobieVersion     = "0.6.0"
-  val fs2Version        = "1.0.0"
+  val fs2Version        = "1.0.2"
   val http4sVersion     = "0.20.0-M3"  // 19 is EOL, 20 is milestone stage. YOLO
   val circeVersion      = "0.10.0"
   val catsVersion       = "1.4.0"
@@ -72,12 +72,12 @@ object Dependencies {
     "io.udash" %%% "udash-jquery" % udashJQueryVersion,
 
 
-    // "com.github.karasiq" %%% "scalajs-bootstrap" % "2.3.1",
-    // "com.lihaoyi" %%% "scalatags" % ScalaTagsVersion,
-    // "com.lihaoyi" %%% "scalarx" % ScalaRxVersion,
+    "com.github.karasiq" %%% "scalajs-bootstrap" % "2.3.1",
+    "com.lihaoyi" %%% "scalatags" % ScalaTagsVersion,
+    "com.lihaoyi" %%% "scalarx" % ScalaRxVersion,
 
-    // "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.1",
-    // "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.1"
+    "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.1",
+    "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.1"
   ))
 
   // JavaScript libraries dependencies

@@ -1,29 +1,37 @@
 package cyborg
 
-import cats.effect._
+import cats.data.Chain
+import cats.effect.{ ExitCode, _ }
 import cats._
 import cats.syntax._
 import cats.implicits._
 import fs2._
-import fs2.async.Ref
-import fs2.async.mutable.{ Queue, Signal }
+import cats.effect.concurrent.Ref
+import fs2.concurrent.{ Queue, Signal, SignallingRef }
 import fs2.io.tcp.Socket
 import java.net.InetSocketAddress
+import org.http4s.server.Router
 import org.http4s._
+import org.http4s.syntax.kleisli._
+import org.http4s.HttpApp
 import org.http4s.dsl.io._
 import org.http4s.server.Server
-import org.http4s.server.blaze.BlazeBuilder
+import org.http4s.server.blaze.BlazeServerBuilder
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
 import scala.concurrent.duration._
 
-import cyborg.DspRegisters
 import cyborg.HttpClient._
 import cyborg.utilz._
 
+import org.http4s.HttpApp
+import org.http4s.server.Router
+import org.http4s.server.blaze.BlazeServerBuilder
+
 object mockServer {
 
+  import backendImplicits._
   import mockDSP._
 
   case class ServerState(
@@ -47,7 +55,7 @@ object mockServer {
   }
 
 
-  def hello(s: Signal[IO,ServerState]) = HttpService[IO] {
+  def hello(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
     case GET -> Root => s.get flatMap { serverState =>
       if(!serverState.alive) InternalServerError()
       else Ok("")
@@ -62,30 +70,30 @@ object mockServer {
   }
 
 
-  def DAQ(s: Signal[IO,ServerState]) = HttpService[IO] {
+  def DAQ(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
     case req @ POST -> Root / "connect" =>
       req.decode[DAQparams] { params =>
         Fsay[IO](s"got params $params") >>
-        s.modify(_.copy(running = true, daqParams = Some(params))).flatMap(_ => Ok(""))
+        s.update(_.copy(running = true, daqParams = Some(params))).flatMap(_ => Ok(""))
       }
     case GET -> Root / "start" =>
-      s.modify(_.copy(dataAcquisition = true)).flatMap(_ => Ok(""))
+      s.update(_.copy(dataAcquisition = true)).flatMap(_ => Ok(""))
     case GET -> Root / "stop" =>
-      s.modify(_.copy(dataAcquisition = false)).flatMap(_ => Ok(""))
+      s.update(_.copy(dataAcquisition = false)).flatMap(_ => Ok(""))
   }
 
 
   // server
-  def DSP(s: Signal[IO,ServerState], q: Queue[IO, DspFuncCall]) = HttpService[IO] {
+  def DSP(s: SignallingRef[IO,ServerState], dspMessages: Ref[IO, Chain[DspFuncCall]]) = HttpService[IO] {
     case GET -> Root / "flash" => {
-      s.modify(_.copy(dspFlashed = true)) >> Fsay[IO]("flashing OK") >> Ok("hur")
+      s.update(_.copy(dspFlashed = true)) >> Fsay[IO]("flashing OK") >> Ok("hur")
     }
 
     case req @ POST -> Root / "call" => {
       req.decode[HttpClient.DspFuncCall] { data =>
         s.get.flatMap{ state =>
           if (!state.dspFlashed) say("Possible error: DSP is not flashed")
-          q.enqueue1(data) >> Ok("")
+          dspMessages.update(data +: _) >> Ok("")
         }
       }
     }
@@ -104,13 +112,13 @@ object mockServer {
 
 
   // a frame is 60 segments, aka what MEAME2 deals with
-  type Frame = Seq[Int]
+  type Frame = Chunk[Int]
 
   /**
     Loops through a database recording repeatedly.
     Whenever a socket is connected, the listeners ref should be updated
     */
-  def broadcastDataStream(listeners: Queue[IO, Stream[IO, Socket[IO]]]): Stream[IO, Unit] = {
+  def broadcastDataStream(listeners: Queue[IO, Resource[IO, Socket[IO]]]): Stream[IO, Unit] = {
 
     // TODO take some recordings at different samplerates...
     def getStream(params: DAQparams): Stream[IO,Int] = params.samplerate match {
@@ -124,9 +132,9 @@ object mockServer {
 
     // Already throttled
     val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(10).repeat
-    val broadcast = Stream.eval(fs2.async.signalOf[IO,Frame](Nil)) flatMap { signal =>
-      val dataIn = fromDB.through(utilz.vectorize(60))
-        .through(_.map(_.map(_.data).flatten))
+    val broadcast = Stream.eval(SignallingRef[IO,Frame](Chunk.empty)) flatMap { signal =>
+      val dataIn = fromDB.vecN(60)
+        .map(x => Chunk.concatInts(x.map(_.data)))
         .evalMap(signal.set(_))
 
 
@@ -138,9 +146,11 @@ object mockServer {
           .through(socket.writes(None))
 
 
-      // Does this not clog?
-      val attachSinks: Stream[IO, Unit] = listeners.dequeue.map(_.flatMap(hoseData))
-        .joinUnbounded
+      // TODO was rough porting, might be buggy
+      val attachSinks = listeners.dequeue
+        .flatMap(x => Stream.resource(x))
+        .map(s => hoseData(s))
+        .parJoinUnbounded
 
       dataIn.concurrently(attachSinks)
     }
@@ -148,27 +158,40 @@ object mockServer {
   }
 
 
-  def tcpServer(listeners: Queue[IO, Stream[IO,Socket[IO]]])(implicit ev: Effect[IO]): Stream[IO, Unit] = {
-    import backendImplicits._
+  def tcpServer(listeners: Queue[IO, Resource[IO,Socket[IO]]]): Stream[IO, Unit] = {
+    val ay = implicitly[ConcurrentEffect[IO]]
     val createListener: Stream[IO, Unit] =
-      fs2.io.tcp.server(new InetSocketAddress("0.0.0.0", params.TCP.port)).to(listeners.enqueue)
+      fs2.io.tcp.server[IO](new InetSocketAddress("0.0.0.0", params.TCP.port)).to(listeners.enqueue)
 
     createListener
   }
 
 
-  def assembleTestHttpServer(port: Int): Stream[IO, (Server[IO], Stream[IO,mockDSP.Event])] = {
-    def mountServer(s: Signal[IO,ServerState], dspFuncCallQueue: Queue[IO,DspFuncCall])(implicit ev: Effect[IO]): IO[Server[IO]] = BlazeBuilder[IO]
-      .bindHttp(port, "0.0.0.0")
-      .mountService(hello(s), "/")
-      .mountService(DAQ(s), "/DAQ")
-      .mountService(DSP(s, dspFuncCallQueue), "/DSP")
-      .start
+  def assembleTestHttpServer(port: Int): Stream[IO, mockDSP.Event] = {
 
-    Stream.eval(fs2.async.signalOf[IO,ServerState](ServerState.init)) flatMap{ meameState =>
-      Stream.eval(fs2.async.boundedQueue[IO,DspFuncCall](20)) flatMap { dspFuncQueue =>
-        Stream.eval(mountServer(meameState, dspFuncQueue)).map( x =>
-          (x, mockDSP.startDSP(dspFuncQueue, 100.millis)))
+    def mountServer(
+      s: SignallingRef[IO,ServerState],
+      dspMessages: Ref[IO, Chain[DspFuncCall]]): Stream[IO, ExitCode] = {
+
+      val myApp: HttpApp[IO] =
+        Router(
+          "/" -> hello(s),
+          "/DAQ" -> DAQ(s),
+          "/DSP" -> DSP(s, dspMessages)
+        ).orNotFound
+
+      val huh: Stream[IO, ExitCode] = BlazeServerBuilder[IO]
+        .bindHttp(port, "0.0.0.0")
+        .withHttpApp(myApp)
+        .serve
+
+      huh
+    }
+
+    Stream.eval(SignallingRef[IO,ServerState](ServerState.init)) flatMap{ meameState =>
+      Stream.eval(Ref.of[IO,Chain[DspFuncCall]](Chain.nil)) flatMap { dspMessages =>
+        (mockDSP.startDSP(dspMessages, 100.millis)).concurrently(
+          mountServer(meameState, dspMessages))
       }
     }
   }
@@ -176,8 +199,8 @@ object mockServer {
 
   def assembleTestTcpServer(port: Int): Stream[IO, Unit] = {
     for {
-      listeners <- Stream.eval(fs2.async.boundedQueue[IO,Stream[IO,Socket[IO]]](10))
-      _ <- Stream(tcpServer(listeners), broadcastDataStream(listeners)).joinUnbounded
+      listeners <- Stream.eval(Queue.bounded[IO,Resource[IO,Socket[IO]]](10))
+      _ <- Stream(tcpServer(listeners), broadcastDataStream(listeners)).parJoinUnbounded
     } yield ()
   }
 }

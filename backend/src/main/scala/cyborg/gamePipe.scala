@@ -1,6 +1,6 @@
 package cyborg
 
-import cats.effect.Effect
+import cats.effect.{ Concurrent }
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
@@ -43,10 +43,10 @@ object agentPipe {
     Sets up 5 challenges, evaluates ANN performance and returns
     the evaluation via the eval sink
     */
-  def evaluatorPipe[F[_]: Effect](
+  def evaluatorPipe[F[_]: Concurrent](
     ticksPerEval: Int,
     evalFunc: Double => Double,
-    evalSink: Sink[F,Double])(implicit ec: ExecutionContext): Pipe[F,ffANNoutput,Agent] = {
+    evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = {
 
 
     say("running evaluatorPipe")
@@ -76,10 +76,11 @@ object agentPipe {
 
     def evaluateRun: Pipe[F,Agent,Double] = {
       def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
-        s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
-          case Some((seg, _)) => {
-            val closest = seg.force.toList
+        s.pull.unconsN(ticksPerEval, false) flatMap {
+          case Some((chunk, _)) => {
+            val closest = chunk
               .map(_.distanceToClosest)
+              .toList
               .min
 
             Pull.output1(closest) >> Pull.done

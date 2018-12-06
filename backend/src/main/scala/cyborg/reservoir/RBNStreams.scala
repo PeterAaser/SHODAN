@@ -1,10 +1,9 @@
 package cyborg
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import params._
 import fs2._
-import fs2.async.mutable.Signal
+import fs2.concurrent.Signal
 import cats.effect._
 import utilz._
 import backendImplicits._
@@ -18,7 +17,7 @@ object RBNStreams {
       * interpret. For now there are only two different states, giving
       * two different spiking behaviours.
       */
-    def outputNodeState[F[_]: Effect](node: Node, samplerate: Int,
+    def outputNodeState[F[_]: Concurrent : Timer](node: Node, samplerate: Int,
       resolution: FiniteDuration = 0.05.second, throttle: Boolean = true)
         : Stream[F, Int] = {
       val spikeFreq = if (rbn.state(node)) rbn.highFreq else rbn.lowFreq
@@ -43,7 +42,7 @@ object RBNStreams {
       * Output the state of an RBN node, interruptible by a
       * Signal. Meant to be expanded to do useful stuff in the future.
       */
-    def outputNodeStateInterruptible[F[_]: Effect](node: Node, samplerate: Int,
+    def outputNodeStateInterruptible[F[_]: Concurrent : Timer](node: Node, samplerate: Int,
       interrupter: Signal[F, Boolean], resolution: FiniteDuration = 0.05.second,
       throttle: Boolean = true): Stream[F, Int] = {
       rbn.outputNodeState(node, samplerate, resolution = resolution, throttle = throttle)
@@ -52,25 +51,25 @@ object RBNStreams {
 
     /**
       * Interleaves output from states into a new stream
-      * _deterministically_. Keeps the vectorized outputs grouped up,
+      * _deterministically_. Keeps the outputs chunked,
       * mostly for debugging purposes for now.
       */
-    // (TODO) (thomaav): Use Chunk instead of Vector?
-    def interleaveNodeStates[F[_]: Effect](samplerate: Int, segmentLength: Int,
-      resolution: FiniteDuration = 0.05.seconds): Stream[F, Vector[Int]] = {
-      val mempty = Stream(Vector[Int]()).covary[F].repeat
+    def interleaveNodeStates[F[_]: Concurrent : Timer](samplerate: Int, segmentLength: Int,
+      resolution: FiniteDuration = 0.05.seconds): Stream[F, Chunk[Int]] = {
+      val mempty = Stream(Chunk[Int]()).covary[F].repeat
       val streams = for (i <- 0 until rbn.state.length)
       yield rbn.outputNodeState(i, samplerate, resolution, throttle = false)
-        .through(vectorize(segmentLength))
+        .chunkN(segmentLength, true)
 
-      streams.foldRight(mempty){(s, acc) => s.zipWith(acc)(_ ++ _)}
+      // Why is there no concat on chunk??
+      streams.foldRight(mempty){(s, acc) => s.zipWith(acc){ case(x,y) => Chunk.concatInts(List(x,y))}}
     }
 
     /**
       * Output the state of the entire RBN reservoir as one would
       * expect from an MEA.
       */
-    def outputState[F[_]: Effect](samplerate: Int, segmentLength: Int,
+    def outputState[F[_]: Concurrent : Timer](samplerate: Int, segmentLength: Int,
       resolution: FiniteDuration = 0.05.seconds, throttle: Boolean)
         : Stream[F, Int] = {
       val output =

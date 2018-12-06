@@ -29,11 +29,11 @@ object spikeDetector {
       */
     def spikeDetector: Pipe[F, Boolean, Boolean] = {
       def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F, Boolean, Unit] = {
-        s.pull.unconsN(spikeCooldown.toLong) flatMap {
-          case Some((seg, tl)) => {
+        s.pull.unconsN(spikeCooldown) flatMap {
+          case Some((chunk, tl)) => {
             // say("spike detecting")
-            val flattened = seg.force.toVector
-            val refactored = flattened.drop(spikeCooldownTimer)
+            // val flattened = seg.force.toVector
+            val refactored = chunk.drop(spikeCooldownTimer).toList
             val index = refactored.indexOf((λ: Boolean) => λ)
             if (index == -1) {
               // The case where none of the elements able to produce a spike triggered
@@ -71,11 +71,11 @@ object spikeDetector {
     val spikeCooldown = samplerate/maxSpikesPerSec
 
     def go(spikeCooldownTimer: Int, s: Stream[F,Int]): Pull[F,Int,Unit] = {
-      s.pull.unconsN(spikeCooldown.toLong) flatMap {
+      s.pull.unconsN(spikeCooldown) flatMap {
         case None => Pull.done
-        case Some((seg,tl)) => {
-          val refactored = seg.force.toVector.drop(spikeCooldownTimer)
-          val spike = refactored.dropWhile(x => x == 0)
+        case Some((chunk,tl)) => {
+          val refactored = chunk.drop(spikeCooldownTimer)
+          val spike = refactored.toList.dropWhile(x => x == 0)
           if (spike.length != 0) {
             val spikeSign = spike.head
             val nextCooldown = spikeCooldown - (spike.tail.length)

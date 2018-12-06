@@ -1,17 +1,22 @@
 package cyborg
 
-import fs2.internal.NonFatal
+import cats.effect.{ ContextShift, IO, Timer }
 import java.nio.channels.AsynchronousChannelGroup
 import scala.concurrent.ExecutionContext
+import java.util.concurrent.{Executors, ScheduledExecutorService}
+
 
 // TODO: Unfuckulate this giant mess
-
 object backendImplicits {
   import fs2._
   import java.util.concurrent.Executors
 
-  implicit val tcpACG : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  implicit val Sch : Scheduler = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(16, threadFactoryFactoryProxyBeanFactory.mkThreadFactory("scheduler", daemon = true)))
+  implicit val ec       : ExecutionContext         = scala.concurrent.ExecutionContext.global
+  implicit val tcpACG   : AsynchronousChannelGroup = namedACG.namedACG("tcp")
+  implicit val ct       : ContextShift[IO]         = cats.effect.IO.contextShift(ec)
+  implicit val executor : ScheduledExecutorService = Executors.newScheduledThreadPool(16, threadFactoryFactoryProxyBeanFactory.mkThreadFactory("scheduler", daemon = true))
+  implicit val ioTimer  : Timer[IO]                = cats.effect.IO.timer(ec, executor)
+
 }
 
 object namedACG {
@@ -51,6 +56,7 @@ object namedACG {
 
 object threadFactoryFactoryProxyBeanFactory {
 
+  import scala.util.control.NonFatal
   import java.lang.Thread.UncaughtExceptionHandler
   import java.util.concurrent.{Executors, ThreadFactory}
   import java.util.concurrent.atomic.AtomicInteger

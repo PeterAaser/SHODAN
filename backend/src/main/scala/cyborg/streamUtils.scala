@@ -1,12 +1,11 @@
 package cyborg
 
-import cats.effect.{ Async, Sync, Timer }
-import cats.{ Functor, Monad }
+import cats.effect.{ Async, Concurrent, Effect, Sync, Timer }
 import cats.implicits._
+import cats._
 import fs2._
-import fs2.async.Ref
-import fs2.async.mutable.{ Queue, Signal, Topic }
-import cats.effect.Effect
+import cats.effect.concurrent.Ref
+import fs2.concurrent.{ InspectableQueue, Queue, Signal, SignallingRef, Topic }
 import java.nio.{ ByteBuffer, ByteOrder }
 import scala.concurrent.ExecutionContext
 
@@ -21,15 +20,14 @@ object utilz {
   type EC = ExecutionContext
 
   type Channel = Int
-  case class TaggedSegment(channel: Channel, data: Vector[Int])
+  case class TaggedSegment(channel: Channel, data: Chunk[Int])
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
   case class MuxedStream[F[_],I](numStreams: Int, stream: Stream[F,I])
 
-  sealed trait Stoppable[F[_]] { def interrupt: F[_] }
-  case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit]) extends Stoppable[F]
+  case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit])
   object InterruptableAction {
-    def apply[F[_]: Effect](a: Stream[F,Unit])(implicit ec: EC): F[InterruptableAction[F]] = {
-      val interrupted = fs2.async.signalOf[F,Boolean](false)
+    def apply[F[_]: Concurrent](a: Stream[F,Unit]): F[InterruptableAction[F]] = {
+      val interrupted = SignallingRef[F,Boolean](false)
       interrupted.map { interruptSignal =>
         InterruptableAction(
           interruptSignal.set(true),
@@ -38,10 +36,32 @@ object utilz {
     }
   }
 
+
+  implicit class ChunkBonusOps[I](c: Chunk[I]) {
+    def ++(that: Chunk[I]): Chunk[I] = Chunk.concat(List(c, that))
+    def foldMonoid[I2 >: I](implicit I: Monoid[I2]): I2 =
+      c.foldLeft(I.empty)(I.combine)
+  }
+  implicit val intAdditionMonoid: Monoid[Int] = new Monoid[Int] {
+    def empty: Int = 0
+    def combine(x: Int, y: Int): Int = x + y
+  }
+  implicit class StreamBonusOps[F[_],O](s: Stream[F,O]) {
+    def vecN(n: Int, allowFewer: Boolean = true): Stream[F,Vector[O]] =
+      s.repeatPull {
+        _.unconsN(n, allowFewer).flatMap {
+          case Some((hd, tl)) => Pull.output1(hd.toVector).as(Some(tl))
+          case None           => Pull.pure(None)
+        }
+      }
+  }
+
+
   def bytesToInts[F[_]](format: String = "Csharp"): Pipe[F, Byte, Int] = format match {
     case "Csharp" => bytesToIntsMEAME
     case "JVM" => bytesToIntsJVM
   }
+
 
   /**
     Decodes a byte stream from MEAME into a stream of 32 bit signed ints
@@ -51,8 +71,7 @@ object utilz {
 
     def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
       s.pull.unconsN(4096, false)flatMap {
-        case Some((seg, tl)) => {
-          val chunk = seg.force.toChunk
+        case Some((chunk, tl)) => {
           val intBuf = Array.ofDim[Int](chunk.size/4)
 
           for(i <- 0 until chunk.size/4){
@@ -72,7 +91,7 @@ object utilz {
             intBuf(i) = asInt
           }
 
-          Pull.output(Chunk.seq(intBuf).toSegment) >> go(tl)
+          Pull.output(Chunk.seq(intBuf)) >> go(tl)
         }
         case None => Pull.done
       }
@@ -86,13 +105,13 @@ object utilz {
     def go(s: Stream[F, Byte]): Pull[F,Int,Unit] = {
       s.pull.unconsN(4096, false)flatMap {
         case Some((seg, tl)) => {
-          val data = seg.force.toArray
+          val data = seg.toArray
           val intbuf = ByteBuffer.wrap(data)
             .order(ByteOrder.BIG_ENDIAN)
             .asIntBuffer()
           val outs = Array.ofDim[Int](1024)
           intbuf.get(outs)
-          val huh = Segment.seq(outs)
+          val huh = Chunk.seq(outs)
           Pull.output(huh) >> go(tl)
         }
         case None => Pull.done
@@ -106,12 +125,12 @@ object utilz {
 
     def go(s: Stream[F, Int]): Pull[F,Byte,Unit] = {
       s.pull.unconsN(1024, false)flatMap {
-        case Some((seg, tl)) => {
-          val data = seg.force.toArray
+        case Some((chunk, tl)) => {
+          val data = chunk.toArray
           val bb = ByteBuffer.allocate(4096)
           bb.asIntBuffer().put(data)
           val outs = bb.array()
-          val huh = Segment.seq(outs)
+          val huh = Chunk.seq(outs)
           Pull.output(huh) >> go(tl)
         }
         case None => Pull.done
@@ -120,29 +139,14 @@ object utilz {
     in => go(in).stream
   }
 
-  /**
-    Partitions a stream vectors of length n
-    */
-  def vectorize[F[_],I](length: Int): Pipe[F,I,Vector[I]] = {
-    def go(s: Stream[F,I]): Pull[F,Vector[I],Unit] = {
-      s.pull.unconsN(length.toLong, false).flatMap {
-        case Some((segment, tl)) => {
-          Pull.output1(segment.force.toVector) >> go(tl)
-        }
-        case None => Pull.done
-      }
-    }
-    in => go(in).stream
-  }
-
 
   /**
     */
-  def mapN[F[_],I,O](length: Int, f: Segment[I,Unit] => O): Pipe[F,I,O] = {
+  def mapN[F[_],I,O](length: Int, f: Chunk[I] => O): Pipe[F,I,O] = {
     def go(s: Stream[F,I]): Pull[F,O,Unit] = {
-      s.pull.unconsN(length.toLong, false).flatMap {
-        case Some((seg, tl)) => {
-          Pull.output1(f(seg)) >> go(tl)
+      s.pull.unconsN(length, false).flatMap {
+        case Some((chunk, tl)) => {
+          Pull.output1(f(chunk)) >> go(tl)
         }
         case None => Pull.done
       }
@@ -152,33 +156,14 @@ object utilz {
 
 
   /**
-    Partitions a stream vectors of length n
-    TODO: Not sure if this should be here
+    This thing should be a method on stream
     */
-  def vectorizeList[F[_],I](length: Int): Pipe[F,I,List[I]] = {
-    def go(s: Stream[F,I]): Pull[F,List[I],Unit] = {
-      s.pull.unconsN(length.toLong, false).flatMap {
-        case Some((segment, tl)) => {
-          Pull.output1(segment.force.toList) >> go(tl)
-        }
-        case None => Pull.done
-      }
-    }
-    in => go(in).stream
-  }
+  def chunkify[F[_],I]: Pipe[F,Chunk[I],I] = {
 
-
-  /**
-    Not really something that has any right to remain in the codebase.
-    Sadly it's so ingrained now I cba removing it. Feel free to do so
-    yourself!
-    */
-  def chunkify[F[_],I]: Pipe[F, Seq[I], I] = {
-
-    def go(s: Stream[F,Seq[I]]): Pull[F,I,Unit] = {
+    def go(s: Stream[F,Chunk[I]]): Pull[F,I,Unit] = {
       s.pull.uncons1 flatMap {
-        case Some((segment, tl)) =>
-          Pull.output(Segment.seq(segment)) >> go(tl)
+        case Some((chunk, tl)) =>
+          Pull.output(chunk) >> go(tl)
         case None => Pull.done
       }
     }
@@ -196,23 +181,23 @@ object utilz {
     * }}}
     * @throws scala.IllegalArgumentException if `n` <= 0
     */
-  def stridedSlide[F[_],I](windowWidth: Int, overlap: Int): Pipe[F,I,Vector[I]] = {
+  def stridedSlide[F[_],I](windowWidth: Int, overlap: Int): Pipe[F,I,Chunk[I]] = {
     require(windowWidth > 0,       "windowWidth must be > 0")
     require(windowWidth > overlap, "windowWidth must be wider than overlap")
     val stepsize = windowWidth - overlap
-    def go(s: Stream[F,I], last: Vector[I]): Pull[F,Vector[I],Unit] = {
-      s.pull.unconsN(stepsize.toLong, false).flatMap {
-        case Some((seg, tl)) =>
-          val forced = seg.force.toVector
-          Pull.output1(forced) >> go(tl, forced.drop(stepsize))
+    def go(s: Stream[F,I], last: Chunk[I]): Pull[F,Chunk[I],Unit] = {
+      s.pull.unconsN(stepsize, false).flatMap {
+        case Some((chunk, tl)) =>
+          val concatenated2 = last ++ chunk
+          val concatenated = Chunk.concat(List(last, chunk))
+          Pull.output1(concatenated) >> go(tl, concatenated.drop(stepsize))
         case None => Pull.done
       }
     }
 
-    in => in.pull.unconsN(windowWidth.toLong, false).flatMap {
-      case Some((seg, tl)) => {
-        val forced = seg.force.toVector
-        Pull.output1(forced) >> go(tl, forced.drop(stepsize))
+    in => in.pull.unconsN(windowWidth, false).flatMap {
+      case Some((chunk, tl)) => {
+        Pull.output1(chunk) >> go(tl, chunk.drop(stepsize))
       }
       case None => Pull.done
     }.stream
@@ -226,20 +211,20 @@ object utilz {
     */
   def fastMovingAverage[F[_]](windowWidth: Int): Pipe[F,Int,Double] = {
 
-    def go(s: Stream[F,Int], window: Vector[Int]): Pull[F,Double,Unit] = {
+    def go(s: Stream[F,Int], window: Chunk[Int]): Pull[F,Double,Unit] = {
       s.pull.uncons flatMap {
-        case Some((seg, tl)) => {
-          val stacked = ((window ++ seg.force.toVector) zip (seg.force.toVector)).map(z => (z._1 - z._2))
-          val scanned = stacked.scanLeft(window.sum)(_+_).map(_.toDouble/windowWidth.toDouble)
-          Pull.output(Chunk.seq(scanned).toSegment) >> go(tl, seg.force.toVector.takeRight(windowWidth))
+        case Some((chunk, tl)) => {
+          val stacked = ((window ++ chunk) zip (chunk)).map(z => (z._1 - z._2))
+          val scanned = stacked.scanLeft(window.foldMonoid)(_+_).map(_.toDouble/windowWidth.toDouble)
+          Pull.output(scanned) >> go(tl, Chunk.Queue(chunk).takeRight(windowWidth).toChunk)
         }
         case None => Pull.done
       }
     }
 
-    in => in.pull.unconsN(windowWidth.toLong).flatMap {
-      case Some((seg, tl)) => {
-        Pull.output1(seg.force.toList.sum.toDouble/windowWidth.toDouble) >> go(tl, seg.force.toVector)
+    in => in.pull.unconsN(windowWidth).flatMap {
+      case Some((chunk, tl)) => {
+        Pull.output1(chunk.foldLeft(0)(_+_).toDouble/windowWidth.toDouble) >> go(tl, chunk)
       }
       case None => Pull.done
     }.stream
@@ -252,11 +237,10 @@ object utilz {
     */
   def simpleMovingAverage[F[_]](windowWidth: Double): Pipe[F,Int,Double] = {
     def go(s: Stream[F,Int]): Pull[F,Double,Unit] = {
-      s.pull.unconsN(windowWidth.toLong) flatMap {
+      s.pull.unconsN(windowWidth.toInt) flatMap {
         case None => Pull.done
-        case Some((seg,tl)) => {
-          val window = seg.force.toVector
-          val avg = window.sum.toDouble / window.length
+        case Some((chunk,tl)) => {
+          val avg = chunk.foldMonoid.toDouble / chunk.size.toDouble
           Pull.output1(avg) >> go(tl)
         }
       }
@@ -270,8 +254,8 @@ object utilz {
     Creates a list containing num topics of type T
     Requires an initial message init.
     */
-  def createTopics[F[_]: Effect,T](init: T)(implicit ec: ExecutionContext): Stream[F,Topic[F,T]] = {
-    val topicTask: F[Topic[F,T]] = fs2.async.topic[F,T](init)
+  def createTopics[F[_]: Concurrent, T](init: T): Stream[F,Topic[F,T]] = {
+    val topicTask: F[Topic[F,T]] = Topic[F,T](init)
     Stream.repeatEval(topicTask)
   }
 
@@ -280,14 +264,12 @@ object utilz {
     Does not account for rounding errors!
 
     */
-  def throttlerPipe[F[_]: Effect,I](elementsPerSec: Int, resolution: FiniteDuration)
-    (implicit s: Scheduler, ec: EC): Pipe[F,I,I] = {
+  def throttlerPipe[F[_]: Concurrent : Timer,I](elementsPerSec: Int, resolution: FiniteDuration): Pipe[F,I,I] = {
     val ticksPerSecond = (1.second/resolution)
     val elementsPerTick = (elementsPerSec/ticksPerSecond).toInt
 
-    _.through(vectorize(elementsPerTick))
-      .zip(s.fixedRate(resolution))
-      .through(_.map(_._1))
+    _.chunkN(elementsPerTick, false)
+      .metered(resolution)
       .through(chunkify)
   }
 
@@ -297,6 +279,10 @@ object utilz {
     by selecting output from each input stream in a round robin fashion.
 
     Not built for speed, at least not when chunksize is low
+
+    At the moment round robin is a special case and is thus allowed to maintain
+    its Seq[I] signature rather than Chunk[I] to make it harder to accidentally
+    unchunk it.
     */
   def roundRobin[F[_],I]: Pipe[F,List[Stream[F,I]],List[I]] = _.flatMap(roundRobinL)
 
@@ -312,20 +298,22 @@ object utilz {
 
   def flatRoundRobinL[F[_],I](streams: List[Stream[F,I]]): MuxedStream[F,I] = {
     val muxedStream = roundRobinL(streams)
-    MuxedStream(streams.length, muxedStream.through(chunkify))
+    MuxedStream(streams.length, muxedStream.map(Chunk.seq).through(chunkify))
   }
 
 
-  def roundRobinQ[F[_]: Effect : Functor,I:ClassTag](streams: List[Stream[F,I]])(implicit ec: EC): Stream[F,List[I]] = {
+  // TODO High risk of fuckup after version bump
+  def roundRobinQ[F[_]: Concurrent, I:ClassTag](streams: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
 
     val numStreams = streams.size
     val elementsPerDeq = 20
 
-    Stream.repeatEval(fs2.async.boundedQueue[F,Vector[I]](100)).through(vectorize(numStreams)) flatMap { qs =>
-      Stream.eval(fs2.async.boundedQueue[F,List[I]](10)) flatMap { outQueue =>
+    Stream.repeatEval(Queue.bounded[F,Chunk[I]](100)).chunkN(numStreams).take(1) flatMap { qs =>
+      Stream.eval(Queue.bounded[F,Chunk[I]](10)) flatMap { outQueue =>
 
-        val inputTasks = (qs zip streams).map{ case(q, s) => s.through(vectorize(elementsPerDeq)).through(q.enqueue).compile.drain }
-        val inputTask = Stream.emits(inputTasks).map(Stream.eval(_)).join(numStreams)
+        val inputTasks = (qs zip Chunk(streams)).map{ case(q, s) => s.map(_.chunkN(elementsPerDeq).through(q.enqueue).compile.drain) }
+        val huh = inputTasks.map(Chunk.seq).toList
+        val inputTask = Stream.emits(huh).through(chunkify).covary[F].map(Stream.eval).parJoin(numStreams)
 
         val arr = Array.ofDim[I](elementsPerDeq, numStreams)
 
@@ -335,7 +323,7 @@ object utilz {
             if(idx == numStreams)
               loader(0)
             else {
-              outQueue.enqueue1(arr(idx).toList) >> unloader(idx + 1)
+              outQueue.enqueue1(Chunk.seq(arr(idx))) >> unloader(idx + 1)
             }
           }
 
@@ -344,7 +332,7 @@ object utilz {
               unloader(0)
             }
             else {
-              (qs(idx).dequeue1 map { xs: Vector[I] =>
+              (qs(idx).dequeue1 map { xs: Chunk[I] =>
                  for(i <- 0 until elementsPerDeq){
                    arr(i)(idx) = xs(i)
                  }
@@ -360,37 +348,12 @@ object utilz {
   }
 
 
-  /**
-    Synchronizes a list of streams, discarding segment ID
-    */
-  def synchronize[F[_]]: Pipe[F,List[Stream[F,TaggedSegment]], List[Stream[F,Vector[Int]]]] = {
-
-    /**
-      Takes the first element of each inner stream and checks the tag.
-      Drops the discrepancy between tags from each stream
-      */
-    def synchStreams(streams: Stream[F,List[Stream[F,TaggedSegment]]]) = {
-      val a: Stream[F, Seq[TaggedSegment]] = roundRobin(streams)
-      val b = a flatMap (z =>
-        {
-          val tags = z.map(_.channel)
-          val largest = tags.max
-          val diffs = tags.map(largest - _)
-          streams.map(z => z.zip(diffs).map(z => z._1.drop(z._2.toLong).map(z => z.data)))
-        })
-      b
-    }
-    say("synchronize called. Might behave weirdly, not tested (lol)")
-    synchStreams
-  }
-
-
   def logEveryNth[F[_],I](n: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
-      s.pull.unconsN(n.toLong,false) flatMap {
-        case Some((seg, tl)) => {
-          say(s"${seg.force.toList.head}")
-          Pull.output(seg) >> go(tl)
+      s.pull.unconsN(n,false) flatMap {
+        case Some((chunk, tl)) => {
+          say(s"${chunk.head}")
+          Pull.output(chunk) >> go(tl)
         }
         case None => {
           say("log every nth got None")
@@ -404,10 +367,10 @@ object utilz {
 
   def logEveryNth[F[_],I](n: Int, message: I => Any): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
-      s.pull.unconsN(n.toLong,false) flatMap {
-        case Some((seg, tl)) => {
-          message(seg.force.toList.head)
-          Pull.output(seg) >> go(tl)
+      s.pull.unconsN(n,false) flatMap {
+        case Some((chunk, tl)) => {
+          message(chunk.head.get) // RIP NonEmptyChunk
+          Pull.output(chunk) >> go(tl)
         }
         case None => {
           say("log every nth got None")
@@ -428,35 +391,22 @@ object utilz {
     Prints the size of a queue to std.out at supplied interval.
     Used for unclogging
     */
-  def spamQueueSize[F[_]: Effect, I](
+  def spamQueueSize[F[_]: Concurrent : Timer, I](
     name: String,
-    q: Queue[F,I],
-    dur: FiniteDuration)(implicit t: Scheduler, ec: ExecutionContext): Stream[F,Unit] = {
+    q: InspectableQueue[F,I],
+    dur: FiniteDuration): Stream[F,Unit] = {
 
-    t.fixedRate(dur).flatMap { _ =>
-      Stream.eval(q.size.get).through(_.map(z => say(s"Queue with name $name has a size of $z")))
+    Stream.fixedRate(dur).flatMap { _ =>
+      q.size.through(_.map(z => say(s"Queue with name $name has a size of $z")))
     }.repeat
   }
 
 
   def tagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
-      s.pull.unconsN(segmentLength.toLong, false) flatMap {
-        case Some((seg, tl)) => {
-          Pull.output1(TaggedSegment(n, seg.force.toVector)) >> go((n + 1) % 60, tl)
-        }
-        case None => Pull.done
-      }
-    }
-    in => go(0, in).stream
-  }
-
-
-  def testTagPipe[F[_]](segmentLength: Int): Pipe[F, Int, TaggedSegment] = {
-    def go(n: Channel, s: Stream[F,Int]): Pull[F,TaggedSegment,Unit] = {
-      s.pull.unconsN(segmentLength.toLong, false) flatMap {
-        case Some((seg, tl)) => {
-          Pull.output1(TaggedSegment(n, seg.force.toVector.map(_ => n*10))) >> go((n + 1) % 60, tl)
+      s.pull.unconsN(segmentLength, false) flatMap {
+        case Some((chunk, tl)) => {
+          Pull.output1(TaggedSegment(n, chunk)) >> go((n + 1) % 60, tl)
         }
         case None => Pull.done
       }
@@ -474,7 +424,7 @@ object utilz {
   def singleChannelPipe[F[_]](channel: Channel, channels: Int, segmentLength: Int)
       : Pipe[F,Int,Int] = {
     def go(n: Channel, s: Stream[F,Int]): Pull[F,Int,Unit] = {
-      s.pull.unconsN(segmentLength.toLong, false) flatMap {
+      s.pull.unconsN(segmentLength, false) flatMap {
         case None => Pull.done
         case Some((seg,tl)) => {
           n match {
@@ -496,10 +446,10 @@ object utilz {
    */
   def naiveDecimationPipe[F[_]](factor: Int): Pipe[F,Int,Int] = {
     def go(s: Stream[F,Int]): Pull[F,Int,Unit] = {
-      s.pull.unconsN(factor.toLong, false) flatMap {
+      s.pull.unconsN(factor, false) flatMap {
         case None => Pull.done
-        case Some((seg,tl)) => {
-          Pull.output1(seg.force.toList.head) >> go(tl)
+        case Some((chunk,tl)) => {
+          Pull.output1(chunk.head.get) >> go(tl) // RIP NonEmptyChunk
         }
       }
     }
@@ -517,7 +467,7 @@ object utilz {
       s.pull.uncons1 flatMap {
         case None => Pull.done
         case Some((hd,tl)) => {
-          Pull.output(Segment.seq(Seq.fill(n)(hd))) >> go(tl)
+          Pull.output(Chunk.seq(Seq.fill(n)(hd))) >> go(tl)
         }
       }
     }
@@ -546,7 +496,7 @@ object utilz {
 
     // Note that the vectorization is of size samplerate, to make sure
     // it's unlikely that Timer in ReservoirPlot will ever catch up.
-    _.through(utilz.vectorize(samplerate*numStreams)).through(
+    _.vecN(samplerate*numStreams).through(
       Sink.apply(xs =>
         Sync[F].delay(
           {
@@ -562,14 +512,14 @@ object utilz {
   }
 
 
-  def attachVizPipe[F[_]](samplerate: Int, resolution: FiniteDuration = 0.1.second,
-    numStreams: Int = 1)
-    (implicit F: Effect[F], ec: ExecutionContext): Pipe[F,Int,Int] =
+  def attachVizPipe[F[_]: Concurrent](samplerate: Int, resolution: FiniteDuration = 0.1.second,
+                                      numStreams: Int = 1): Pipe[F,Int,Int] =
     _.observeAsync(1024)(vizSink(samplerate, resolution, numStreams))
 
 
   /**
-    Modifies the segment length of a stream. Not optimized
+    Modifies the segment length of a stream.
+    Can be optimized further if needed, for instance using chunk instead of list.
     */
   def modifySegmentLengthGCD[F[_]](originalSegmentLength: Int, newSegmentLength: Int, channels: Int = 60): Pipe[F,Int,Int] = {
 
@@ -593,19 +543,18 @@ object utilz {
       val outBuffers = Array.ofDim[Int](outRows, outCols)
 
       def go(s: Stream[F,Int]): Pull[F,List[Int],Unit] = {
-        s.pull.unconsN(channels*originalSegmentLength.toLong, false).flatMap {
-          case Some((seg,tl)) => {
+        s.pull.unconsN(channels*originalSegmentLength, false).flatMap {
+          case Some((chunk,tl)) => {
             // say("disassembling")
-            val data = seg.force.toArray
             for(i <- 0 until pullSize){
               val outRow = (i/divisor)%outRows
               // val outRow = (i/outCols)
               val outCol = (i%divisor) + divisor*(i/originalSegmentLength)
-              // say(s"with i: $i we get outBuf[$outRow][$outCol] <- ${data(i)}")
-              outBuffers(outRow)(outCol) = data(i)
+              // say(s"with i: $i we get outBuf[$outRow][$outCol] <- ${chunk(i)}")
+              outBuffers(outRow)(outCol) = chunk(i)
             }
             // say(s"disassembler outputting ${outBuffers.map(_.toList).toList} \n")
-            Pull.outputChunk(Chunk.seq(outBuffers.map(_.toList).toList)) >> go(tl)
+            Pull.output(Chunk.seq(outBuffers.map(_.toList).toList)) >> go(tl)
           }
           case None => Pull.done
         }
@@ -620,11 +569,10 @@ object utilz {
       val outBuf: Array[Int] = new Array(newSegmentLength*channels)
 
       def go(s: Stream[F,List[Int]]): Pull[F,Int,Unit] = {
-        s.pull.unconsN(pullSize.toLong, false).flatMap {
-          case Some((seg,tl)) => {
+        s.pull.unconsN(pullSize, false).flatMap {
+          case Some((chunk,tl)) => {
             // say(s"ressembling, pullsize is $pullSize")
-            val data = seg.force.toArray
-            // say(s"reassembling from ${data.map(_.toList).toList}")
+            // say(s"reassembling from ${chunk.map(_.toList).toList}")
             for(row <- 0 until pullSize){
               for(col <- 0 until (divisor*channels)){
                 val internalSegOffset = row*divisor
@@ -632,12 +580,12 @@ object utilz {
                 val idx = (internalSegOffset + offset) + col%divisor
                 // say(s"Attempting to collect from row: $row, col: $col")
                 // say(s"With offsets calculated to: $internalSegOffset and $offset the final idx is $idx")
-                // say(s"outBuf[$idx] <- data[$row][$col] = ${data(row)(col)}\n")
-                outBuf(idx) = data(row)(col)
+                // say(s"outBuf[$idx] <- chunk[$row][$col] = ${chunk(row)(col)}\n")
+                outBuf(idx) = chunk(row)(col)
               }
             }
             // say(s"the reassembled pull is ${outbuf.tolist}")
-            Pull.outputChunk(Chunk.seq(outBuf)) >> go(tl)
+            Pull.output(Chunk.seq(outBuf)) >> go(tl)
           }
           case None => Pull.done
         }
@@ -654,13 +602,13 @@ object utilz {
   // Unsure about arg names here.
   def downsamplePipe[F[_],O](forEveryIncoming: Int, emitThisMany: Int): Pipe[F,O,O] = {
 
-    val normalDropSize = forEveryIncoming/emitThisMany
-    val normalEmits    = emitThisMany - (forEveryIncoming%emitThisMany)
+    val normalDropSize = forEveryIncoming / emitThisMany
+    val normalEmits    = emitThisMany - (forEveryIncoming % emitThisMany)
 
     def go(step: Int, s: Stream[F,O]): Pull[F,O,Unit] = {
       val elementsToPull = normalDropSize + (if(step > normalEmits) 1 else 0)
       s.pull.unconsN(elementsToPull,true).flatMap {
-        case Some((seg, tl)) => Pull.output1(seg.force.toList.head) >> go(step % emitThisMany, tl)
+        case Some((chunk, tl)) => Pull.output1(chunk.head.get) >> go(step % emitThisMany, tl) // RIP NonEmptyChunk
         case None => Pull.done
       }
     }
@@ -695,11 +643,11 @@ object utilz {
   }.stream.flatMap { case (a, s) => s.to(sf(a)) }
 
 
-  def evalMapAsync[F[_]: Effect,I,O](f: I => F[O])(implicit ec: EC): Pipe[F,I,O] =
-    s => s.through(_.map(z => Stream.eval(f(z)))).joinUnbounded
+  def evalMapAsync[F[_]: Concurrent,I,O](f: I => F[O]): Pipe[F,I,O] =
+    s => s.through(_.map(z => Stream.eval(f(z)))).parJoinUnbounded
 
-  def evalMapAsyncBounded[F[_]: Effect,I,O](n: Int)(f: I => F[O])(implicit ec: EC): Pipe[F,I,O] =
-    s => s.through(_.map(z => Stream.eval(f(z)))).join(n)
+  def evalMapAsyncBounded[F[_]: Concurrent,I,O](n: Int)(f: I => F[O]): Pipe[F,I,O] =
+    s => s.through(_.map(z => Stream.eval(f(z)))).parJoin(n)
 
 
   def say(word: Any, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
@@ -725,12 +673,8 @@ object utilz {
   }
 
 
-  def indexTupler[F[_],I]: Pipe[F,Seq[I],(I,Int)] =
-    _.through(_.map(_.zipWithIndex)).through(chunkify)
-
-
-  def timeStamp[F[_]: Functor](implicit ev: Timer[F]): Pipe[F,String,String] = {
-    val getTime = ev.clockMonotonic(MILLISECONDS)
+  def timeStamp[F[_]: Concurrent](implicit ev: Timer[F]): Pipe[F,String,String] = {
+    val getTime = ev.clock.monotonic(MILLISECONDS)
     _.evalMap(s => getTime.map(time => time + ":" + s + "\n"))
   }
 }

@@ -4,7 +4,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import params._
 import fs2._
-import fs2.async.mutable.Signal
+import fs2.concurrent.Signal
 import cats.effect._
 import utilz._
 import backendImplicits._

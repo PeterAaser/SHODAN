@@ -49,26 +49,28 @@ object PerturbationTransform {
       : Pipe[F,List[Double], (Int, Option[FiniteDuration])] = {
 
     def go(prev: List[Double], s: Stream[F, List[Double]])
-        : Pull[F, List[(Int, Option[FiniteDuration])], Unit] = {
+        : Pull[F, (Int, Option[FiniteDuration]), Unit] = {
       s.pull.uncons1.flatMap {
         case None => Pull.done
         case Some((sr,tl)) => {
-          if (rangeThreshExceeded(100.0, prev, sr))
-            Pull.output1(sr.zipWithIndex.map(x => (x._2, transform(x._1)))) >> go(sr, tl)
-          else
+          if (rangeThreshExceeded(100.0, prev, sr)) {
+            Pull.output(Chunk.seq(sr.zipWithIndex.map(x => (x._2, transform(x._1))))) >> go(sr, tl)
+          }
+          else {
             go(prev, tl)
+          }
         }
       }
     }
 
     def init(s: Stream[F, List[Double]])
-        : Pull[F, List[(Int, Option[FiniteDuration])], Unit] = {
+        : Pull[F, (Int, Option[FiniteDuration]), Unit] = {
       s.pull.uncons1.flatMap {
         case None => Pull.done
         case Some((sr,tl)) => go(sr,tl)
       }
     }
 
-    in => init(in).stream.through(chunkify)
+    in => init(in).stream
   }
 }

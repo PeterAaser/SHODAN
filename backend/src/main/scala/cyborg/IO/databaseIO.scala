@@ -14,6 +14,7 @@ import cats.effect._
 
 import fs2._
 import fs2.Stream._
+import fs2.concurrent.SignallingRef
 import cats.effect.IO
 import java.nio.file.Path
 
@@ -23,11 +24,11 @@ import cyborg.RPCmessages._
 
 import cats.effect.IO
 
-
 object databaseIO {
 
   import backendImplicits._
 
+  implicit val huh = IO.contextShift _
 
   // haha nice meme dude!
   val username = "memer"
@@ -50,10 +51,6 @@ object databaseIO {
 
     val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
       Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
-        // say(s"Playing record with parameters:")
-        // say(s"id:             ${expParams.id}")
-        // say(s"samplerate:     ${expParams.samplerate}")
-        // say(s"segment length: ${expParams.segmentLength}")
         val reader = data.resourceType match {
           case CSV => fileIO.readCSV[IO](data.resourcePath)
           case GZIP => fileIO.readGZIP[IO](data.resourcePath)
@@ -77,10 +74,6 @@ object databaseIO {
       say(s"playing experiment with id $experimentId")
       val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
         Stream.eval(DoobieQueries.getExperimentParams(experimentId)).transact(xa) flatMap { expParams =>
-          // say(s"Playing record with parameters:")
-          // say(s"id:             ${expParams.id}")
-          // say(s"samplerate:     ${expParams.samplerate}")
-          // say(s"segment length: ${expParams.segmentLength}")
           val reader = data.resourceType match {
             case CSV => fileIO.readCSV[IO](data.resourcePath)
             case GZIP => fileIO.readGZIP[IO](data.resourcePath)
@@ -96,13 +89,9 @@ object databaseIO {
   def streamToDatabase(
     rawDataStream: Stream[IO,TaggedSegment],
     comment: String,
-    getConf: IO[Setting.FullSettings])
-    (implicit ec: EC): IO[InterruptableAction[IO]] =
-  {
-    import fs2.async._
-    import cats.implicits._
+    getConf: IO[Setting.FullSettings]): IO[InterruptableAction[IO]] = {
 
-    signalOf[IO,Boolean](false).flatMap { interruptSignal =>
+    SignallingRef[IO,Boolean](false).flatMap { interruptSignal =>
       databaseIO.createRecordingSink("", getConf).map { recordingSink =>
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
@@ -111,7 +100,7 @@ object databaseIO {
             .through(_.map(_.data))
             .through(chunkify)
             .through(recordingSink.sink)
-            .interruptWhen(interruptSignal.discrete).run
+            .interruptWhen(interruptSignal.discrete).compile.drain
         )
       }
     }
@@ -162,16 +151,11 @@ object databaseIO {
   case class RecordingSink(finalizer: IO[Unit], sink: Sink[IO,Int])
   def createRecordingSink(comment: String, getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[RecordingSink] = {
 
-    import fs2.async._
-    import cats.effect.IO
-    import cats.effect._
-    import cats.implicits._
-
     // Action for setting up path, sink and experiment record.
     // Since experiment record wont be inserted before 1st element
     // we do not need to keep track of the time in the program.
     // We also supply a finalizer method that will NYI freeze everything
-    signalOf[IO,IO[Unit]](IO.unit) map { finalizer =>
+    SignallingRef[IO,IO[Unit]](IO.unit) map { finalizer =>
 
       val onFirstElement = for {
         pathAndSink  <- fileIO.writeCSV[IO]

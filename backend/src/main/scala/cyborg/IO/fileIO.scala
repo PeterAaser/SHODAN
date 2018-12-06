@@ -1,11 +1,13 @@
 package cyborg.io.files
+import cats.Functor
+import cats._
+import cats.implicits._
 import cyborg._
-import fs2.async.mutable.Topic
+import fs2.concurrent.Topic
 
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
 import cats.effect._
-import cats.effect.IO
 import fs2._
 import utilz._
 
@@ -13,8 +15,8 @@ import scala.concurrent.duration._
 
 import java.io.File
 import java.nio.file.{ Path, Paths }
+import cyborg.backendImplicits._
 
-import scala.concurrent.ExecutionContext
 /**
   Now in use, yay!
 
@@ -40,7 +42,7 @@ object fileIO {
 
   val dtfmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
   def dateTimeString = DateTime.now().toString(dtfmt)
-  def getDateTimeString: IO[String] = IO {
+  def getDateTimeString[F[_]: Sync]: F[String] = Sync[F].delay {
     DateTime.now().toString(dtfmt)
   }
 
@@ -64,11 +66,11 @@ object fileIO {
 
 
   // TODO might be perf loss to go from Array to List and all that
-  def readCSV[F[_]: Effect](filePath: Path)(implicit ec: EC): Stream[F,Int] = {
-    val reader = fs2.io.file.readAll[F](filePath, 4096*32)
+  def readCSV[F[_]: Concurrent : ContextShift](filePath: Path): Stream[F,Int] = {
+    val reader = fs2.io.file.readAll[F](filePath, backendImplicits.ec, 4096*32)
       .through(text.utf8Decode)
       .through(text.lines)
-      .through(_.map{ csvLine => csvLine.split(",").map(_.toFloat.toInt).toList})
+      .map{ csvLine => Chunk.seq(csvLine.split(",").map(_.toFloat.toInt))} // tofloat toint???
       .through(utilz.chunkify)
       .handleErrorWith{
         case e: java.lang.NumberFormatException => { say("Record done"); Stream.empty}
@@ -78,10 +80,10 @@ object fileIO {
     reader
   }
 
-  def readGZIP[F[_]: Effect](filePath: Path)(implicit ec: ExecutionContext): Stream[F,Int] = ???
+  def readGZIP[F[_]: Effect](filePath: Path): Stream[F,Int] = ???
 
 
-  def getTimestampedFilename: IO[Path] = {
+  def getTimestampedFilename[F[_]: Sync]: F[Path] = {
     import params.StorageParams.toplevelPath
     getDateTimeString.map(s => Paths.get(toplevelPath + s))
   }
@@ -90,17 +92,17 @@ object fileIO {
   /**
     Creates a new file and returns the path, plus a sink for writing to said file
     */
-  def writeCSV[F[_]: Effect]: IO[(Path, Sink[F,Int])] = {
+  def writeCSV[F[_]: Concurrent : ContextShift]: F[(Path, Sink[F,Int])] = {
 
     import params.StorageParams.toplevelPath
 
     getDateTimeString map { s =>
       val path: Path = Paths.get(toplevelPath + s)
       val sink: Sink[F,Int] = _
-        .through(utilz.vectorize(1000))
-        .through(_.map(_.mkString("",", ", "\n")))
+        .chunkN(1000, true)
+        .map(_.toList.mkString("",", ", "\n"))
         .through(text.utf8Encode)
-        .through(fs2.io.file.writeAll(path))
+        .through(fs2.io.file.writeAll(path, backendImplicits.ec))
 
       (path, sink)
     }
@@ -110,18 +112,18 @@ object fileIO {
   /**
     Writes events to a file
     */
-  def timestampedEventWriter[F[_]: Effect](implicit ev: Timer[F]): Path => Sink[F,String] = { path =>
+  def timestampedEventWriter[F[_]: Concurrent : ContextShift](implicit ev: Timer[F]): Path => Sink[F,String] = { path =>
     val eventPath = Paths.get(path.toString() + "_events")
     s => s
       .through(timeStamp)
       .through(text.utf8Encode)
-      .through(fs2.io.file.writeAll(eventPath))
+      .through(fs2.io.file.writeAll(eventPath, backendImplicits.ec))
   }
 
   /**
     Attaches an eventWriter to a stream
     */
-  def attachEventWriter[F[_]: Effect : Timer, O](writer: Sink[F,String], serialize: O => String)(implicit ec: EC): Pipe[F,O,O] = {
+  def attachEventWriter[F[_]: Concurrent : Timer, O](writer: Sink[F,String], serialize: O => String)(implicit ec: EC): Pipe[F,O,O] = {
     val writeSink: Sink[F,O] = s => s.through(_.map(serialize)).through(writer)
     s => s.observeAsync(100)(writeSink)
   }
@@ -131,15 +133,15 @@ object fileIO {
     * Outputs a sink and path for writing an integer stream as a
     * compressed file. Use default values for deflate.
     */
-  def writeCompressed[F[_]: Effect]: IO[(Path, Sink[F,Int])] = {
+  def writeCompressed[F[_]: Concurrent : ContextShift]: F[(Path, Sink[F,Int])] = {
     import params.StorageParams.toplevelPath
 
-    getDateTimeString map {s =>
+    getDateTimeString map { s =>
       val path: Path = Paths.get(toplevelPath + s)
       val sink: Sink[F, Int] = _
         .through(utilz.intToBytes)
         .through(fs2.compress.deflate())
-        .through(fs2.io.file.writeAll(path))
+        .through(fs2.io.file.writeAll(path, backendImplicits.ec))
 
       (path, sink)
     }
@@ -150,10 +152,10 @@ object fileIO {
     * Reads a compressed binary file of integers. Use default values
     * for inflate.
     */
-  def streamCompressed(filePath: String): Stream[IO,Int] = {
+  def streamCompressed[F[_]: Concurrent : ContextShift](filePath: String): Stream[F,Int] = {
     import params.StorageParams.toplevelPath
 
-    fs2.io.file.readAll[IO](Paths.get(toplevelPath + filePath), 4096)
+    fs2.io.file.readAll(Paths.get(toplevelPath + filePath), backendImplicits.ec, 4096)
       .through(fs2.compress.inflate())
       .through(bytesToIntsJVM)
   }
@@ -162,17 +164,17 @@ object fileIO {
   /**
     Streams data from a file representing a single channel
     */
-  def streamChannelData(filePath: String): Stream[IO,Int] = {
-    fs2.io.file.readAll[IO](Paths.get(filePath), 4096)
+  def streamChannelData[F[_]: Concurrent : ContextShift](filePath: String): Stream[F,Int] = {
+    fs2.io.file.readAll(Paths.get(filePath), backendImplicits.ec, 4096)
       .through(text.utf8Decode)
       .through(text.lines)
       .filter(!_.isEmpty)
-      .through(_.map(_.split(",").map(_.toInt).toList))
+      .map(x => Chunk.seq(x.split(",").map(_.toInt)))
       .through(utilz.chunkify)
   }
 
 
-  def stringToFile[F[_]: Effect](s: String, path: Path): Stream[F,Unit] = {
-    Stream.emit(s).covary[F].through(text.utf8Encode).through(fs2.io.file.writeAll(path))
+  def stringToFile[F[_]: Concurrent : ContextShift](s: String, path: Path): Stream[F,Unit] = {
+    Stream.emit(s).covary[F].through(text.utf8Encode).through(fs2.io.file.writeAll(path, backendImplicits.ec))
   }
 }

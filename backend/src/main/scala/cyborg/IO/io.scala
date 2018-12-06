@@ -1,5 +1,5 @@
 package cyborg.io
-import cats.effect.Effect
+import cats.effect._
 import cyborg._
 import cyborg.io.files._
 import cyborg.io.network._
@@ -11,8 +11,7 @@ import fs2.Stream._
 
 import cats.effect.IO
 import cats.implicits._
-import fs2.async.mutable.Topic
-import scala.concurrent.ExecutionContext
+import fs2.concurrent.Topic
 import scala.concurrent.duration._
 
 import cyborg.io.database._
@@ -27,7 +26,7 @@ object sIO {
     /**
       * For offline playback of data, select experiment id to publish on provided topics
       */
-    def streamFromDatabase(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, TaggedSegment] = {
+    def streamFromDatabase(experimentId: Int): Stream[IO, TaggedSegment] = {
       val experimentData = databaseIO.dbChannelStream(experimentId)
       val params = databaseIO.dbGetParams(experimentId)
       Stream.eval(params).flatMap ( p =>
@@ -37,18 +36,18 @@ object sIO {
     }
 
 
-    def streamFromDatabaseThrottled(experimentId: Int)(implicit ec: ExecutionContext): Stream[IO, TaggedSegment] = {
+    def streamFromDatabaseThrottled(experimentId: Int): Stream[IO, TaggedSegment] = {
       val experimentData = databaseIO.dbChannelStream(experimentId)
       val params = databaseIO.dbGetParams(experimentId)
       Stream.eval(params).flatMap ( p =>
         experimentData
-          .through(utilz.throttlerPipe(p.samplerate*60, 0.05.second))
+          .through(utilz.throttlerPipe[IO,Int](p.samplerate*60, 0.05.second))
           .through(tagPipe(p.segmentLength))
       )
     }
 
 
-    def getAllExperiments(implicit ec: EC): IO[List[RecordingInfo]] = {
+    def getAllExperiments: IO[List[RecordingInfo]] = {
       databaseIO.getAllExperimentIds.flatMap { ids =>
         ids.map(databaseIO.getRecordingInfo).sequence
       }
@@ -61,8 +60,7 @@ object sIO {
     def streamToDatabase(
       rawDataStream: Stream[IO,TaggedSegment],
       comment: String,
-      getConf: IO[Setting.FullSettings])
-      (implicit ec: EC): IO[InterruptableAction[IO]] = databaseIO.streamToDatabase(rawDataStream, comment, getConf)
+      getConf: IO[Setting.FullSettings]): IO[InterruptableAction[IO]] = databaseIO.streamToDatabase(rawDataStream, comment, getConf)
   }
 
 
@@ -71,7 +69,7 @@ object sIO {
     /**
       * For when we don't really need to log the metadata and just want to store to file
       */
-    def streamToFile(rawDataStream: Stream[IO,TaggedSegment])(implicit ec: EC): Stream[IO, Unit] = {
+    def streamToFile(rawDataStream: Stream[IO,TaggedSegment]): Stream[IO, Unit] = {
       Stream.eval(fileIO.writeCSV[IO]) flatMap { λ =>
         rawDataStream.through(_.map(_.data)).through(chunkify).through(λ._2)
       }
@@ -85,7 +83,7 @@ object sIO {
       * Open a TCP connection to stream data from other computer
       * Data is broadcasted to provided topics
       */
-    def streamFromTCP(segmentLength: Int)(implicit ec: ExecutionContext): Stream[IO,TaggedSegment] =
+    def streamFromTCP(segmentLength: Int): Stream[IO,TaggedSegment] =
       networkIO.streamAllChannels[IO].through(tagPipe(segmentLength))
 
     /**
@@ -95,7 +93,7 @@ object sIO {
       *
       * Very crufty, crashes the server upon consumer disconnecting lol
       */
-    def channelServer[F[_]: Effect](topics: List[Topic[F,TaggedSegment]])(implicit ec: EC): Stream[F,F[Unit]] =
+    def channelServer[F[_]: ConcurrentEffect : ContextShift](topics: List[Topic[F,TaggedSegment]]): Stream[F,F[Unit]] =
       networkIO.channelServer(topics)
   }
 }

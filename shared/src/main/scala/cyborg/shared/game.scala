@@ -49,6 +49,7 @@ object wallAvoid {
       normalizeAngle(heading + compress((input._1 - input._2)*turnRate))
 
     def update(input: (Double, Double)): Agent = {
+
       val nextX = loc.x - math.cos(heading)*speed
       val nextY = loc.y - math.sin(heading)*speed
 
@@ -62,7 +63,7 @@ object wallAvoid {
   }
   object Agent {
 
-    val init = Agent(Coord(3000.0, 4000.0), 0.0, 0)
+    val init = Agent(Coord(8000.0, 5000.0), 3.14, 120)
 
     def updateAgent(a: Agent, input: List[Double]): Agent = {
 
@@ -76,7 +77,7 @@ object wallAvoid {
 
   def createChallenges: List[Agent] = {
 
-    val loc = Coord(9000.0, 5000.0)
+    val loc = Coord(8000.0, 5000.0)
     val firstAngle  = PI + PI/6.0
     val secondAngle = PI + PI/12.0
     val thirdAngle  = PI + .0

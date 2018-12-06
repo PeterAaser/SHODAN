@@ -5,10 +5,8 @@ import cyborg.RPCmessages._
 import utilz._
 
 import fs2._
-import fs2.async.Ref
-import fs2.async.mutable.Signal
-import fs2.async.mutable.Queue
-import fs2.async.mutable.Topic
+import cats.effect.concurrent.{ Ref }
+import fs2.concurrent.{ Signal, Queue, Topic }
 
 import cyborg.backend.rpc.ServerRPCendpoint
 import cyborg.shared.rpc.server.MainServerRPC
@@ -76,7 +74,7 @@ object ApplicationServer {
       in => in.through(_.map(_.data)).through(chunkify)
         .through(downsampler)
         .through(modifySegmentLengthGCD(downsampledSegmentLength, targetSegmentLength))
-        .through(mapN(targetSegmentLength*60, _.force.toArray))
+        .through(mapN(targetSegmentLength*60, _.toArray))
         .through(sendData)
 
     }

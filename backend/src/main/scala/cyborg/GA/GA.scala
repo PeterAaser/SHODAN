@@ -1,10 +1,9 @@
 package cyborg
 
-import cats.effect.IO
 import cats.effect._
 import fs2._
 import fs2.Stream._
-import fs2.async.mutable.Queue
+import fs2.concurrent.Queue
 import wallAvoid._
 import utilz._
 import Filters._
@@ -30,11 +29,11 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
     Sets up a simulation running an agent in 5 different initial poses
     aka challenges.
     */
-  def createSimRunner(implicit ec: EC): () => Pipe[IO, FilterOutput, O] = {
+  def createSimRunner[F[_]: Concurrent]: () => Pipe[F, FilterOutput, O] = {
 
     say("creating simrunner")
-    def simRunner(agent: Agent): Pipe[IO,FilterOutput, Agent] = {
-      def go(ticks: Int, agent: Agent, s: Stream[IO,FilterOutput]): Pull[IO,Agent,Unit] = {
+    def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
+      def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
         s.pull.uncons1 flatMap {
           case Some((agentInput, tl)) => {
             val nextAgent = Agent.updateAgent(agent, agentInput)
@@ -52,8 +51,8 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
     }
 
     val challenges: List[Agent] = createChallenges
-    val challengePipes: List[Pipe[IO, FilterOutput, O]] = challenges.map(simRunner(_))
-    def challengePipe: Pipe[IO,FilterOutput, Agent] = Pipe.join(Stream.emits(challengePipes).covary[IO])
+    val challengePipes: List[Pipe[F, FilterOutput, O]] = challenges.map(simRunner(_))
+    def challengePipe: Pipe[F,FilterOutput, Agent] = Pipe.join(Stream.emits(challengePipes).covary[F])
 
     () => challengePipe
   }
@@ -63,28 +62,26 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
     This is the genetic algorithm. As per spec it must emit a default, initial element.
     Internally it keeps a store of pipe generators (one generation).
     */
-  def filterGenerator(filterLogger: Queue[IO,String]): Pipe[IO, Double, Pipe[IO, ReservoirOutput, Option[FilterOutput]]] = {
+  def filterGenerator[F[_]](filterLogger: Queue[F,String]): Pipe[F, Double, Pipe[F, ReservoirOutput, Option[FilterOutput]]] = {
 
-    def init(s: Stream[IO,Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
+    def init(s: Stream[F,Double]): Pull[F, Pipe[F, ReservoirOutput, Option[FilterOutput]], Unit] = {
       val initNetworks = (0 until pipesPerGeneration)
         .map(_ => (Filters.FeedForward.randomNetWithLayout(filterSettings)))
-        .toList
 
-      say(s"Outputting $pipesPerGeneration pipes")
-      Pull.eval(filterLogger.enqueue1(initNetworks.mkString("\n","\n","\n"))) >>
-      Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))).toSegment) >> go(initNetworks, s)
+      Pull.eval(filterLogger.enqueue1(initNetworks.toList.mkString("\n","\n","\n"))) >>
+        Pull.output(Chunk.seq(initNetworks.map(ANNPipes.ffPipeO[F](ticksPerEval*5, _)))) >> go(Chunk.seq(initNetworks), s)
     }
 
 
-    def go(previous: List[FeedForward], evals: Stream[IO, Double]): Pull[IO, Pipe[IO, ReservoirOutput, Option[FilterOutput]], Unit] = {
-      evals.pull.unconsN((pipesPerGeneration - 1).toLong, false) flatMap {
+    def go(previous: Chunk[FeedForward], evals: Stream[F, Double]): Pull[F, Pipe[F, ReservoirOutput, Option[FilterOutput]], Unit] = {
+      evals.pull.unconsN((pipesPerGeneration - 1), false) flatMap {
         case Some((segment, tl)) => {
           say("got evaluations")
-          val scoredPipes = ScoredSeq(segment.force.toList.zip(previous).toVector)
-          val nextPop = generate(scoredPipes)
-          val nextPipes = nextPop.map(ANNPipes.ffPipeO[IO](ticksPerEval*5, _))
-          Pull.eval(filterLogger.enqueue1(nextPop.mkString("\n","\n","\n"))) >>
-          Pull.output(Chunk.seq(nextPipes).toSegment) >> go(nextPop,tl)
+          val scoredPipes = ScoredSeq(segment.zip(previous).toVector)
+          val nextPop = Chunk.seq(generate(scoredPipes))
+          val nextPipes = nextPop.map(ANNPipes.ffPipeO[F](ticksPerEval*5, _))
+          Pull.eval(filterLogger.enqueue1(nextPop.toList.mkString("\n","\n","\n"))) >>
+            Pull.output(nextPipes) >> go(nextPop,tl)
         }
         case None => {
           say("uh oh")
@@ -113,14 +110,12 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
   /**
     A pipe which evaluates the performance of an agent
     */
-  def evaluator: Pipe[IO,Agent,Double] = {
-    def go(s: Stream[IO,Agent]): Pull[IO,Double,Unit] = {
-      s.pull.unconsN(ticksPerEval.toLong, false) flatMap {
+  def evaluator[F[_]]: Pipe[F,Agent,Double] = {
+    def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
+      s.pull.unconsN(ticksPerEval, false) flatMap {
         case Some((seg, _)) => {
           say("Evaluated a performance")
-          val closest = seg.force.toList
-            .map(_.distanceToClosest)
-            .min
+          val closest = seg.map(_.distanceToClosest).toList.min
 
           Pull.output1(closest) >> Pull.done
         }
@@ -133,7 +128,8 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
   }
 
 
-  def gaPipe(filterLogger: Queue[IO,String])(implicit ec: EC) = Feedback.experimentPipe(createSimRunner, evaluator, filterGenerator(filterLogger))
+  def gaPipe[F[_]: Concurrent](filterLogger: Queue[F,String]): fs2.Pipe[F,ReservoirOutput,O] =
+    Feedback.experimentPipe(createSimRunner, evaluator, filterGenerator(filterLogger))
 
 }
 
