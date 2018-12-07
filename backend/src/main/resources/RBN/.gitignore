@@ -1,0 +1,4 @@
+# Ignore everything
+*
+# Except this .gitignore, so it's possible to keep data in here
+!.gitignore
