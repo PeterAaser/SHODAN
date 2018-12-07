@@ -1,5 +1,6 @@
 package cyborg
 
+import cats.effect.IO
 import cats.effect.concurrent.Deferred
 
 import cyborg.RPCmessages._
@@ -17,9 +18,8 @@ case class  RunFromDB(info: RecordingInfo)                           extends Use
 case object DBstartRecord                                            extends UserCommand
 case object DBstopRecord                                             extends UserCommand
 
-// TODO Fails in entrypoint cause effects
-case class GetSHODANstate[F[_]](ret: Deferred[F,EquipmentState])     extends UserCommand
-case class GetRecordings[F[_]](ret: Deferred[F,List[RecordingInfo]]) extends UserCommand
+case class GetSHODANstate(ret: Deferred[IO,EquipmentState])     extends UserCommand
+case class GetRecordings(ret: Deferred[IO,List[RecordingInfo]]) extends UserCommand
 
 case object Shutdown                                                 extends UserCommand
 

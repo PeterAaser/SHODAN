@@ -219,9 +219,8 @@ object staging {
         case AgentStart =>
           state.update(s => s.copy( agentRunning = true )).void
 
-          // TODO: add back in!!!
-        // case GetSHODANstate(p) => handleGetSHODANstate(p)
-        // case GetRecordings(p) => handleGetRecordings(p)
+        case GetSHODANstate(p) => handleGetSHODANstate(p)
+        case GetRecordings(p) => handleGetRecordings(p)
 
         case DspBarf =>
           DspLog.printDspLog
