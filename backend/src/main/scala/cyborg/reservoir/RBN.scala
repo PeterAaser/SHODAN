@@ -86,6 +86,14 @@ case class RBN(
 
 
   /**
+    * Steps the RBN with input in the form of perturbations.
+    */
+  def step(perturbations: List[Perturbation]): RBN = {
+    perturb(perturbations).step
+  }
+
+
+  /**
     * Applies a perturbation to the RBN, given as a list of nodes
     * and the new state.
     */
