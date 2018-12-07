@@ -41,7 +41,7 @@ trait MainServerRPC {
   def runDspTestWithElectrodes(electrodes: List[Int]): Unit
   def stopDspTest: Unit
 
-  def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse]
+  // def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse]
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

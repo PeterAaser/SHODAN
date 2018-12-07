@@ -102,6 +102,6 @@ class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
   override def runDspTestWithElectrodes(electrodes: List[Int]): Unit =
     say("deprecated and unimplemented")
 
-  override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
-    HttpClient.DSP.readRegistersRequest(reads).unsafeToFuture()
+  // override def readDspMemory(reads: DspRegisters.RegisterReadList): Future[DspRegisters.RegisterReadResponse] =
+  //   HttpClient.DSP.readRegistersRequest(reads).unsafeToFuture()
 }

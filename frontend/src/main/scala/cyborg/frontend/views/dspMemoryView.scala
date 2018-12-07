@@ -161,17 +161,17 @@ class DspMemoryView(model: ModelProperty[DspMemoryModel], presenter: DspMemoryVi
     case UdashButton.ButtonClickEvent(btn, _) => {
 
       import cyborg.frontend.Context
-      val contents = Context.serverRpc.readDspMemory(STG.SidebandSelectBF.getReadList)
-      contents.onComplete {
-        case Success(r) => {
-          regs.clear()
-          addRegisterGroupsWithWords(regs, STG.SidebandSelectBF, r.asMap)
-        }
+      // val contents = Context.serverRpc.readDspMemory(STG.SidebandSelectBF.getReadList)
+      // contents.onComplete {
+      //   case Success(r) => {
+      //     regs.clear()
+      //     addRegisterGroupsWithWords(regs, STG.SidebandSelectBF, r.asMap)
+      //   }
 
-        case Failure(ex) => {
-          say("FAILURE! EGADS!")
-        }
-      }
+      //   case Failure(ex) => {
+      //     say("FAILURE! EGADS!")
+      //   }
+      // }
     }
   }
 

@@ -19,6 +19,10 @@ import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
 import scala.concurrent.duration._
 
+import cyborg.dsp.calls.DspCalls._
+import cyborg.DspRegisters._
+import cyborg.MEAMEmessages._
+
 import cyborg.HttpClient._
 import cyborg.utilz._
 
@@ -127,9 +131,7 @@ object mockDSP {
   }
 
 
-  def decodeDspCall(call: HttpClient.DspFuncCall): DSPstate => DSPstate = {
-    import cyborg.dsp.calls.DspCalls._
-    import cyborg.DspRegisters._
+  def decodeDspCall(call: DspFuncCall): DSPstate => DSPstate = {
 
     def idx = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_GROUP)
     def nextPeriod = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_PERIOD)
@@ -159,7 +161,7 @@ object mockDSP {
 
 
   def startDSP(
-    messages: Ref[IO, Chain[HttpClient.DspFuncCall]], resolution: FiniteDuration): Stream[IO,Event] = {
+    messages: Ref[IO, Chain[DspFuncCall]], resolution: FiniteDuration): Stream[IO,Event] = {
 
     import backendImplicits._
     import cyborg.dsp.calls.DspCalls.FiniteDurationDSPext

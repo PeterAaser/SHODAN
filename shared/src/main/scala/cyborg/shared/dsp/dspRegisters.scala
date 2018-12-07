@@ -3,7 +3,6 @@ package cyborg
 
 object DspRegisters {
 
-  import com.avsystem.commons.serialization.HasGenCodec
   import twiddle._
 
   case class RegisterSetList(addresses: List[Int], values: List[Int])
@@ -17,18 +16,15 @@ object DspRegisters {
     def apply(address: Int): Option[Word] = asMap.lift(Reg(address))
   }
 
-  object RegisterSetList extends HasGenCodec[RegisterSetList] {
+  object RegisterSetList {
     def apply(r: List[(Int,Int)]): RegisterSetList = RegisterSetList(r.unzip._2, r.unzip._1)
 
     // value -> address
     def apply(r: (Int, Int)*): RegisterSetList = RegisterSetList(r.unzip._2.toList, r.unzip._1.toList)
   }
 
-  object RegisterReadList extends HasGenCodec[RegisterReadList] {
+  object RegisterReadList {
     def apply(addresses: Int*): RegisterReadList = RegisterReadList(addresses.toList)
-  }
-
-  object RegisterReadResponse extends HasGenCodec[RegisterReadResponse] {
   }
 
   ////////////////////////////////////////

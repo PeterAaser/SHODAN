@@ -86,34 +86,35 @@ object DspCalls {
   }
 
   val commitConfig = for {
-    _ <- dspCall( COMMIT_CONFIG ).void
     _ <- Fsay[IO](s"commiting config (dsp call $COMMIT_CONFIG)")
+    _ <- dspCall( COMMIT_CONFIG ).void
   } yield ()
 
   val startStimQueue: IO[Unit] = for {
-    _ <- dspCall(START_STIM_QUEUE).void
     _ <- Fsay[IO](s"start stim queue (dsp call $START_STIM_QUEUE)\nSTIM QUEUE IS NOW LIVE! #YOLO")
+    _ <- dspCall(START_STIM_QUEUE).void
   } yield ()
 
   val stopStimQueue: IO[Unit] = for {
-    _ <- dspCall(STOP_STIM_QUEUE).void
     _ <- Fsay[IO](s"Stop stim queue (dsp call $STOP_STIM_QUEUE)")
+    _ <- dspCall(STOP_STIM_QUEUE).void
   } yield ()
 
   val resetStimQueue: IO[Unit] = for {
-    _ <- dspCall(RESET).void
     _ <- Fsay[IO](s"reset stim queue (dsp call $RESET")
+    _ <- dspCall(RESET).void
   } yield ()
 
   def stimGroupChangePeriod(group: Int, period: FiniteDuration): IO[Unit] = for {
+    _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
-    _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
   } yield ()
 
 
   def enableStimReqGroup(group: Int): IO[Unit] = for {
+    _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
     errors <- checkForErrors
     _ <- errors match {
       case Some(s) => Fsay[IO](s"error: $s")
@@ -121,13 +122,12 @@ object DspCalls {
     }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
-    _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
   } yield ()
 
   def disableStimReqGroup(group: Int): IO[Unit] = for {
+    _ <- Fsay[IO](s"disabling stim group $group (dsp call $DISABLE_STIM_GROUP)")
     _ <- dspCall(DISABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
-    _ <- Fsay[IO](s"disabling stim group $group (dsp call $DISABLE_STIM_GROUP)")
   } yield ()
 
 
@@ -144,9 +144,10 @@ object DspCalls {
     _ <- Fsay[IO](s"Uploading stimulus")
     _ <- uploadSquareTest(10.millis, 200)
 
+    _ <- Fsay[IO](s"Reading debug config")
     _ <- cyborg.dsp.DSP.configureElectrodes(config)
     s <- readElectrodeConfig
-    _ <- Fsay[IO](s"Reading debug config:\n$s")
+    _ <- Fsay[IO](s"$s")
 
     _ <- Fsay[IO](s"Committing config, we're LIVE")
     _ <- commitConfig

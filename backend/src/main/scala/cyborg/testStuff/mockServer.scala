@@ -24,6 +24,7 @@ import scala.concurrent.duration._
 
 import cyborg.HttpClient._
 import cyborg.utilz._
+import cyborg.MEAMEmessages._
 
 import org.http4s.HttpApp
 import org.http4s.server.Router
@@ -90,7 +91,7 @@ object mockServer {
     }
 
     case req @ POST -> Root / "call" => {
-      req.decode[HttpClient.DspFuncCall] { data =>
+      req.decode[DspFuncCall] { data =>
         s.get.flatMap{ state =>
           if (!state.dspFlashed) say("Possible error: DSP is not flashed")
           dspMessages.update(data +: _) >> Ok("")
