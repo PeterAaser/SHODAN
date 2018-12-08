@@ -156,6 +156,8 @@ object mockDSP {
 
       case  COMMIT_CONFIG_DEBUG             => state => state
       case  WRITE_SQ_DEBUG                  => state => state
+      case  SET_BLANKING                    => state => state
+      case  SET_BLANKING_PROTECTION         => state => state
     }
   }
 

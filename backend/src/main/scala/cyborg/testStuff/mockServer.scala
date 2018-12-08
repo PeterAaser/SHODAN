@@ -168,7 +168,7 @@ object mockServer {
   }
 
 
-  def assembleTestHttpServer(port: Int): Stream[IO, mockDSP.Event] = {
+  def assembleTestHttpServer(port: Int, dspMessageSink: Sink[IO,mockDSP.Event]): IO[Unit] = {
 
     def mountServer(
       s: SignallingRef[IO,ServerState],
@@ -189,11 +189,13 @@ object mockServer {
       huh
     }
 
-    Stream.eval(SignallingRef[IO,ServerState](ServerState.init)) flatMap{ meameState =>
-      Stream.eval(Ref.of[IO,Chain[DspFuncCall]](Chain.nil)) flatMap { dspMessages =>
-        (mockDSP.startDSP(dspMessages, 100.millis)).concurrently(
-          mountServer(meameState, dspMessages))
-      }
+    // #sledgang
+    for {
+      meameStatus <- SignallingRef[IO,ServerState](ServerState.init)
+      dspMessages <- Ref.of[IO,Chain[DspFuncCall]](Chain.nil)
+    } yield {
+      mockDSP.startDSP(dspMessages, 100.millis).compile.drain.unsafeRunAsyncAndForget()
+      mountServer(meameStatus, dspMessages).compile.drain.unsafeRunAsyncAndForget()
     }
   }
 

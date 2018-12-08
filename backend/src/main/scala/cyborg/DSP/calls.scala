@@ -133,7 +133,9 @@ object DspCalls {
 
   val setup: Setting.ExperimentSettings => IO[Unit] = config =>
   for {
+    _ <- Fsay[IO](s"Flashing DSP")
     _ <- cyborg.dsp.DSP.flashDSP
+    _ <- Fsay[IO](s"Stopping and resetting stim Q")
     _ <- stopStimQueue
     _ <- resetStimQueue
 
@@ -144,10 +146,10 @@ object DspCalls {
     _ <- Fsay[IO](s"Uploading stimulus")
     _ <- uploadSquareTest(10.millis, 200)
 
-    _ <- Fsay[IO](s"Reading debug config")
-    _ <- cyborg.dsp.DSP.configureElectrodes(config)
-    s <- readElectrodeConfig
-    _ <- Fsay[IO](s"$s")
+    // _ <- Fsay[IO](s"Reading debug config")
+    // _ <- cyborg.dsp.DSP.configureElectrodes(config)
+    // s <- readElectrodeConfig
+    // _ <- Fsay[IO](s"$s")
 
     _ <- Fsay[IO](s"Committing config, we're LIVE")
     _ <- commitConfig

@@ -126,12 +126,6 @@ object HttpClient {
     httpClient.expect[String](POST(s, buildUri("aux/logmsg"))).void
 
 
-
-
-
-
-
-
   // #YOLO
   // TODO: This is janktastic.
   import org.http4s.client._

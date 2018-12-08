@@ -26,16 +26,16 @@ object params {
   }
 
   object http {
-    object MEAMEclient {
-      val ip = "129.241.201.110"
-      val port = 8888 // we're not an open server, so we don't use the regular http port.
-    }
+    // object MEAMEclient {
+    //   val ip = "129.241.201.110"
+    //   val port = 8888 // we're not an open server, so we don't use the regular http port.
+    // }
 
     // mock version
-    // object MEAMEclient {
-    //   val ip = "0.0.0.0"
-    //   val port = 8888
-    // }
+    object MEAMEclient {
+      val ip = "0.0.0.0"
+      val port = 8888
+    }
 
     object SHODANserver {
       val SHODANserverIP = "127.0.0.1"
@@ -43,23 +43,23 @@ object params {
     }
   }
 
-  // object TCP {
-  //   val ip = "0.0.0.0"
-  //   val port = 12340
-  //   val sawtooth = 12341
-  //   val sendBufSize = 4096        // rather low bandwidth required for stimreqs
-  //   val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
-  //   val format = "JVM"
-  // }
-
   object TCP {
-    val ip = "129.241.201.110"
+    val ip = "0.0.0.0"
     val port = 12340
     val sawtooth = 12341
     val sendBufSize = 4096        // rather low bandwidth required for stimreqs
     val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
-    val format = "Csharp"
+    val format = "JVM"
   }
+
+  // object TCP {
+  //   val ip = "129.241.201.110"
+  //   val port = 12340
+  //   val sawtooth = 12341
+  //   val sendBufSize = 4096        // rather low bandwidth required for stimreqs
+  //   val recvBufSize = 262144      // 262144 = 1024*256, 256kb, matches kernel tcp socket buffer size
+  //   val format = "Csharp"
+  // }
 
 
   object GA {

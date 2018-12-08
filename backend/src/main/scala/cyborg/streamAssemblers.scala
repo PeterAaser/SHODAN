@@ -37,6 +37,7 @@ object Assemblers {
     val shittyEventSink = cyborg.io.files.fileIO.timestampedEventWriter[IO]
     val hurr = shittyEventSink(shittyPath)
 
+    val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
 
     val meameFeedbackSink: Sink[IO,List[Double]] =
       _.through(PerturbationTransform.toStimReq())
@@ -47,6 +48,10 @@ object Assemblers {
       conf              <- Stream.eval(assembleConfig)
       getConf           =  conf.get
       staleConf         <- Stream.eval(conf.get)
+
+
+      _                 <- Stream.eval(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port, dspEventSink))
+
       // mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
       // mockEvents        =  mock._2
       _                 <- Ssay[IO]("mock server up")
@@ -93,7 +98,6 @@ object Assemblers {
       _                 <- Ssay[IO]("All systems go")
       _                 <- commandQueue.dequeue.through(commandPipe)
                              .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
-                             .concurrently(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port))
                              .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
                              .concurrently(eventQueue.dequeue.through(hurr))
 
