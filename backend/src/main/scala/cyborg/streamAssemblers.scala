@@ -201,14 +201,14 @@ object Assemblers {
 
       val gaRunner = new GArunner(conf.gaSettings, conf.filterSettings)
 
-      val experimentPipe: Pipe[IO, Vector[Double], Agent] = gaRunner.gaPipe(eventLogger)
+      val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = gaRunner.gaPipe(eventLogger)
 
       SignallingRef[IO,Boolean](false).map { interruptSignal =>
         val interruptTask = for {
           _ <- interruptSignal.set(true)
         } yield ()
 
-        val runTask = inputSpikes flatMap (
+        val runTask = experimentPipe flatMap { experimentPipe => inputSpikes flatMap (
           _.interruptWhen(interruptSignal
                            .discrete
                            .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
@@ -216,7 +216,7 @@ object Assemblers {
           .observe(frontendAgentObserver)
           .through(_.map((λ: Agent) => {λ.distances}))
           .through(feedbackSink)
-          .compile.drain)
+          .compile.drain)}
 
         InterruptableAction(
           interruptTask,

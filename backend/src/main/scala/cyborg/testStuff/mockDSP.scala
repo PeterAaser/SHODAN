@@ -133,8 +133,8 @@ object mockDSP {
 
   def decodeDspCall(call: DspFuncCall): DSPstate => DSPstate = {
 
-    def idx = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_GROUP)
-    def nextPeriod = call.args.map(x => (x._2, x._1)).toMap.apply(STIM_QUEUE_PERIOD)
+    def idx = call.args.toMap.apply(STIM_QUEUE_GROUP)
+    def nextPeriod = call.args.toMap.apply(STIM_QUEUE_PERIOD)
 
     call.func match {
       case  DUMP                            => state => state
@@ -145,8 +145,9 @@ object mockDSP {
       case  START_STIM_QUEUE                => state => state
       case  STOP_STIM_QUEUE                 => state => state
 
-      case  SET_ELECTRODE_GROUP_PERIOD      => state =>
+      case  SET_ELECTRODE_GROUP_PERIOD      => state => {
         state.copy(m = state.m.updateAt(idx)(_.updatePeriod(nextPeriod, state.currentTick)))
+      }
 
       case  ENABLE_STIM_GROUP               => state =>
         state.copy(m = state.m.updateAt(idx)(_.toggle(true, state.currentTick)))

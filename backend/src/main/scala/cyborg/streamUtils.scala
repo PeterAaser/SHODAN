@@ -54,6 +54,7 @@ object utilz {
           case None           => Pull.pure(None)
         }
       }
+    def mapN[O2](f: Chunk[O] => O2, n: Int): Stream[F,O2] = s.chunkN(n, false).map(f)
   }
 
 
@@ -679,4 +680,84 @@ object utilz {
     val getTime = ev.clock.monotonic(MILLISECONDS)
     _.evalMap(s => getTime.map(time => time + ":" + s + "\n"))
   }
+
+
+  /** Queue based version of [[join]] that uses the specified queue. */
+  def joinQueued[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(s: Stream[F, Pipe[F, A, B]])(
+    implicit F: Concurrent[F]): Pipe[F, A, B] =
+    in => {
+      for {
+        done <- Stream.eval(SignallingRef(false))
+        q <- Stream.eval(q)
+        b <- in.chunks
+        .map(Some(_))
+        .evalMap(q.enqueue1)
+        .drain
+        .onFinalize(q.enqueue1(None))
+        .onFinalize(done.set(true))
+        .merge(done.interrupt(s).flatMap { f =>
+                 f(q.dequeue.unNoneTerminate.flatMap { x =>
+                     Stream.chunk(x)
+                   })
+               })
+      } yield b
+    }
+
+
+  /** Queue based version of [[join]] that uses the specified queue. */
+  def joinQueuedNoneTerminated[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(s: Stream[F, Option[Pipe[F, A, B]]])(
+    implicit F: Concurrent[F]): Pipe[F, A, Option[B]] =
+    in =>
+      for {
+        done <- Stream.eval(SignallingRef(false))
+        q <- Stream.eval(q)
+        b <- in.chunks
+        .map(Some(_))
+        .evalMap(q.enqueue1)
+        .drain
+        .onFinalize(q.enqueue1(None))
+        .onFinalize(done.set(true))
+        .merge(done.interrupt(s).flatMap {
+                 case Some(f: Pipe[F,A,B]) =>
+                   f(q.dequeue.unNoneTerminate.flatMap { x =>
+                       Stream.chunk(x)
+                     }).map(Some(_))
+                 case None => {
+                   Stream(None)
+                 }
+               })
+      } yield b
+
+
+  /** Queue based version of [[join]] that uses the specified queue. */
+  def joinQueuedNoneTerminated2[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(pipeStream: Stream[F, Option[Pipe[F, A, B]]])(
+    implicit F: Concurrent[F]): Pipe[F, A, Option[B]] = in =>
+  {
+    val huh = Stream.eval(SignallingRef(false)) flatMap { done =>
+      Stream.eval(SignallingRef(false)) flatMap { doneDone =>
+        Stream.eval(q) flatMap { q =>
+          val a = in.chunks
+            .map(Some(_))
+            .evalMap(q.enqueue1)
+            .drain
+            .onFinalize(q.enqueue1(None))
+            .onFinalize(done.set(true))
+
+          val b = done.interrupt(pipeStream)
+            .flatMap {
+              case Some(f: Pipe[F,A,B]) =>
+                f(q.dequeue.unNoneTerminate.flatMap { x =>
+                    Stream.chunk(x)
+                  }).map(Some(_))
+              case None => {
+                Stream(None).onFinalize(Fsay[F]("Hurr") >> doneDone.set(true) >> Fsay("Durr"))
+              }
+            }
+          a.merge(b).interruptWhen(doneDone)
+        }
+      }
+    }
+    huh
+  }
+
 }

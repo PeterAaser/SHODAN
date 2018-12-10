@@ -106,7 +106,7 @@ object DspCalls {
   } yield ()
 
   def stimGroupChangePeriod(group: Int, period: FiniteDuration): IO[Unit] = for {
-    _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
+    // _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
@@ -114,18 +114,18 @@ object DspCalls {
 
 
   def enableStimReqGroup(group: Int): IO[Unit] = for {
-    _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
-    errors <- checkForErrors
-    _ <- errors match {
-      case Some(s) => Fsay[IO](s"error: $s")
-      case None    => Fsay[IO](s"No DSP error flags raised")
-    }
+    // _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
+    // errors <- checkForErrors
+    // _ <- errors match {
+    //   case Some(s) => Fsay[IO](s"error: $s")
+    //   case None    => Fsay[IO](s"No DSP error flags raised")
+    // }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
 
   def disableStimReqGroup(group: Int): IO[Unit] = for {
-    _ <- Fsay[IO](s"disabling stim group $group (dsp call $DISABLE_STIM_GROUP)")
+    // _ <- Fsay[IO](s"disabling stim group $group (dsp call $DISABLE_STIM_GROUP)")
     _ <- dspCall(DISABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()

@@ -14,22 +14,8 @@ import scala.concurrent.duration.FiniteDuration
 object MEAMEmessages {
 
   case class DAQparams(samplerate: Int, segmentLength: Int)
-  case class DspFuncCall(func: Int, args: List[(Int, Int)]){
-    import cyborg.dsp.calls.DspCalls._
-    def decodeSetPeriod: Option[(Int, FiniteDuration)] =
-      if (func == SET_ELECTRODE_GROUP_PERIOD)
-        Some((args(0)._1, args(1)._1.fromDSPticks))
-      else
-        None
+  case class DspFuncCall(func: Int, args: List[(Int, Int)])
 
-    def decodeToggleGroup: Option[(Int, Boolean)] =
-      if (func == ENABLE_STIM_GROUP)
-        Some((args(0)._1, true))
-      else if (func == DISABLE_STIM_GROUP)
-        Some((args(0)._1, false))
-      else
-        None
-  }
   object DspFuncCall {
     def apply(func: Int, args: (Int,Int)*): DspFuncCall = {
       DspFuncCall(func, args.toList)

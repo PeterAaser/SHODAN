@@ -71,6 +71,9 @@ object mockServer {
   }
 
 
+  val dspRegisterState = scala.collection.mutable.Map[Int,Int]()
+
+
   def DAQ(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
     case req @ POST -> Root / "connect" =>
       req.decode[DAQparams] { params =>
@@ -101,11 +104,12 @@ object mockServer {
 
     case req @ POST -> Root / "read" => {
       req.decode[DspRegisters.RegisterReadList] { data =>
-        Fsay[IO](s"got dsp read request: $data") >> Ok("")
+        Fsay[IO](s"got dsp read request: ${data.addresses.map(_.toHexString)}") >> Ok("")
       }
     }
     case req @ POST -> Root / "write" => {
       req.decode[DspRegisters.RegisterSetList] { data =>
+        (data.addresses zip data.values).foreach{ case(r,v) => dspRegisterState.update(r, v)}
         Fsay[IO](s"got dsp write request: $data") >> Ok("")
       }
     }
