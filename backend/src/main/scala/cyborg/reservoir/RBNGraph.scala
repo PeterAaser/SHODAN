@@ -5,6 +5,7 @@ import java.awt.event.KeyEvent
 import org.graphstream.graph.implementations._
 import org.graphstream.graph.Node
 import org.graphstream.ui.view._
+import cats.effect._
 
 object RBNGraph {
   def initGraph(rbn: RBN): MultiGraph = {
@@ -56,6 +57,27 @@ object RBNGraph {
           liveRBN.printStateANSI
           liveRBN = liveRBN.step
           updateGraph
+        }
+
+        def getTimestampedFP: String = {
+          import io.files._
+          RBN.resourceDir + "RBN" + ", " + fileIO.getTimeStringUnsafe
+        }
+
+        if (e.getKeyCode == KeyEvent.VK_S) {
+          // There is probably some way to save directly with
+          // getResource.
+          RBN.serialize(liveRBN, getTimestampedFP)
+        }
+
+        // Ignore this for now -- implement loading for viz when
+        // needed (if ever).
+        if (e.getKeyCode == KeyEvent.VK_L) {
+          // If we are already in RBNGraph, we don't really care
+          // much about the unsafeRunSync anymore.
+          // (for {
+          //   rbn <- RBN.deserialize(getTimestampedFP)
+          // } yield (liveRBN = rbn)).unsafeRunSync()
         }
       }
     })

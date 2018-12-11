@@ -8,6 +8,9 @@ import fs2.concurrent.Signal
 import cats.effect._
 import utilz._
 import backendImplicits._
+import java.nio.file.Paths
+import java.io.{ObjectOutputStream, FileOutputStream,
+  ObjectInputStream, FileInputStream}
 
 
 object RBN {
@@ -16,6 +19,34 @@ object RBN {
   type Edges         = List[List[Node]]
   type Perturbation  = (Node, Boolean)
   type Rule          = List[Boolean]
+
+
+  val resourceDir = Paths.get(".").toAbsolutePath +
+    "/backend/src/main/resources/RBN/"
+
+
+  /**
+    * Serialize the configuration of an RBN to disk.
+    */
+  def serialize(rbn: RBN, filePath: String): IO[Unit] = {
+    val oos = new ObjectOutputStream(new FileOutputStream(filePath))
+    oos.writeObject(rbn)
+    oos.close
+
+    IO.unit
+  }
+
+
+  /**
+    * Deserialize an already initialized RBN from disk.
+    */
+  def deserialize(filePath: String): IO[RBN] = {
+    val ois = new ObjectInputStream(new FileInputStream(filePath))
+    val rbn = ois.readObject.asInstanceOf[RBN]
+    ois.close
+
+    IO(rbn)
+  }
 }
 
 
@@ -26,7 +57,7 @@ case class RBN(
   rules:  List[Rule],
   lowFreq: Double  = 3.0,
   highFreq: Double = 8.0
-) {
+) extends Serializable {
   /**
     * Neighbors are defined as the edges _into_ the node in
     * question, which may be confusing if thought of in CA terms.
@@ -51,6 +82,14 @@ case class RBN(
     copy(state = state.zipWithIndex.map{t =>
       rules(t._2)(sumNeighborStates(t._2))
     })
+  }
+
+
+  /**
+    * Steps the RBN with input in the form of perturbations.
+    */
+  def step(perturbations: List[Perturbation]): RBN = {
+    perturb(perturbations).step
   }
 
 
