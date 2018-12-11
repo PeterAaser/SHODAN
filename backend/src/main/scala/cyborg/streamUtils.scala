@@ -56,6 +56,9 @@ object utilz {
       }
     def mapN[O2](f: Chunk[O] => O2, n: Int): Stream[F,O2] = s.chunkN(n, false).map(f)
   }
+  implicit class ChunkedStreamBonusOps[F[_],O](s: Stream[F,Chunk[O]]) {
+    def chunkify: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
+  }
 
 
   def bytesToInts[F[_]](format: String = "Csharp"): Pipe[F, Byte, Int] = format match {
@@ -160,7 +163,6 @@ object utilz {
     This thing should be a method on stream
     */
   def chunkify[F[_],I]: Pipe[F,Chunk[I],I] = {
-
     def go(s: Stream[F,Chunk[I]]): Pull[F,I,Unit] = {
       s.pull.uncons1 flatMap {
         case Some((chunk, tl)) =>
@@ -682,82 +684,9 @@ object utilz {
   }
 
 
-  /** Queue based version of [[join]] that uses the specified queue. */
-  def joinQueued[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(s: Stream[F, Pipe[F, A, B]])(
-    implicit F: Concurrent[F]): Pipe[F, A, B] =
-    in => {
-      for {
-        done <- Stream.eval(SignallingRef(false))
-        q <- Stream.eval(q)
-        b <- in.chunks
-        .map(Some(_))
-        .evalMap(q.enqueue1)
-        .drain
-        .onFinalize(q.enqueue1(None))
-        .onFinalize(done.set(true))
-        .merge(done.interrupt(s).flatMap { f =>
-                 f(q.dequeue.unNoneTerminate.flatMap { x =>
-                     Stream.chunk(x)
-                   })
-               })
-      } yield b
-    }
+  def joinPipes[F[_]: Concurrent, A, B](pipes: Stream[F, Pipe[F, A, B]]): Pipe[F, A, B] =
+    in => in.broadcast.zipWith(pipes)(_.through(_)).flatten
 
-
-  /** Queue based version of [[join]] that uses the specified queue. */
-  def joinQueuedNoneTerminated[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(s: Stream[F, Option[Pipe[F, A, B]]])(
-    implicit F: Concurrent[F]): Pipe[F, A, Option[B]] =
-    in =>
-      for {
-        done <- Stream.eval(SignallingRef(false))
-        q <- Stream.eval(q)
-        b <- in.chunks
-        .map(Some(_))
-        .evalMap(q.enqueue1)
-        .drain
-        .onFinalize(q.enqueue1(None))
-        .onFinalize(done.set(true))
-        .merge(done.interrupt(s).flatMap {
-                 case Some(f: Pipe[F,A,B]) =>
-                   f(q.dequeue.unNoneTerminate.flatMap { x =>
-                       Stream.chunk(x)
-                     }).map(Some(_))
-                 case None => {
-                   Stream(None)
-                 }
-               })
-      } yield b
-
-
-  /** Queue based version of [[join]] that uses the specified queue. */
-  def joinQueuedNoneTerminated2[F[_], A, B](q: F[Queue[F, Option[Chunk[A]]]])(pipeStream: Stream[F, Option[Pipe[F, A, B]]])(
-    implicit F: Concurrent[F]): Pipe[F, A, Option[B]] = in =>
-  {
-    val huh = Stream.eval(SignallingRef(false)) flatMap { done =>
-      Stream.eval(SignallingRef(false)) flatMap { doneDone =>
-        Stream.eval(q) flatMap { q =>
-          val a = in.chunks
-            .map(Some(_))
-            .evalMap(q.enqueue1)
-            .drain
-            .onFinalize(q.enqueue1(None))
-            .onFinalize(done.set(true))
-
-          val b = done.interrupt(pipeStream)
-            .flatMap {
-              case Some(f: Pipe[F,A,B]) =>
-                f(q.dequeue.unNoneTerminate.flatMap { x =>
-                    Stream.chunk(x)
-                  }).map(Some(_))
-              case None => {
-                Stream(None).onFinalize(Fsay[F]("Hurr") >> doneDone.set(true) >> Fsay("Durr"))
-              }
-            }
-          a.merge(b).interruptWhen(doneDone)
-        }
-      }
-    }
-    huh
-  }
-
+  def repeatPipe[F[_]: Concurrent, I, O](pipe: Pipe[F,I,O]): Pipe[F,I,O] =
+    joinPipes(Stream(pipe).repeat)
 }

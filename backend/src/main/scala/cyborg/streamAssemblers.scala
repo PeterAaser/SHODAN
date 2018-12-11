@@ -123,7 +123,7 @@ object Assemblers {
 
     val spikeChannels = channelStreams
       .map(_.map(_.data)
-             .through(chunkify)
+             .chunkify
              .through(spikeDetector))
 
     roundRobinL(spikeChannels).covary[IO].map(_.toVector)

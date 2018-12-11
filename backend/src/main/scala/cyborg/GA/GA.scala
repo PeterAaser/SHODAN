@@ -60,9 +60,9 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
     val challenges: List[Agent] = createChallenges
     val manyChallenges = List.fill(1000)(()) >> challenges
     val challengePipes: List[Pipe[F, FilterOutput, O]] = manyChallenges.map(simRunner(_)).map(p => (s: Stream[F,FilterOutput]) => s.through(p).take(5000))
-    def challengePipe: Pipe[F,FilterOutput, Agent] = Pipe.join(Stream.emits(challengePipes).covary[F])
+    def challengePipe: Pipe[F,FilterOutput, Agent] = joinPipes(Stream.emits(challengePipes).covary[F])
 
-    Pipe.join(Stream(challengePipe).repeat)
+    repeatPipe(challengePipe)
   }
 
 
