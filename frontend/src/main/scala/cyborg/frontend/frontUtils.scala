@@ -15,7 +15,7 @@ object frontilz {
     val fname = filename.value.split("/").last
     val sl = fname.length() + word.toString().length()
     val rightPad = 80 - sl
-    g.console.log("%c[%s]%c%s", "color: #fff600; background: #333333", s"${fname}: ${sourcecode.Line()}", "color: #e0e0e0; background: #333333", s" - $word" + " "*rightPad)
+    g.console.log("%c[%s]%c%s", "color: #fff600; background: #333333", s"${fname}: ${sourcecode.Line()}", "color: #e0e0e0; background: #333333", s" ## $word" + " "*rightPad)
   }
 
 }

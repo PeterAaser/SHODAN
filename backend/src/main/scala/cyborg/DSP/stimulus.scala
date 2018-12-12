@@ -13,6 +13,123 @@ import bonus._
 object WaveformGenerator {
 
 
+  /**
+    A stimpoint represents a given voltage which should be driven for n ticks.
+    These are squished into stimWords before being written to DSP
+    */
+  case class StimPoint(ticks: Int, voltage: Int){
+    override def toString: String = s"The voltage ${voltage.toHexString} for $ticks ticks"
+  }
+  object StimPoint {
+    def toStimWords(points: List[StimPoint]): List[StimWord] = {
+      val stimWords = points.flatMap{ stimPoint =>
+        val longWord = if((stimPoint.ticks / 1000) > 0)
+                         Some(StimWord(1000, (stimPoint.ticks / 1000), stimPoint.voltage))
+                       else
+                         None
+
+        val shortWord = if(((stimPoint.ticks + 1) % 1000) > 0)
+                          Some(StimWord(1, stimPoint.ticks % 1000, stimPoint.voltage))
+                        else
+                          None
+
+        List(longWord, shortWord).flatten
+      }
+      stimWords
+    }
+  }
+
+
+  /**
+    A stimword represents a 32 bit word that will drive its stimValue for
+    repeats intervals of 20µs (or 2000µs if timeBase != 1)
+    */
+  case class StimWord(timeBase: Int, repeats: Int, stimValue: Int){
+    def invoke: Int = {
+      val timeWord = if(timeBase == 1) 0 else (1 << 25)
+      val repeatWord = repeats << 16
+      timeWord | repeatWord | stimValue
+    }
+
+    def asVoltage: Double = (stimValue - dspVoltageOffset)*mVperUnit
+
+    override def toString: String = {
+      val timeString = if(timeBase == 1) "of 20µs" else "of 2000µs"
+      val voltString = "%d".format((stimValue*mVperUnit).toInt)
+      s"stimValue: 0x${stimValue.toHexString}. invoked to 0x${invoke.toHexString}\n" +
+      s"A command to set the voltage to $voltString for $repeats repeats $timeString"
+    }
+  }
+
+
+  /**
+    A sideband word describes what the electrodes should do as data is streamed
+    */
+  case class SBSWord(timeBase: Int, repeats: Int){
+
+    import spire.syntax.literals.radix._
+    val amplifierProtection  = x2"00000001"
+    val stimSelect           = x2"00010000"
+    val stimSwitch           = x2"00001000"
+
+    val timeWord = if(timeBase == 1) 0 else (1 << 26)
+    val repeatWord = repeats << 16
+
+    def invoke: Int = {
+      amplifierProtection | stimSelect | stimSwitch | timeWord | repeatWord
+    }
+  }
+  object SBSWord {
+    def createSBSWords(ticks: Int): List[SBSWord] = {
+      val longPoints  = ticks / 1000
+      val shortPoints = ticks % 1000
+
+      say(longPoints)
+      say(shortPoints)
+
+      val longWord = if(longPoints > 0)
+                       Some(SBSWord(1000, longPoints - 1))
+                     else
+                       None
+
+      val shortWord = if(shortPoints > 0)
+                       Some(SBSWord(1, shortPoints - 1))
+                     else
+                       None
+
+      List(longWord, shortWord).flatten
+    }
+
+    def decipher(sbsWord: Int): Unit = {
+      val configId = sbsWord.getField(15, 8)
+      val stimSelect = sbsWord.getBit(4)
+      val stimSwitch = sbsWord.getBit(3)
+      val ampProtect = sbsWord.getBit(0)
+
+      val timeBase = sbsWord.getBit(26)
+      val repeats = sbsWord.getField(25, 10)
+
+      val vecType = sbsWord.getField(30, 3) match {
+        case 0 => "DAC/SBS data vector"
+        case 1 => "Loop pointer vector"
+        case 2 => "Long loop pointer vector"
+        case 3 => "Loop pointer counter vector"
+        case 7 => "END command"
+      }
+
+      say("SBS word decode:")
+      say(s"type is $vecType")
+      val tbString = if(timeBase) "20000 µs" else "20µs"
+
+      say(s"time base is $tbString")
+      say(s"repeats: $repeats")
+      say(s"params are: stimSelect: $stimSelect, stimSwitch: $stimSwitch, ampProtect: $ampProtect")
+      say(s"config ID for list mode: 0x${configId.toHexString}")
+
+    }
+  }
+
+
   val dspTimeStep: FiniteDuration = 20.micro
   val dspVoltageOffset = 0x8000
   val mVperUnit = 0.571
@@ -24,7 +141,8 @@ object WaveformGenerator {
   def uploadWave(
     duration: FiniteDuration,
     channel: Int,
-    generator: FiniteDuration => mV): IO[Unit] =
+    generator: FiniteDuration => mV,
+    repeats: Int = 1): IO[Unit] =
   {
 
     val mcsChannel = channel*2
@@ -33,13 +151,13 @@ object WaveformGenerator {
 
     // for instance 2 seconds, 20 µs per point means we need 2s/20µs = 100 000 points
     val totalpoints = (duration/dspTimeStep).toInt
+    say(s"total amount of points needed: $totalpoints")
 
-    case class StimPoint(ticks: Int, voltage: Int)
     val maxVoltage = 1000
     val minVoltage = -maxVoltage
 
     // Generates a list of steps and duration in multiple of 20µs the step should be held
-    val points = (0 until totalpoints)
+    val points: List[StimPoint] = (0 until totalpoints)
       .map(_*20.micro)
       .map(generator)
       .map(_/mVperUnit).map(_.toInt)
@@ -48,60 +166,22 @@ object WaveformGenerator {
         (λ, voltage) => {
           val (stimPoints, previousVoltage, ticks) = λ
           val shouldUpdate = voltage != previousVoltage
-          if(shouldUpdate)
-            (StimPoint(ticks, voltage) :: stimPoints, voltage, 0)
-          else
+          if(shouldUpdate) {
+            val sp = StimPoint(ticks, voltage)
+            (sp :: stimPoints, voltage, 0)
+          }
+          else {
             (stimPoints, previousVoltage, ticks + 1)
+          }
         }
-      }._1
-
-    case class StimWord(timeBase: Int, repeats: Int, stimValue: Int){
-      def invoke: Int = {
-        val timeWord = if(timeBase == 1) 0 else (1 << 25)
-        val repeatWord = repeats << 16
-        timeWord | repeatWord | stimValue
-      }
-      override def toString: String = {
-        val timeString = if(timeBase == 1) "of 20µs" else "of 2000µs"
-        val voltString = "%2f".format(stimValue*mVperUnit)
-        s"A command to set the voltage to $voltString for $repeats repeats $timeString"
-      }
-    }
-    case class SBSWord(timeBase: Int, repeats: Int){
-
-      import spire.syntax.literals.radix._
-      val amplifierProtection  = x2"00000001"
-      val stimSelect           = x2"00010000"
-      val stimSwitch           = x2"00001000"
-
-      val timeWord = if(timeBase == 1) 0 else (1 << 25)
-      val repeatWord = repeats << 16
-
-      def invoke: Int = {
-        amplifierProtection | stimSelect | stimSwitch | timeWord | repeatWord
-      }
-    }
+      }._1.reverse
 
 
-    val stimWords = points.flatMap{ λ =>
-      val longWord = if((λ.ticks / 1000) > 0)
-                       List(StimWord(1000, (λ.ticks / 1000), λ.voltage))
-                     else
-                       Nil
 
-      val shortWord = if((λ.ticks % 1000) > 0)
-                        List(StimWord(1, λ.ticks % 1000, λ.voltage))
-                      else
-                        Nil
+    val stimWords = StimPoint.toStimWords(points)
 
-      longWord ::: shortWord
-    }
-
-    val SBSWords = List(
-      SBSWord(1000, totalpoints/1000),
-      SBSWord(1, (totalpoints % 1000) + 1)
-    )
-
+    // TODO wrong
+    val SBSWords = SBSWord.createSBSWords(totalpoints)
 
     val stimResetAddress = 0x920c + (mcsChannel*0x20)
     val SBSResetAddress  = 0x920c + ((mcsChannel+1)*0x20)
@@ -114,7 +194,7 @@ object WaveformGenerator {
     import cats.syntax._
     import cats.implicits._
 
-    val isValid = points.map(p => if ((DSPvoltageToMv(p.voltage) > maxVoltage) || (DSPvoltageToMv(p.voltage) < minVoltage)){
+    val isValid = stimWords.map(p => if ((p.asVoltage > maxVoltage) || (p.asVoltage < minVoltage)){
                                say(s"mike pence point detected: $p")
                                None
                              }
@@ -124,6 +204,11 @@ object WaveformGenerator {
     ).sequence.isDefined
 
     import HttpClient._
+
+    say(stimReset)
+    say(stimUploads)
+    say(SBSReset)
+    say(SBSUploads)
 
     if(isValid)
       for {
@@ -143,9 +228,9 @@ object WaveformGenerator {
 
   def sineWave(channel: Int, period: FiniteDuration, amplitude: mV): IO[Unit] = {
 
-    val w = (period/1.second)*2.0*math.Pi
+    val w = 2.0*math.Pi/(period/1.second)
     val a = amplitude/mVperUnit
-    def generator(t: FiniteDuration) = math.sin(w*t/1.seconds)*a
+    def generator(t: FiniteDuration) = math.sin(w*(t/1.seconds))*a
 
     uploadWave(period, channel, generator)
 

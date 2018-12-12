@@ -25,6 +25,7 @@ import scala.concurrent.duration._
 import cyborg.HttpClient._
 import cyborg.utilz._
 import cyborg.MEAMEmessages._
+import cyborg.bonus._
 
 import org.http4s.HttpApp
 import org.http4s.server.Router
@@ -71,9 +72,6 @@ object mockServer {
   }
 
 
-  val dspRegisterState = scala.collection.mutable.Map[Int,Int]()
-
-
   def DAQ(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
     case req @ POST -> Root / "connect" =>
       req.decode[DAQparams] { params =>
@@ -104,12 +102,13 @@ object mockServer {
 
     case req @ POST -> Root / "read" => {
       req.decode[DspRegisters.RegisterReadList] { data =>
+        // val resp = dspRegisterState.applySeq(data.addresses)
         Fsay[IO](s"got dsp read request: ${data.addresses.map(_.toHexString)}") >> Ok("")
       }
     }
     case req @ POST -> Root / "write" => {
       req.decode[DspRegisters.RegisterSetList] { data =>
-        (data.addresses zip data.values).foreach{ case(r,v) => dspRegisterState.update(r, v)}
+        // (data.addresses zip data.values).foreach{ case(r,v) => dspRegisterState.update(r, v)}
         Fsay[IO](s"got dsp write request: $data") >> Ok("")
       }
     }

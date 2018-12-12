@@ -17,7 +17,10 @@ object DSP {
     Setup flashes the DSP, resets state, uploads a test wave, configures the electrodes
     specified by the settings, and starts the stim queue.
     */
-  val setup:          Setting.ExperimentSettings => IO[Unit] = DspCalls.setup
+  def setup(blanking: Boolean = true,
+            blankingProtection: Boolean = true): Setting.ExperimentSettings => IO[Unit] =
+    DspCalls.setup(blanking, blankingProtection)
+
   val stopStimQueue:  IO[Unit] = DspCalls.stopStimQueue
   val resetStimQueue: IO[Unit] = DspCalls.resetStimQueue
   val startStimQueue: IO[Unit] = for {

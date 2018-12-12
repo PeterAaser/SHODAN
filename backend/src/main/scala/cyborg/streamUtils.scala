@@ -659,7 +659,7 @@ object utilz {
     import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
     val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
-    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + Console.RESET + s" - $word")
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + Console.RESET + s" $word")
   }
 
   def Fsay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {

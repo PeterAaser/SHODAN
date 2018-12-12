@@ -105,7 +105,6 @@ object HttpClient {
   // DAQ
   def connectDAQrequest(params: DAQparams): IO[Unit] =
   {
-    say("hhhh")
     val req = POST(params.asJson, buildUri("DAQ/connect"))
     httpClient.expect[String](req).void
   }

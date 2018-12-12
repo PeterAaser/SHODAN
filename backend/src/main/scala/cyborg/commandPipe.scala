@@ -126,12 +126,12 @@ object staging {
           } yield ()
       }
 
-      tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {
-                                                                           say(z)
-                                                                           say(z.getStackTrace.toList.mkString("\n"))
-                                                                           throw z})
-      // say("WARNING, AGENT IS COMMENTED OUT")
-      // Stream.eval(IO.unit)
+      // tasks.through(_.map(Stream.eval(_))).parJoinUnbounded.handleErrorWith(z => {
+      //                                                                      say(z)
+      //                                                                      say(z.getStackTrace.toList.mkString("\n"))
+      //                                                                      throw z})
+      say("WARNING, AGENT IS COMMENTED OUT")
+      Stream.eval(IO.unit)
     }
 
 

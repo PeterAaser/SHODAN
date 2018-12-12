@@ -5,7 +5,10 @@ object DspRegisters {
 
   import twiddle._
 
-  case class RegisterSetList(addresses: List[Int], values: List[Int])
+  case class RegisterSetList(addresses: List[Int], values: List[Int]) {
+    override def toString: String =
+      (addresses zip values).map{ case(addr, value) => s"\nwrote value 0x${value.toHexString} to 0x${addr.toHexString}"}.mkString("\n")
+  }
   case class RegisterReadList(addresses: List[Int])
   case class RegisterReadResponse(addresses: List[Int], values: List[Int]){
     def asMap: Map[Reg, Word] = (addresses zip values).map(λ => (Reg(λ._1),Word(λ._2))).toMap

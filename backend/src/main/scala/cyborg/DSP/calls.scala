@@ -106,7 +106,7 @@ object DspCalls {
   } yield ()
 
   def stimGroupChangePeriod(group: Int, period: FiniteDuration): IO[Unit] = for {
-    // _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
+    _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
@@ -114,12 +114,12 @@ object DspCalls {
 
 
   def enableStimReqGroup(group: Int): IO[Unit] = for {
-    // _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
-    // errors <- checkForErrors
-    // _ <- errors match {
-    //   case Some(s) => Fsay[IO](s"error: $s")
-    //   case None    => Fsay[IO](s"No DSP error flags raised")
-    // }
+    _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
+    errors <- checkForErrors
+    _ <- errors match {
+      case Some(s) => Fsay[IO](s"error: $s")
+      case None    => IO.unit
+    }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
@@ -131,30 +131,6 @@ object DspCalls {
   } yield ()
 
 
-  val setup: Setting.ExperimentSettings => IO[Unit] = config =>
-  for {
-    _ <- Fsay[IO](s"Flashing DSP")
-    _ <- cyborg.dsp.DSP.flashDSP
-    _ <- Fsay[IO](s"Stopping and resetting stim Q")
-    _ <- stopStimQueue
-    _ <- resetStimQueue
-
-    _ <- Fsay[IO](s"Configuring blanking & blanking protection")
-    _ <- setBlanking((0 to 59).toList)
-    _ <- setBlankingProtection((0 to 59).toList)
-
-    _ <- Fsay[IO](s"Uploading stimulus")
-    _ <- uploadSquareTest(10.millis, 200)
-
-    // _ <- Fsay[IO](s"Reading debug config")
-    // _ <- cyborg.dsp.DSP.configureElectrodes(config)
-    // s <- readElectrodeConfig
-    // _ <- Fsay[IO](s"$s")
-
-    _ <- Fsay[IO](s"Committing config, we're LIVE")
-    _ <- commitConfig
-    _ <- startStimQueue
-  } yield ()
 
 
 
@@ -166,9 +142,9 @@ object DspCalls {
 
   def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
     _ <- Fsay[IO](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(0, 2.millis, 200))
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(1, 2.millis, 200))
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(2, 2.millis, 200))
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(0, period, amplitude))
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(1, period, amplitude))
+    _ <- uploadWave( WaveformGenerator.balancedSquareWave(2, period, amplitude))
   } yield ()
 
 
@@ -286,13 +262,26 @@ object DspCalls {
     Toggles blanking on supplied electrodes. If an empty list is passed
     this is equivalent to untoggling blanking for all electrodes.
     */
-  def setBlanking(electrodes: List[Int]): IO[Unit] = {
-    val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+  def setBlanking(electrodes: List[Int], shouldBlank: Boolean): IO[Unit] = {
+    val elec0 = electrodes.filter(_ < 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+    val elec1 = electrodes.filterNot(_ < 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
 
-    dspCall(SET_BLANKING,
-            elec0 -> BLANKING_EN_ELECTRODES1,
-            elec1 -> BLANKING_EN_ELECTRODES2)
+    say("set blanking payload is:")
+    say(s"elec0: ${elec0.asBinarySpaced}")
+    say(s"elec1: ${elec1.asBinarySpaced}")
+
+    if(shouldBlank)
+      dspCall(SET_BLANKING,
+              elec0 -> BLANKING_EN_ELECTRODES1,
+              elec1 -> BLANKING_EN_ELECTRODES2)
+    else
+      dspCall(SET_BLANKING,
+              elec0 -> 0,
+              elec1 -> 0)
+  }
+
+  def setBlankingAll(shouldBlank: Boolean): IO[Unit] = {
+    setBlanking((0 to 59).toList, shouldBlank)
   }
 
 
@@ -300,13 +289,26 @@ object DspCalls {
     Toggles blanking on supplied electrodes. If an empty list is passed
     this is equivalent to untoggling blanking for all electrodes.
     */
-  def setBlankingProtection(electrodes: List[Int]): IO[Unit] = {
-    val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+  def setBlankingProtection(electrodes: List[Int], shouldBlank: Boolean): IO[Unit] = {
+    val elec0 = electrodes.filter(_ < 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
+    val elec1 = electrodes.filterNot(_ < 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
 
-    dspCall(SET_BLANKING_PROTECTION,
-            elec0 -> BLANK_PROT_EN_ELECTRODES1,
-            elec1 -> BLANK_PROT_EN_ELECTRODES2)
+    say("set blanking protection payload is:")
+    say(s"elec0: ${elec0.asBinarySpaced}")
+    say(s"elec1: ${elec1.asBinarySpaced}")
+
+    if(shouldBlank)
+      dspCall(SET_BLANKING_PROTECTION,
+              elec0 -> BLANK_PROT_EN_ELECTRODES1,
+              elec1 -> BLANK_PROT_EN_ELECTRODES2)
+    else
+      dspCall(SET_BLANKING_PROTECTION,
+              elec0 -> 0,
+              elec1 -> 0)
+  }
+
+  def setBlankingProtectionAll(shouldBlank: Boolean): IO[Unit] = {
+    setBlanking((0 to 59).toList, shouldBlank)
   }
 
 
@@ -350,4 +352,43 @@ object DspCalls {
       allowed.map((_, false)).toMap
     ).stream
   }
+
+  def setup(blanking: Boolean, blankingProtection: Boolean): Setting.ExperimentSettings => IO[Unit] = config =>
+  for {
+    _ <- Fsay[IO](s"Flashing DSP")
+    _ <- cyborg.dsp.DSP.flashDSP
+    _ <- Fsay[IO](s"Stopping and resetting stim Q")
+    _ <- stopStimQueue
+    _ <- resetStimQueue
+
+    _ <- Fsay[IO]("BLANKING IS NOT TOGGLED")
+    _ <- setBlanking(Nil, blanking)
+    _ <- setBlankingProtection(Nil, blankingProtection)
+
+    // _ <- Fsay[IO](s"BLANKING ONLY FOR STIM ELECTRODES")
+    // _ <- setBlanking(config.stimulusElectrodes.flatten, blanking)
+    // _ <- setBlankingProtection(config.stimulusElectrodes.flatten, blankingProtection)
+
+    // _ <- Fsay[IO](s"BLANKING ONLY FOR NONE STIM ELECTRODES")
+    // electrodes = ((0 to 59).toSet - config.stimulusElectrodes.toSet).toList
+    // _ <- setBlanking(electrodes, blanking)
+    // _ <- setBlankingProtection(electrodes, blankingProtection)
+
+    // _ <- Fsay[IO](s"BLANKING ON ALL ELECTRODES")
+    // _ <- setBlanking((0 to 59).toList, blanking)
+    // _ <- setBlankingProtection((0 to 59).toList, blankingProtection)
+
+    _ <- Fsay[IO](s"Uploading stimulus")
+    // _ <- uploadSquareTest(1000.micros, 499)
+    _ <- WaveformGenerator.sineWave(0, 30.millis, 499)
+
+    _ <- Fsay[IO](s"Reading debug config")
+    _ <- cyborg.dsp.DSP.configureElectrodes(config)
+    s <- readElectrodeConfig
+    _ <- Fsay[IO](s"$s")
+
+    _ <- Fsay[IO](s"Committing config, we're LIVE")
+    _ <- commitConfig
+    _ <- startStimQueue
+  } yield ()
 }

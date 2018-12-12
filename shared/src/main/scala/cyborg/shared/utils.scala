@@ -26,10 +26,14 @@ object bonus {
       }
     }
 
-    def apply(s: Seq[K]): Map[K,V] = {
+    def apply(s: Seq[K]): Map[K,V] =
       s.map(x => m.get(x).map(y => (x, y))).flatten
         .toMap
-    }
+
+
+    def applySeq(s: Seq[K]): Map[K,V] =
+      s.map(x => m.get(x).map(y => (x, y))).flatten
+        .toMap
 
     def updateAt(k: K)(f: V => V): Map[K,V] =
       m.updated(k, f(m(k)))
@@ -76,6 +80,28 @@ object bonus {
 
     def asBinarySpaced2: String = {
       i.toBinaryString.grouped(2).map(_ + " ").toList.mkString("")
+    }
+
+    def getField(msb: Int, size: Int): Int = {
+      val ls = i << (31 - msb)
+      val rs = ls >> ((31 - size) + 1)
+      val mask = (1 << size) - 1
+      rs & mask
+    }
+
+    def getBit(bit: Int): Boolean = {
+      1 == ((i >> bit) & 1)
+    }
+
+
+    // don't be a dumbass and use a too big fieldValue
+    def setField(msb: Int, nBits: Int, fieldValue: Int): Int = {
+      val field = (fieldValue << (msb - nBits))
+      val mask = (1 << nBits) - 1
+      val shiftedMask = (mask << (msb - nBits))
+      val masked = ~((~i) | shiftedMask);
+
+      field | masked
     }
   }
 }
