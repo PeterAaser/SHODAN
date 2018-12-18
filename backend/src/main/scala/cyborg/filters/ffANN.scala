@@ -149,5 +149,25 @@ object Filters {
       }
       in => go(runs, in).stream
     }
+
+
+    /**
+      same as ffPipe, but with chunks to make the transition easier.
+      Should eventually replace ffPipe
+      */
+    def ffPipeC[F[_]](net: FeedForward): Pipe[F,Chunk[Double],Chunk[Double]] = {
+
+      def go(s: Stream[F, Chunk[Double]]): Pull[F,Chunk[Double],Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((chunk, tl)) => {
+            val outputs = net.feed(chunk.toList)
+            Pull.output1(Chunk.seq(outputs)) >> go(tl)
+          }
+          case None => Pull.done
+        }
+      }
+      in => go(in).stream
+
+    }
   }
 }

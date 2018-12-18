@@ -238,7 +238,7 @@
   
 ** With blanking and dedicated on the following is produced.
   [[file:img/blank/2blank_dedicated.png]]
-
+  
 ** Without a dedicated electrode:
 
 *** zoomed out
@@ -266,5 +266,4 @@
    stimulator units, instead of switching back and forth between recording and stimulation
 
    This will decrease artefacts even more, but the stimulation electrodes are lost for recording. With this function
-   activated the stimulation electrodes will show an increased noise level and no signals whatsoever. 
-   
+   activated the stimulation electrodes will show an increased noise level and no signals whatsoever.

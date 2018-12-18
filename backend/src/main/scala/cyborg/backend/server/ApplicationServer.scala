@@ -69,12 +69,16 @@ object ApplicationServer {
 
       val targetSegmentLength = 200/40
 
-      val downsampler = downsamplePipe[IO,Int](pointsPerSec, pointsNeededPerSec)
+      val downsampler = downsampleAndThen[IO,Int,Int](pointsPerSec, pointsNeededPerSec){c =>
+        val smallest = c.toList.min
+        val largest = c.toList.max
+        Chunk(largest, smallest)
+      }
 
       in => in.through(_.map(_.data)).through(chunkify)
         .through(downsampler)
-        .through(modifySegmentLengthGCD(downsampledSegmentLength, targetSegmentLength))
-        .through(mapN(targetSegmentLength*60, _.toArray))
+        .through(modifySegmentLengthGCD(downsampledSegmentLength*2, targetSegmentLength*2))
+        .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
         .through(sendData)
 
     }

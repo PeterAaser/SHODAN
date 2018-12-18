@@ -1,37 +1,24 @@
-* Thought scratchpad
-  Currently I'm not separating network data broadcasting and interfacing with MEAME.
-  MEAME control (stop and start MEAME) should only perform HTTP calls, then let the 
-  appropriate broadcast actions be run.
-  Thus there should be two actions, broadcast from network (which may or may not have 
-  data) and broadcast from DB (which may also not have data if not initialized)
+* ThoughtPad
+  I GA gikk vi vekk fra pipe for å få ting til å funke, men feilen var at pipe join var fucked.
+  Kanskje bedre å gå tilbake til Pipe og bruke joinPipe
   
-  Is it really so wrong to not always broadcast when MEAME is running though? Maybe for testing?
+  Kanskje vi ikke skal ha en Input filter i experiment?
   
-  Been thinking more about the broadcaster. What if I make the broadcaster sort of a top level thing 
-  and instead of respawning the broadcaster I let the broadcaster handle that for itself so that 
-  it will be easier to monitor.
-  Perhaps this is prudent for more parts of the codebase, ensure that each component is a persistent 
-  container for its internal streams which may be interrupted and restarted.
-  
- 
-* Learning
-** TODO Sett deg inn i scalatags
-** TODO Sbt mode i spacemacs
-   
 * Neste gang
-  
+  Sjekke hvordan blanking tar seg ut i MeaUSB
+
 * Doing
-** TODO Refactor the DSP config and stim pipeline
-*** TODO RPC still has DspCalls._
-*** TODO Stim request pipe
-*** TODO DSP comms rewrite
+  Hvorfor funker både Effect og Concurrent i fileIO??
   
+
 * Now 
-** TODO Refactor into API packages kinda
-*** DONE DSP
-*** TODO Resten...
-** TODO Revisit the setup flow now that the DSP actually works
-    
+** TODO Separate out Experiment, use XOR as trial
+** TODO Create XOR challenge
+** TODO Make resettable pipe with join for flushing residual averages
+  
+** TODO Gather up agent stuff in Maze
+*** TODO Decouple agentPipe.evaluatorPipe into evaluator and taskRunner
+   
 * Later
 ** TODO Add MEA selection
 *** TODO Frontend
@@ -62,10 +49,49 @@
 **** TODO Can we change evaluator to a Pipe[F, O, Option[Double]]
      Might deadlock or whatever
     
+** TODO Refactor into API packages kinda
+*** DONE DSP
+*** DONE Files
+*** DONE TCP
+*** TODO Http
+*** TODO Decide if this is enough
+
 * Maybe
 ** TODO Optimize segment translator
     
 * Finished
+** DONE Bedre logging og viz av GA events
+   Leaves much to be desired...
+** DONE Forsikre om at vi ikke Mike Pencer nevronene
+   Cannot be done on DSP sadly. No hardware protection #YOLO
+** DONE Fix stimulus upload channel errors
+   Forgot to offset each channel to make room for sideband
+** DONE Fix electrode maps
+*** DONE fix rendering reorder
+*** DONE Investigate if stim electrode names are equally retarded
+    They are!
+*** DONE fix stim channel reorder
+    
+** DONE ReEnable agent drawing
+*** DONE Add scaffolding for rpc calls etc
+  
+** DONE Create a mock DSP    
+   Should take a stream of commands as argument.
+   The emulator can jump to next event, how should this be handled??
+   The DSP needs a 'run n ticks' 
+*** DONE Implement run N ticks
+*** DONE Test the dsp emulator in isolation
+*** DONE Test the dspe emulator over multiple runs
+*** DONE Create the dsp emulator pipe
+    
+** DONE Unfuckulate the mockserver
+   One elements streams are resources!
+  
+** DONE Refactor the DSP config and stim pipeline
+*** DONE RPC still has DspCalls._
+*** DONE Stim request pipe
+*** DONE DSP comms rewrite
+    Er nå flyttet til perturbationTransform
 ** DONE Figure out why triggers aren't fired off correctly.
 ** DONE Add DSP tests to the live section
 *** DONE Add electrode select to live section

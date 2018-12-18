@@ -23,22 +23,6 @@ object agentPipe {
   }
 
 
-  def wallAvoidancePipe[F[_]](init: Agent = initAgent): Pipe[F, ffANNoutput, Agent] = {
-
-    def go(agent: Agent, s: Stream[F,ffANNoutput]): Pull[F, Agent, Unit] = {
-      s.pull.uncons1 flatMap {
-        case Some((input, tl)) => {
-          val nextAgent = updateAgent(agent, input)
-          Pull.output1(agent) >> go(nextAgent, tl)
-        }
-        case None => Pull.done
-      }
-    }
-
-    in => go(init, in).stream
-  }
-
-
   /**
     Sets up 5 challenges, evaluates ANN performance and returns
     the evaluation via the eval sink

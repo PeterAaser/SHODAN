@@ -84,8 +84,6 @@ object WaveformGenerator {
       val longPoints  = ticks / 1000
       val shortPoints = ticks % 1000
 
-      say(longPoints)
-      say(shortPoints)
 
       val longWord = if(longPoints > 0)
                        Some(SBSWord(1000, longPoints - 1))
@@ -97,7 +95,9 @@ object WaveformGenerator {
                      else
                        None
 
-      List(longWord, shortWord).flatten
+      val endWord = Some(SBSWord(1, 10))
+
+      List(longWord, shortWord, endWord).flatten
     }
 
     def decipher(sbsWord: Int): Unit = {
@@ -205,10 +205,10 @@ object WaveformGenerator {
 
     import HttpClient._
 
-    say(stimReset)
-    say(stimUploads)
-    say(SBSReset)
-    say(SBSUploads)
+    // say(stimReset)
+    // say(stimUploads)
+    // say(SBSReset)
+    // say(SBSUploads)
 
     if(isValid)
       for {

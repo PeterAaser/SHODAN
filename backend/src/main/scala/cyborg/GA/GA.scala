@@ -7,7 +7,7 @@ import fs2.concurrent.Queue
 import wallAvoid._
 import utilz._
 import Filters._
-import genetics._
+import Genetics._
 import seqUtils._
 
 /**
@@ -148,6 +148,10 @@ class GArunner(gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSe
 
 /**
   Should implement some of the basic stuff often used for ranking populations etc in GAs
+
+  TODO: Currently has 2 identical implementations, one for Vector and one for Chunk. Should
+  just be Seq, but Chunk doesn't conform.
+  Might be okay to just move to using chunk always down the road?
   */
 object seqUtils {
   import scala.util.Random
@@ -207,4 +211,63 @@ object seqUtils {
 
     }
   }
+
+
+  case class ScoredChunk[A](repr: Chunk[(Double,A)]) {
+    def scoreSum: Double = repr.foldLeft(.0)( (sum, tup) => sum + tup._1)
+    def sort = copy(Chunk.seq(repr.toList.sortWith(_._1 < _._1)))
+
+    def normalize = copy(repr.map(λ => (λ._1/scoreSum, λ._2)))
+    def scale(f: (Double,Double) => Double) = copy(repr.map(λ => (f(scoreSum,λ._1),λ._2)))
+
+    def strip: Chunk[A] = repr.map(_._2)
+
+    /**
+      Requires the list to be sorted, looking into ways to encode this
+      */
+    def rouletteScale = copy(
+      Chunk.seq(
+        repr.foldLeft((.0,List[(Double,A)]()))((acc, λ) =>
+          {
+            val nextScore = acc._1 + λ._1
+            val nextElement = (nextScore, λ._2)
+            (nextScore, acc._2 :+ nextElement)
+          })._2)
+    )
+
+    def randomSample(samples: Int) = {
+      val indexes = Random.shuffle(0 to repr.size - 1).take(samples)
+      copy(Chunk.seq(indexes.map(λ => repr(λ))))
+    }
+
+    /**
+      Also known as roulette.
+      Iterates through a list, picks the element if the numbers up
+      */
+    def biasedSample(samples: Int): Chunk[A] = {
+
+      val repr_ = repr.toVector
+      // Selections cannot contain elements with a value higher than the highest scoring individual
+      val selections = Vector.fill(samples)(Random.nextDouble).sorted.map(_*repr_.last._1)
+      say(selections)
+
+      def hepler(targets: Vector[Double], animals: Vector[(Double,A)]): Vector[A] =
+        targets match {
+          case h +: tail => {
+            val (a, remainingAs) = hapler(h,animals)
+            a +: hepler(tail, remainingAs)
+          }
+          case _ => Vector.empty
+        }
+
+        def hapler(target: Double, animals: Vector[(Double,A)]): (A, Vector[(Double,A)]) = {
+          val memes = animals.dropWhile(λ => (target > λ._1))
+          (memes.head._2, memes)
+        }
+
+      Chunk.seq(hepler(selections, repr_))
+
+    }
+  }
+
 }

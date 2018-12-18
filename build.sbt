@@ -20,6 +20,7 @@ inThisBuild(Seq(
     // "-language:existentials",
     "-language:dynamics",
     "-Xfuture",
+    "-language:postfixOps",
     // "-Xfatal-warnings",
     // "-Xlint:_,-missing-interpolator,-adapted-args"
   ),

@@ -9,6 +9,8 @@ import fs2.concurrent.{ InspectableQueue, Queue, Signal, SignallingRef, Topic }
 import java.nio.{ ByteBuffer, ByteOrder }
 import scala.concurrent.ExecutionContext
 
+import cyborg.Setting._
+
 import scala.concurrent.duration._
 
 import scala.language.higherKinds
@@ -353,6 +355,27 @@ object utilz {
   }
 
 
+  def demuxSegments[F[_]](
+    broadcastSource : List[Topic[F,TaggedSegment]],
+    spikeDetector   : Pipe[F,Int,Double],
+    config          : FullSettings
+  ): Stream[F,Seq[Double]] = {
+
+    val channels = config.filterSettings.inputChannels
+
+    // selects relevant topics and subscribe to them
+    val inputTopics = (channels).toList.map(broadcastSource(_))
+    val channelStreams = inputTopics.map(_.subscribe(10000))
+
+    val spikeChannels = channelStreams
+      .map(_.map(_.data)
+             .chunkify
+             .through(spikeDetector))
+
+    roundRobinL(spikeChannels).covary[F].map(_.toVector)
+  }
+
+
   def logEveryNth[F[_],I](n: Int): Pipe[F,I,I] = {
     def go(s: Stream[F,I]): Pull[F,I,Unit] = {
       s.pull.unconsN(n,false) flatMap {
@@ -526,7 +549,7 @@ object utilz {
     Modifies the segment length of a stream.
     Can be optimized further if needed, for instance using chunk instead of list.
     */
-  def modifySegmentLengthGCD[F[_]](originalSegmentLength: Int, newSegmentLength: Int, channels: Int = 60): Pipe[F,Int,Int] = {
+  def modifySegmentLengthGCD[F[_],I: ClassTag](originalSegmentLength: Int, newSegmentLength: Int, channels: Int = 60): Pipe[F,I,I] = {
 
     def gcd(a: Int,b: Int): Int = {
       if(b ==0) a else gcd(b, a%b)
@@ -535,7 +558,7 @@ object utilz {
 
     say(s"modify seg with original: $originalSegmentLength, new: $newSegmentLength, gcd: $divisor")
 
-    def disassemble: Pipe[F,Int,List[Int]] = {
+    def disassemble: Pipe[F,I,List[I]] = {
 
       val outCols = channels*divisor
       val outRows = (originalSegmentLength/divisor)
@@ -545,9 +568,9 @@ object utilz {
       // say(s"outRows is $outRows")
       // say(s"pullSize is $pullSize")
 
-      val outBuffers = Array.ofDim[Int](outRows, outCols)
+      val outBuffers = Array.ofDim[I](outRows, outCols)
 
-      def go(s: Stream[F,Int]): Pull[F,List[Int],Unit] = {
+      def go(s: Stream[F,I]): Pull[F,List[I],Unit] = {
         s.pull.unconsN(channels*originalSegmentLength, false).flatMap {
           case Some((chunk,tl)) => {
             // say("disassembling")
@@ -568,12 +591,12 @@ object utilz {
       in => go(in).stream
     }
 
-    def reassemble: Pipe[F,List[Int], Int] = {
+    def reassemble: Pipe[F,List[I], I] = {
 
       val pullSize = (newSegmentLength/divisor)
-      val outBuf: Array[Int] = new Array(newSegmentLength*channels)
+      val outBuf: Array[I] = new Array(newSegmentLength*channels)
 
-      def go(s: Stream[F,List[Int]]): Pull[F,Int,Unit] = {
+      def go(s: Stream[F,List[I]]): Pull[F,I,Unit] = {
         s.pull.unconsN(pullSize, false).flatMap {
           case Some((chunk,tl)) => {
             // say(s"ressembling, pullsize is $pullSize")
@@ -604,7 +627,17 @@ object utilz {
   }
 
 
-  // Unsure about arg names here.
+  /**
+    Downsamples a pipe, emitting `emitThisMany` per `forEveryIncoming`
+
+    For instance, if we want to emit 2 outputs for every 7 input then we get
+    normalDropSize = 3
+    normalEmits    = 1
+
+    A normal drop size of 3 means that typically we take 3 inputs, and normalEmits
+    means we do one normal drop, then one drop where we take an extra element, meaning
+    that for 2 and 7 we get 3 4 3 4
+    */
   def downsamplePipe[F[_],O](forEveryIncoming: Int, emitThisMany: Int): Pipe[F,O,O] = {
 
     val normalDropSize = forEveryIncoming / emitThisMany
@@ -614,6 +647,44 @@ object utilz {
       val elementsToPull = normalDropSize + (if(step > normalEmits) 1 else 0)
       s.pull.unconsN(elementsToPull,true).flatMap {
         case Some((chunk, tl)) => Pull.output1(chunk.head.get) >> go(step % emitThisMany, tl) // RIP NonEmptyChunk
+        case None => Pull.done
+      }
+    }
+    in => go(0, in).stream
+  }
+
+
+  /**
+    As downsample, but with a tweest
+    */
+  def downsampleWith[F[_],I,O](forEveryIncoming: Int, emitThisMany: Int)(f: Chunk[I] => O): Pipe[F,I,O] = {
+
+    val normalDropSize = forEveryIncoming / emitThisMany
+    val normalEmits    = emitThisMany - (forEveryIncoming % emitThisMany)
+
+    def go(step: Int, s: Stream[F,I]): Pull[F,O,Unit] = {
+      val elementsToPull = normalDropSize + (if(step > normalEmits) 1 else 0)
+      s.pull.unconsN(elementsToPull,true).flatMap {
+        case Some((chunk, tl)) => Pull.output1(f(chunk)) >> go(step % emitThisMany, tl)
+        case None => Pull.done
+      }
+    }
+    in => go(0, in).stream
+  }
+
+
+  /**
+    As above, but with f: Chunk[I] => Chunk[O]
+    */
+  def downsampleAndThen[F[_],I,O](forEveryIncoming: Int, emitThisMany: Int)(f: Chunk[I] => Chunk[O]): Pipe[F,I,O] = {
+
+    val normalDropSize = forEveryIncoming / emitThisMany
+    val normalEmits    = emitThisMany - (forEveryIncoming % emitThisMany)
+
+    def go(step: Int, s: Stream[F,I]): Pull[F,O,Unit] = {
+      val elementsToPull = normalDropSize + (if(step > normalEmits) 1 else 0)
+      s.pull.unconsN(elementsToPull,true).flatMap {
+        case Some((chunk, tl)) => Pull.output(f(chunk)) >> go(step % emitThisMany, tl)
         case None => Pull.done
       }
     }
@@ -678,6 +749,18 @@ object utilz {
   }
 
 
+  /**
+    Prints a warning when the value is first used.
+    Makes it easier to clean up hardcoded stuff
+    */
+  def hardcode[A](a: A)(implicit filename: sourcecode.File, line: sourcecode.Line): A = {
+    import cyborg.io.files._, cats.effect.IO
+    val fname = filename.value.split("/").last
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}] Warning, using magic hardcoded value" + Console.RESET)
+    a
+  }
+
+
   def timeStamp[F[_]: Concurrent](implicit ev: Timer[F]): Pipe[F,String,String] = {
     val getTime = ev.clock.monotonic(MILLISECONDS)
     _.evalMap(s => getTime.map(time => time + ":" + s + "\n"))
@@ -689,4 +772,5 @@ object utilz {
 
   def repeatPipe[F[_]: Concurrent, I, O](pipe: Pipe[F,I,O]): Pipe[F,I,O] =
     joinPipes(Stream(pipe).repeat)
+
 }

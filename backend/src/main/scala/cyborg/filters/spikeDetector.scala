@@ -65,7 +65,7 @@ object spikeDetector {
     * integer stream. Mostly useful for visualization and debugging
     * purposes, and not for real time analysis.
     */
-  def unsafeSpikeDetector[F[_]: Effect](samplerate: Int,
+  def unsafeSpikeDetector[F[_]](samplerate: Int,
     threshold: Int, replicate: Boolean = false): Pipe[F,Int,Int] = {
     val maxSpikesPerSec = params.experiment.maxSpikesPerSec
     val spikeCooldown = samplerate/maxSpikesPerSec

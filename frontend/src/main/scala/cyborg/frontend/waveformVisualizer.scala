@@ -35,13 +35,12 @@ object waveformVisualizer {
 
     var testan = 0
 
-    say("attempting to get context")
-    say(s"canvas: $canvas")
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
-    say("dunnit")
 
+    // sadly doesn't work, no comic sans 4 u :(
     renderer.font = "16 comic sans"
+
     renderer.textAlign = "center"
     renderer.textBaseline = "middle"
     renderer.fillStyle = "yellow"
@@ -98,11 +97,13 @@ object waveformVisualizer {
       if(!running){
         running = true
         if(dataqueue.size > 500){
-          println("UH OH DATA QUEUE OVERFLOWING")
+          // println("UH OH DATA QUEUE OVERFLOWING")
           println(dataqueue.size)
         }
         if(dataqueue.size > 0){
-          gogo(dataqueue.dequeue)
+          val hurr = dataqueue.dequeue()
+          // say(hurr.toList.mkString(","))
+          gogo(hurr)
         }
         running = false
       }
@@ -120,14 +121,30 @@ object waveformVisualizer {
     }
 
 
-    // Takes a new datasegment and appends to the pixelarray
+    /**
+      Takes a new datasegment and appends to the pixelarray
+      The data at even indexes are max points, odd are min points
+
+      For instance, Array(-1, -4, 4, 2, 3, 1, 3, 0, 4, 3) gives:
+
+        4|  |##|  |  |##|
+        3|  |##|##|##|##|
+        2|  |##|##|##|  |
+        1|  |  |##|##|  |
+        0|--|--|--|##|--|------
+       -1|##|  |  |  |  |
+       -2|##|  |  |  |  |
+       -3|##|  |  |  |  |
+       -4|##|  |  |  |  |
+
+      */
     def drawToPixelArray(data: Array[Int], index: Int): Unit = {
-      val (remainder, _) = pixels(index) splitAt(vizLength - groupSize)
+      val (remainder, _) = pixels(index) splitAt(vizLength*2 - groupSize)
       pixels(index) = (normalize(data).reverse.toArray ++ remainder)
     }
 
 
-    // Does what it says on the tin
+    // Clamps the data in the array
     def normalize(data: Array[Int]): Array[Int] = {
       data.map( dataPoint =>
         {
@@ -145,19 +162,48 @@ object waveformVisualizer {
       })
     }
 
+    var globalCounter = 0
 
     // Draws a single graph
     def drawPixelArray(index: Int, idx: Int, idy: Int): Unit = {
 
-      for(ii <- 0 until pixels(index).length){
+      var prevMax = 0
+      var prevMin = 0
+
+      for(ii <- 0 until pixels(index).length/2){
         val x_offset = idx*vizLength
-        val y_offset = idy*vizHeight + vizHeight/2
-        val bar = pixels(index)(ii)
-        if(((bar-1) <= -maxVal/2) || ((bar+1) >= maxVal/2)){
-          renderer.fillStyle = "green"
-        }
-        renderer.fillRect(ii + x_offset, y_offset, 2, pixels(index)(ii))
+        val y_offset = (idy*vizHeight + vizHeight/2)
+
+        val min = pixels(index)(ii*2)
+        val max = pixels(index)((ii*2)+1)
+
+        val drawMax = if(max < prevMin) prevMin else max
+        val drawMin = if(min > prevMax) prevMax else min
+
+        // if(index == 18){
+        //   globalCounter += 1
+        //   renderer.fillStyle = "orange"
+        //   if((globalCounter % 10000) < 100){
+        //     if((max < prevMin) || (min > prevMax)){
+        //       say(s"prevMax = $prevMax")
+        //       say(s"prevMin = $prevMin")
+        //       say(s"max = $max")
+        //       say(s"min = $min")
+        //       say(s"drawMax = $drawMax")
+        //       say(s"drawMin = $drawMin")
+        //       say("\n")
+        //     }
+        //   }
+        // }
+
+        prevMax = max
+        prevMin = min
+
+        // renderer.fillRect(x_offset + ii, y_offset + drawMin, 2, drawMax)
+        renderer.fillRect(x_offset + ii, y_offset - drawMax, 2, drawMin)
         renderer.fillStyle = "yellow"
+
+
       }
     }
 

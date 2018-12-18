@@ -1,6 +1,6 @@
 package cyborg
 
-object genetics {
+object Genetics {
 
   import Filters._
   import scala.util.Random

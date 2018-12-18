@@ -52,8 +52,6 @@ object Assemblers {
 
       _                 <- Stream.eval(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port, dspEventSink))
 
-      // mock              <- mockServer.assembleTestHttpServer(params.http.MEAMEclient.port)
-      // mockEvents        =  mock._2
       _                 <- Ssay[IO]("mock server up")
       state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
 
@@ -67,8 +65,11 @@ object Assemblers {
       waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
 
+      // Test code:
       _                 <- Ssay[IO]("Starting DSP...")
-      _                 <- Stream.eval(cyborg.dsp.DSP.setup(staleConf.experimentSettings))
+      _                 <- Stream.eval(cyborg.dsp.DSP.setup(false)(staleConf.experimentSettings))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 400.millis))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
       _                 <- Ssay[IO]("In the pipe, 5 by 5")
 
       rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
@@ -112,8 +113,8 @@ object Assemblers {
   def assembleInputFilter(
     broadcastSource : List[Topic[IO,TaggedSegment]],
     spikeDetector   : Pipe[IO,Int,Double],
-    getConf         : IO[FullSettings]
-  )(implicit ec     : EC) : IO[Stream[IO,ffANNinput]] = getConf map { conf =>
+    getConf         : IO[FullSettings])
+      : IO[Stream[IO,ffANNinput]] = getConf map { conf =>
 
     val channels = conf.filterSettings.inputChannels
 

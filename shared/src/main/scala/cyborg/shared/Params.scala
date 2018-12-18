@@ -37,10 +37,10 @@ object params {
       val port = 8888
     }
 
-    object SHODANserver {
-      val SHODANserverIP = "127.0.0.1"
-      val SHODANserverPort = 9998
-    }
+    // object SHODANserver {
+    //   val SHODANserverIP = "127.0.0.1"
+    //   val SHODANserverPort = 9998
+    // }
   }
 
   object TCP {

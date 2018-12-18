@@ -115,11 +115,11 @@ object DspCalls {
 
   def enableStimReqGroup(group: Int): IO[Unit] = for {
     _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
-    errors <- checkForErrors
-    _ <- errors match {
-      case Some(s) => Fsay[IO](s"error: $s")
-      case None    => IO.unit
-    }
+    // errors <- checkForErrors
+    // _ <- errors match {
+    //   case Some(s) => Fsay[IO](s"error: $s")
+    //   case None    => IO.unit
+    // }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
@@ -195,9 +195,7 @@ object DspCalls {
           DEBUG3,
           DEBUG4
         )))
-    _ <- Fsay[IO]{
-      s"\nhere's some debug:\n$dbg"
-    }
+    _ <- Fsay[IO](s"\nhere's some debug:\n$dbg")
   } yield ()
 
 
@@ -361,9 +359,9 @@ object DspCalls {
     _ <- stopStimQueue
     _ <- resetStimQueue
 
-    _ <- Fsay[IO]("BLANKING IS NOT TOGGLED")
-    _ <- setBlanking(Nil, blanking)
-    _ <- setBlankingProtection(Nil, blankingProtection)
+    // _ <- Fsay[IO]("BLANKING IS NOT TOGGLED")
+    // _ <- setBlanking(Nil, blanking)
+    // _ <- setBlankingProtection(Nil, blankingProtection)
 
     // _ <- Fsay[IO](s"BLANKING ONLY FOR STIM ELECTRODES")
     // _ <- setBlanking(config.stimulusElectrodes.flatten, blanking)
@@ -374,18 +372,21 @@ object DspCalls {
     // _ <- setBlanking(electrodes, blanking)
     // _ <- setBlankingProtection(electrodes, blankingProtection)
 
-    // _ <- Fsay[IO](s"BLANKING ON ALL ELECTRODES")
-    // _ <- setBlanking((0 to 59).toList, blanking)
-    // _ <- setBlankingProtection((0 to 59).toList, blankingProtection)
+    _ <- Fsay[IO](s"BLANKING ON ALL ELECTRODES")
+    _ <- setBlanking((0 to 59).toList, blanking)
+    _ <- setBlankingProtection((0 to 59).toList, blankingProtection)
 
     _ <- Fsay[IO](s"Uploading stimulus")
-    // _ <- uploadSquareTest(1000.micros, 499)
-    _ <- WaveformGenerator.sineWave(0, 30.millis, 499)
+    _ <- uploadSquareTest(1000.micros, 200)
+    _ <- WaveformGenerator.sineWave(0, 10.millis, 200)
 
     _ <- Fsay[IO](s"Reading debug config")
     _ <- cyborg.dsp.DSP.configureElectrodes(config)
-    s <- readElectrodeConfig
-    _ <- Fsay[IO](s"$s")
+    // s <- readElectrodeConfig
+    // _ <- Fsay[IO](s"$s")
+
+    _ <- Fsay[IO](s"Checking debug registers")
+    // _ <- readDebug
 
     _ <- Fsay[IO](s"Committing config, we're LIVE")
     _ <- commitConfig
