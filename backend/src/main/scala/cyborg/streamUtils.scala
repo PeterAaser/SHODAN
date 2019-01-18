@@ -49,6 +49,7 @@ object utilz {
     def combine(x: Int, y: Int): Int = x + y
   }
   implicit class StreamBonusOps[F[_],O](s: Stream[F,O]) {
+
     def vecN(n: Int, allowFewer: Boolean = true): Stream[F,Vector[O]] =
       s.repeatPull {
         _.unconsN(n, allowFewer).flatMap {
@@ -58,6 +59,15 @@ object utilz {
       }
     def mapN[O2](f: Chunk[O] => O2, n: Int): Stream[F,O2] = s.chunkN(n, false).map(f)
   }
+
+
+  implicit class StreamBonusOps2[F[_]: Timer : Concurrent, O](s: Stream[F,O]) {
+
+    // sorry
+    def clogWarn(warnFreq: FiniteDuration, warn: String, n: Int = 1): Stream[F,O] =
+      s.through(logNoThroughput(warnFreq, warn, n))
+  }
+
   implicit class ChunkedStreamBonusOps[F[_],O](s: Stream[F,Chunk[O]]) {
     def chunkify: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
   }
@@ -726,11 +736,11 @@ object utilz {
     s => s.through(_.map(z => Stream.eval(f(z)))).parJoin(n)
 
 
-  def say(word: Any, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
+  def say(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
     import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
     val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
-    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + Console.RESET + s" $word")
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + color + s" $word")
   }
 
   def Fsay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {
@@ -741,10 +751,10 @@ object utilz {
   }
 
 
-  def Ssay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): Stream[F,Unit] = {
+  def Ssay[F[_]](word: Any, color: String = Console.RESET)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): Stream[F,Unit] = {
     Stream.eval(ev.delay{
                   val fname = filename.value.split("/").last
-                  println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+                  println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s" - $word")
                 })
   }
 
@@ -756,7 +766,7 @@ object utilz {
   def hardcode[A](a: A)(implicit filename: sourcecode.File, line: sourcecode.Line): A = {
     import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
-    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}] Warning, using magic hardcoded value" + Console.RESET)
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RED + " Warning, using magic hardcoded value" + Console.RESET)
     a
   }
 
@@ -773,4 +783,39 @@ object utilz {
   def repeatPipe[F[_]: Concurrent, I, O](pipe: Pipe[F,I,O]): Pipe[F,I,O] =
     joinPipes(Stream(pipe).repeat)
 
+
+  /**
+    A pipe that intermittently warns if nothing has come through.
+    Side-effecting, but so is printing so whatevs
+    */
+  def logNoThroughput[F[_]: Timer : Concurrent,O](warnFreq: FiniteDuration, warn: String, n: Int) : Pipe[F,O,O] = {
+    val timer = implicitly[Timer[F]]
+    val ticksource = Stream.eval(timer.sleep(warnFreq)).repeat
+
+    var throughputOK = n
+
+    val warnSource = ticksource.map{x =>
+      if(throughputOK > 0)
+        say(warn, Console.RED)
+    }
+
+    def init(s: Stream[F,O]): Pull[F,O,Unit] =
+      s.pull.uncons1.flatMap {
+        case None => { say(s"Pipe logged with warning $warn terminated"); Pull.done }
+        case Some((o, tl)) if throughputOK > 0 => {
+          throughputOK = throughputOK - 1
+          Pull.output1(o) >> init(tl)
+        }
+        case Some((o, tl)) => {
+          Pull.output1(o) >> go(tl)
+        }
+      }
+
+    def go(s: Stream[F,O]): Pull[F,O,Unit] =
+      s.pull.uncons.flatMap {
+        case Some((o, tl)) => Pull.output(o) >> go(tl)
+      }
+
+    s => init(s).stream.concurrently(warnSource)
+  }
 }
