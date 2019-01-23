@@ -56,29 +56,35 @@ import backendImplicits._
   Likewise, the perturbator ignores the input from the task, its only job is to
   output a Boolean/Boolean pair
 
-  TODO The experiment is performed for each XOR input in randomized order
+  A more clever design for this case would be to make a new pipe for each of the 4 experiments
+  Maybe try that?
 
-  TODO We kinda want to flush the averaging after experiments are done, but they aint
-  This could possibly be alleviated by not consuming input before we're ready?
+  And why not let the task pipe handle perturbation?
+  Because then Eval dunno what to do unless we use Either...
 
-  TODO Atm we're just using the agent defaults
+  If we want to do the thing where we reset four times we also need to change how the readoutSource
+  works (just duplacate 4 times, should be ez)
+
+  Nope, that would be incompatible with the way experimentRunner works
   */
 object XOR {
 
   type FilterOutput       = Chunk[Double]
   type ReadoutOutput      = Chunk[Double] // aka (Double, Double)
   type TaskOutput         = (Double, Double)
-  type PerturbationOutput = Int
+
+  /** For electrode sets     A                        B                      C */
+  type PerturbationOutput = (Option[FiniteDuration], Option[FiniteDuration], Option[FiniteDuration])
 
 
   // YOLO
-  val deltaS = 1 second
-  val deltaR = 20 millis
-  val deltaM = 0.5 second
+  val deltaS = 3.second
+  val deltaR = 3.second
+  val deltaM = 3.second
 
-  val deltaSTicks = 100
-  val deltaRTicks = 100
-  val deltaMTicks = 100
+  // val deltaS = 2 second
+  // val deltaR = 1 second
+  // val deltaM = 1 second
 
   val challenges = Chunk((false, false), (false, true), (true, false), (true, true))
 
@@ -91,49 +97,63 @@ object XOR {
   lazy val pipesKeptPerGeneration  = pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)
 
 
+  /**
+    We know that the chunk is of size 2 since that's what the neural network outputs.
+    Since the task pipe doesn't actually do anything it should only pass the results through.
+    */
+  def taskRunner[F[_]]: Pipe[F,ReadoutOutput,TaskOutput] = (s: Stream[F,ReadoutOutput]) =>
+    s.map{x => (x(0), x(1)) }
 
-  // Task pipe really does nothing other than relay the readout layer
-  def taskPipe[F[_]]: Pipe[F,ReadoutOutput,TaskOutput] = (s: Stream[F,ReadoutOutput]) => s.map(x => (.0,.0) )
 
   /**
     Next up we need a pipe that scores readoutlayers.
 
     The evaluator assumes that only valid input is received. It is up to the input filter
     to remove input from the stimuli phase
+
+    Since we use foldMonoid nothing is gonna happen until the perturbator has terminated
     */
-  def evaluatorPipe[F[_]: Concurrent]: Pipe[F,TaskOutput,Double] = { inStream =>
+  def taskEvaluator[F[_]: Concurrent]: Pipe[F,TaskOutput,Double] = { inStream =>
 
     def evalSingle(a: Boolean, b: Boolean): Pipe[F,TaskOutput,Double] = { inStream =>
-      inStream.foldMonoid.map{ case(x,y) =>
-        if(a ^ b)
-          x/(x+y) // prob true from 0 to 1
-        else
-          y/(x+y) // prob false from 0 to 1
-      }
+        inStream.foldMonoid.map{ case(x,y) =>
+          if(a ^ b)
+            x/(x+y) // certainty of true from 0 to 1
+          else
+            y/(x+y) // certainty of false from 0 to 1
+      }.map{x => say("Outputted an eval", Console.GREEN_B); x}
     }
 
-    inStream.through(
-      joinPipes(
+    val perturbator = joinPipes(
         Stream.chunk(challenges)
           .map(Function.tupled(evalSingle))
           .covary[F]
       )
-    ).foldMonoid
+
+    inStream.through(perturbator).foldMonoid.map{x => say(s"From fold monoid we got $x", Console.CYAN); x}
   }
 
 
-  // TODO
-  def createPerturbation(a: Boolean, b: Boolean): PerturbationOutput = {
-    say("Using unimplemented method, danger danger")
-    ???
+  /**
+    Issues stimuli, with true yielding 10Hz (or w/e the time indicates, comments lie)
+    */
+  def createPerturbation(a: Boolean, b: Boolean, c: Boolean): PerturbationOutput = {
+    if(c)
+      (None, None, Some(0.1 second))
+    else
+      ((if(a) Some(0.1 second) else None),
+       (if(b) Some(0.1 second) else None),
+       None)
   }
 
 
   /**
     The pipe for the perturbator is not really a pipe since it ignores the input from the RO.
     Instead it applies stimuli in a given pattern using a timer
+
+    In this case it's not a real transform since it does not use the input.
     */
-  def perturbator[F[_]: Timer]: Pipe[F,TaskOutput,PerturbationOutput] = { notUsed =>
+  def perturbationTransform[F[_]: Timer : Concurrent]: Pipe[F,TaskOutput,PerturbationOutput] = { notUsed =>
     val t = implicitly[Timer[F]]
 
     /**
@@ -142,73 +162,83 @@ object XOR {
       */
     def singlePerturb(a: Boolean, b: Boolean): Stream[F,PerturbationOutput] =
       (for {
-         _ <- Pull.output1(1) // start stim
+         _ <- Pull.output1(createPerturbation(a, b, false)) // start stim
          _ <- Pull.eval(t.sleep(deltaS))
-         _ <- Pull.output1(2) // start rest
+         _ <- Pull.output1(createPerturbation(false, false, false)) // start rest
          _ <- Pull.eval(t.sleep(deltaR))
-         _ <- Pull.output1(3) // start C
+         _ <- Pull.output1(createPerturbation(false, false, true)) // start C
          _ <- Pull.eval(t.sleep(deltaM))
        } yield ()).stream
 
-    Stream.chunk(challenges)
+
+    /**
+      The perturbation stream is not really responsible for terminating, that is the
+      taskrunners job, hence we add Stream.never
+     */
+    val perturbationStream = Stream.chunk(challenges)
       .map(Function.tupled(singlePerturb))
       .covary[F]
-      .flatten
+      .flatten ++ Stream.never
+
+    perturbationStream
+      .concurrently(notUsed.drain)
+
   }
 
 
   /**
     Readout layer generator taken from GA.scala. It's pretty crufty and possibly wrong.
     Connect it to a source of evaluations and you can pull some pipes out of it.
+
+    TODO Seems to be outputting the same pipe per experiment.scala, but that's tertiary
+    to actually get this thing up and running properly
     */
-  // Cribbed from GA.scala, hinting at a needed abstraction over filters
   def readoutLayerGenerator[F[_]]: Pipe[F, Double, Pipe[F,FilterOutput, ReadoutOutput]] = {
 
-    import seqUtils._
-    import Filters._
-    import Filters.ANNPipes._
-    import Genetics._
+    ???
+    // import seqUtils._
+    // import Genetics._
 
-    def init(evalSource: Stream[F, Double]): Pull[F, Pipe[F,FilterOutput,ReadoutOutput], Unit] = {
-      val initNetworks = (0 until pipesPerGeneration)
-        .map(_ => (Filters.FeedForward.randomNetWithLayout(readoutSettings)))
-        .toList
+    // def init(evalSource: Stream[F, Double]): Pull[F, Pipe[F,FilterOutput,ReadoutOutput], Unit] = {
+    //   val initNetworks = (0 until pipesPerGeneration)
+    //     .map(_ => (Filters.FeedForward.randomNetWithLayout(readoutSettings)))
+    //     .toList
 
-      val pipes: Chunk[Pipe[F,FilterOutput,ReadoutOutput]] = Chunk.seq(initNetworks.map(ffPipeC[F]))
-      Pull.output(pipes) >> go(Chunk.seq(initNetworks), evalSource)
-    }
+    //   val pipes: Chunk[Pipe[F,FilterOutput,ReadoutOutput]] = Chunk.seq(initNetworks.map(ffPipeC[F]))
+    //   Pull.output(pipes) >> go(Chunk.seq(initNetworks), evalSource)
+    // }
 
 
-    def go(previous: Chunk[FeedForward], evals: Stream[F, Double]): Pull[F, Pipe[F,FilterOutput,ReadoutOutput], Unit] = {
-      evals.pull.unconsN((pipesPerGeneration - 1), false) flatMap {
-        case Some((chunk, tl)) => {
-          say("got evaluations")
-          val scoredPipes = ScoredSeq(chunk.toVector.zip(previous.toVector))
-          val nextPop = Chunk.seq(generate(scoredPipes))
-          val nextPipes: Chunk[Pipe[F,FilterOutput,ReadoutOutput]]  = nextPop.map(ffPipeC)
-          Pull.output(nextPipes) >> go(nextPop,tl)
-        }
-        case None => {
-          say("uh oh")
-          Pull.done
-        }
-      }
-    }
+    // def go(previous: Chunk[FeedForward], evals: Stream[F, Double]): Pull[F, Pipe[F,FilterOutput,ReadoutOutput], Unit] = {
+    //   evals.pull.unconsN((pipesPerGeneration - 1), false) flatMap {
+    //     case Some((chunk, tl)) => {
+    //       say("got evaluations")
+    //       val scoredPipes = ScoredSeq(chunk.toVector.zip(previous.toVector))
+    //       val nextPop = Chunk.seq(generate(scoredPipes))
+    //       val nextPipes: Chunk[Pipe[F,FilterOutput,ReadoutOutput]]  = nextPop.map(ffPipeC)
+    //       Pull.output(nextPipes) >> go(nextPop,tl)
+    //     }
+    //     case None => {
+    //       say("uh oh")
+    //       Pull.done
+    //     }
+    //   }
+    // }
 
-    // Generates a new set of neural networks, no guarantees that they'll be any good...
-    def generate(seed: ScoredSeq[FeedForward]): List[FeedForward] = {
-      say("Generated pipes")
-      val freak = mutate(seed.randomSample(1).repr.head._2)
-      val rouletteScaled = seed.sort.rouletteScale
-      val selectedParents = seed.randomSample(2)
-      val (child1, child2) = fugg(selectedParents.repr.head._2, selectedParents.repr.tail.head._2)
-      val newz = Vector(freak, child1, child2)
-      val oldz = rouletteScaled.strip.takeRight(pipesKeptPerGeneration)
+    // // Generates a new set of neural networks, no guarantees that they'll be any good...
+    // def generate(seed: ScoredSeq[FeedForward]): List[FeedForward] = {
+    //   say("Generated pipes")
+    //   val freak = mutate(seed.randomSample(1).repr.head._2)
+    //   val rouletteScaled = seed.sort.rouletteScale
+    //   val selectedParents = seed.randomSample(2)
+    //   val (child1, child2) = fugg(selectedParents.repr.head._2, selectedParents.repr.tail.head._2)
+    //   val newz = Vector(freak, child1, child2)
+    //   val oldz = rouletteScaled.strip.takeRight(pipesKeptPerGeneration)
 
-      (newz ++ oldz).toList
-    }
+    //   (newz ++ oldz).toList
+    // }
 
-    in => init(in).stream
+    // in => init(in).stream
   }
 
 
@@ -219,15 +249,13 @@ object XOR {
     */
   def inputSource[F[_]](broadcastSource: List[Topic[F,TaggedSegment]]): Stream[F,Chunk[Double]] = {
 
+    val threshold = hardcode(100)
     val spikeDetectorPipe = cyborg.spikeDetector.unsafeSpikeDetector[F](
       settings.experimentSettings.samplerate,
-      settings.filterSettings.MAGIC_THRESHOLD) andThen (_.map(_.toDouble))
+      threshold) andThen (_.map(_.toDouble))
 
     demuxSegments(broadcastSource, spikeDetectorPipe, settings).map(Chunk.seq)
   }
-
-
-  def perturbationSink[F[_]]: Sink[F,Int] = (s: Stream[F,Int]) => s.drain
 
 
   def XORExperiment[F[_]: Concurrent] = new ClosedLoopExperiment[
@@ -238,19 +266,21 @@ object XOR {
     PerturbationOutput
   ]
 
-  def huh[F[_]: Concurrent : Timer](inputs: List[Topic[F,TaggedSegment]]) = {
+  def runXOR[F[_]: Concurrent : Timer](
+    inputs: List[Topic[F,TaggedSegment]],
+    perturbationSink: Sink[F,PerturbationOutput])
+      : Stream[F,Unit] = {
 
-    val uhh = Stream.eval(Queue.bounded[F,Double](20)) flatMap { evalQueue =>
+    Stream.eval(Queue.bounded[F,Double](20)) flatMap { evalQueue =>
 
-      val evaluationSink  = evalQueue.enqueue
       val readoutSource   = evalQueue.dequeue.through(readoutLayerGenerator)
-      val performanceSink = evaluatorPipe andThen evaluationSink
+      val evaluationSink = taskEvaluator andThen evalQueue.enqueue
 
       val exp: Sink[F,Chunk[Double]] = XORExperiment.run(
-        taskPipe,
-        perturbator,
+        taskRunner,
+        perturbationTransform,
         readoutSource,
-        performanceSink,
+        evaluationSink,
         perturbationSink
       )
       inputSource(inputs).through(exp)

@@ -31,7 +31,7 @@ object Assemblers {
   /**
     Assembles the necessary components to start SHODAN
     */
-  def startSHODAN(implicit ec: EC): Stream[IO, Unit] = {
+  def startSHODAN: Stream[IO, Unit] = {
 
     val shittyPath = Paths.get(params.StorageParams.toplevelPath + "/eventz")
     val shittyEventSink = cyborg.io.files.fileIO.timestampedEventWriter[IO]
@@ -39,38 +39,23 @@ object Assemblers {
 
     val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
 
-    val meameFeedbackSink: Sink[IO,List[Double]] =
-      _.through(PerturbationTransform.toStimReq())
-        .to(cyborg.dsp.DSP.stimuliRequestSink())
-
+    val meameFeedbackSink: Sink[IO,List[Double]] = PerturbationTransform.toStimReq() andThen cyborg.dsp.DSP.stimuliRequestSink()
 
     for {
       conf              <- Stream.eval(assembleConfig)
       getConf           =  conf.get
       staleConf         <- Stream.eval(conf.get)
-
-
-      _                 <- Stream.eval(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port, dspEventSink))
-
-      _                 <- Ssay[IO]("mock server up")
-      state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
-
-      eventQueue        <- Stream.eval(Queue.unbounded[IO,String])
-
-      commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
-      agentTopic        <- Stream.eval(Topic[IO, Agent](Agent.init))
-      topics            <- assembleTopics.chunkN(60,false)
-      taggedSeqTopic    <- Stream.eval(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]())))
-
       waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
+      state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
+      commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
+      agentTopic        <- Stream.eval(Topic[IO, Agent](Agent.init))
+      taggedSeqTopic    <- Stream.eval(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]())))
+      eventQueue        <- Stream.eval(Queue.unbounded[IO,String])
+      topics            <- assembleTopics.chunkN(60,false)
 
-      // Test code:
-      _                 <- Ssay[IO]("Starting DSP...")
-      _                 <- Stream.eval(cyborg.dsp.DSP.setup(false)(staleConf.experimentSettings))
-      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 400.millis))
-      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
-      _                 <- Ssay[IO]("In the pipe, 5 by 5")
+      _                 <- assembleMockServer()
+      _                 <- setupDSP(staleConf)
 
       rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                      commandQueue,
@@ -80,6 +65,10 @@ object Assemblers {
                                      agentListeners,
                                      state,
                                      conf))
+
+
+      frontend          <- rpcServer
+      _                 <- Stream.eval(frontend.start)
 
 
       commandPipe       <- Stream.eval(staging.commandPipe(
@@ -93,16 +82,42 @@ object Assemblers {
                                       waveformListeners,
                                       agentListeners))
 
-      frontend          <- rpcServer
-      _                 <- Stream.eval(frontend.start)
 
-      _                 <- Ssay[IO]("All systems go")
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
+
+
       _                 <- commandQueue.dequeue.through(commandPipe)
-                             .concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
                              .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
+                             .concurrently(topics(0).subscribe(1000).clogWarn(12.second, "topic 0 has not received any data yet", 2).take(5))
+                             .concurrently(topics(1).subscribe(1000).clogWarn(12.second, "topic 1 has not received any data yet", 2).take(5))
+                             // .concurrently(assembleMazeRunner(topics.toList, agentTopic))
                              .concurrently(eventQueue.dequeue.through(hurr))
-
     } yield ()
+  }
+
+
+  def assembleXOR(broadcastSource : List[Topic[IO,TaggedSegment]]): Stream[IO,Unit] = {
+
+    say("XOR experiment is go")
+    val perturbationSink = (s: Stream[IO, (Option[FiniteDuration], Option[FiniteDuration], Option[FiniteDuration])]) => {
+      s.map{ case(a,b,c) => Chunk.seq(List((0,a),(1,b),(2,c))) }
+        .chunkify
+        .to(cyborg.dsp.DSP.stimuliRequestSink())
+    }
+
+    XOR.runXOR(broadcastSource, perturbationSink)
+  }
+
+
+  def assembleMazeRunner(broadcastSource : List[Topic[IO,TaggedSegment]], agentTopic: Topic[IO,Agent]): Stream[IO,Unit] = {
+
+    val perturbationSink: Sink[IO,List[Double]] =
+      _.through(PerturbationTransform.toStimReq())
+        .to(cyborg.dsp.DSP.stimuliRequestSink())
+
+    Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
   }
 
 
@@ -136,11 +151,18 @@ object Assemblers {
     Demultiplexes the data and publishes data to all channel topics.
 
     Returns a tuple of the stream and a cancel action
+
+    Kinda getting some second thoughts about this being an interruptable action.
+    Shouldn't interruption really happen by terminating the enclosing stream?
+    Not set in stone, I'm not even sure how that would look, just thingken
+
+    A thought is, what if the cancellation is lost, then the stream will never
+    close until it fails on its own. Not nescessarily a bad thing, just a thought
     */
   def broadcastDataStream(
     source      : Stream[IO,TaggedSegment],
     topics      : List[Topic[IO,TaggedSegment]],
-    rawSink     : Sink[IO,TaggedSegment])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
+    rawSink     : Sink[IO,TaggedSegment]) : IO[InterruptableAction[IO]] = {
 
     val interrupted = SignallingRef[IO,Boolean](false)
 
@@ -179,7 +201,7 @@ object Assemblers {
   }
 
 
-  def assembleTopics(implicit ec: EC): Stream[IO,Topic[IO,TaggedSegment]] =
+  def assembleTopics: Stream[IO,Topic[IO,TaggedSegment]] =
     Stream.repeatEval(Topic[IO,TaggedSegment](TaggedSegment(-1,Chunk[Int]())))
 
 
@@ -193,7 +215,7 @@ object Assemblers {
     frontendAgentObserver : Sink[IO,Agent],
     feedbackSink          : Sink[IO,List[Double]],
     eventLogger           : Queue[IO,String],
-    getConf               : IO[FullSettings])(implicit ec : EC) : IO[InterruptableAction[IO]] = {
+    getConf               : IO[FullSettings]) : IO[InterruptableAction[IO]] = {
 
     getConf flatMap { conf =>
 
@@ -202,7 +224,8 @@ object Assemblers {
 
       val gaRunner = new GArunner(conf.gaSettings, conf.filterSettings)
 
-      val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = gaRunner.gaPipe(eventLogger)
+      // val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = gaRunner.gaPipe(eventLogger)
+      val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = ???
 
       SignallingRef[IO,Boolean](false).map { interruptSignal =>
         val interruptTask = for {
@@ -228,6 +251,26 @@ object Assemblers {
   }
 
 
-  def assembleConfig(implicit ec: EC): IO[Signal[IO, FullSettings]] =
+  def assembleConfig: IO[Signal[IO, FullSettings]] =
     SignallingRef[IO,FullSettings](FullSettings.default)
+
+
+  val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
+  def assembleMockServer(eventSink: Sink[IO,mockDSP.Event] = dspEventSink): Stream[IO,Unit] =
+    (for {
+       _ <- Stream.eval(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port, dspEventSink))
+       _ <- Ssay[IO]("mock server up")
+     } yield ()
+    ).concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
+
+
+  def setupDSP(conf: Setting.FullSettings): Stream[IO, Unit] = {
+    for {
+      _                 <- Ssay[IO]("Starting DSP...")
+      _                 <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 400.millis))
+      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
+      _                 <- Ssay[IO]("DSP started")
+    } yield ()
+  }
 }

@@ -20,9 +20,9 @@ object ApplicationServer {
 
 
   // Is it overkill to use conf effects here?? (yes, it is)
-  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,Agent]] = {
+  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings]): IO[Sink[IO,Agent]] = {
 
-    def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
+    def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
       listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
     }
 
@@ -39,10 +39,11 @@ object ApplicationServer {
   }
 
 
-  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[Sink[IO,TaggedSegment]] = {
+
+  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings]): IO[Sink[IO,TaggedSegment]] = {
 
     def sendData: Sink[IO,Array[Int]] = {
-      def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]])(implicit ec: EC): IO[Unit] = {
+      def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
         listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
       }
 
@@ -53,31 +54,21 @@ object ApplicationServer {
         }
       }
 
-      go(_).stream
+      in => go(in).stream
     }
 
     import params.waveformVisualizer.pointsPerMessage
 
     getConf map { conf =>
 
-      val pointsPerSec = conf.experimentSettings.samplerate
-      val pointsNeededPerSec = params.waveformVisualizer.vizLength
-      val segmentsPerSec = pointsPerSec/conf.experimentSettings.segmentLength
-      val pointsNeededPerSegment = pointsNeededPerSec/segmentsPerSec
+      // seg len in = 2000, seg out = (200/10)*2 = 40
+      val targetSegmentLength = hardcode(10)
+      val samplerate = hardcode(20000)
+      val segmentLength = hardcode(2000)
 
-      val downsampledSegmentLength = (conf.experimentSettings.segmentLength*pointsNeededPerSec)/pointsPerSec
-
-      val targetSegmentLength = 200/40
-
-      val downsampler = downsampleAndThen[IO,Int,Int](pointsPerSec, pointsNeededPerSec){c =>
-        val smallest = c.toList.min
-        val largest = c.toList.max
-        Chunk(largest, smallest)
-      }
-
-      in => in.through(_.map(_.data)).through(chunkify)
-        .through(downsampler)
-        .through(modifySegmentLengthGCD(downsampledSegmentLength*2, targetSegmentLength*2))
+      in => in
+        .map(_.downsampleHiLo(segmentLength/targetSegmentLength))
+        .chunkify
         .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
         .through(sendData)
 
@@ -97,8 +88,8 @@ object ApplicationServer {
     agentListeners    : Ref[IO,List[ClientId]],
     waveformListeners : Ref[IO,List[ClientId]],
     state             : Signal[IO,ProgramState],
-    conf              : Signal[IO,Setting.FullSettings],
-    )(implicit ec: EC): IO[RPCserver] = {
+    conf              : Signal[IO,Setting.FullSettings])
+      : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
     import org.eclipse.jetty.server.Server
@@ -108,14 +99,14 @@ object ApplicationServer {
     val port = 8080
     val resourceBase = "frontend/target/UdashStatics/WebContent"
 
-    def createAtmosphereHolder()(implicit ec: EC) = {
+    def createAtmosphereHolder(): ServletHolder = {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
             userQ,
             agentListeners,
             waveformListeners)(
-            clientId, ec)
+            clientId)
         )
       )
 
@@ -126,7 +117,7 @@ object ApplicationServer {
     }
 
 
-    def createAppHolder() = {
+    def createAppHolder(): ServletHolder = {
       val appHolder = new ServletHolder(new DefaultServlet)
       appHolder.setAsyncSupported(true)
       appHolder.setInitParameter("resourceBase", resourceBase)
