@@ -27,11 +27,13 @@ import scalatags.generic.TypedTag
 
 class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanvas: html.Canvas, agentCanvas: html.Canvas) extends ContainerView with CssView {
 
+  val rangeUp = UdashButton()(Icons.FontAwesome.plus)
+  val rangeDown = UdashButton()(Icons.FontAwesome.minus)
+
   val playButton = UdashButton()(Icons.FontAwesome.play)
   val recordButton = UdashButton()(Icons.FontAwesome.circle)
   val stopRecordButton = UdashButton()(Icons.FontAwesome.timesCircle)
   val stopButton = UdashButton()(Icons.FontAwesome.square)
-
 
   val hurr = ButtonStyle
 
@@ -39,6 +41,9 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
   recordButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRecordClicked(btn) }
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onStopClicked(btn) }
   stopRecordButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onStopRecordingClicked(btn) }
+
+  rangeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRangeUpClicked(btn) }
+  rangeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRangeDownClicked(btn) }
 
   model.streamTo( playButton.disabled, initUpdate = true)(m => !m.canPlay)
   model.streamTo( recordButton.disabled, initUpdate = true)(m => !m.canRecord)
@@ -52,6 +57,8 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
   override def getTemplate: Modifier = {
     div(
       UdashBootstrap.loadFontAwesome(),
+      rangeUp.render,
+      rangeDown.render,
       wfCanvas.render,
       agentCanvas.render,
       playButton.render,
@@ -94,6 +101,17 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
     Context.serverRpc.startAgent
   }
 
+  def onRangeUpClicked(btn: UdashButton) = {
+    val current = wf.getMaxVal
+    if(current > 128)
+      wf.setMaxVal(current/2)
+  }
+
+  def onRangeDownClicked(btn: UdashButton) = {
+    val current = wf.getMaxVal
+    if(current <= 64000)
+      wf.setMaxVal(current*2)
+  }
 
   def onRecordClicked(btn: UdashButton) = {
     model.subProp(_.isRecording).set(true)
@@ -118,10 +136,12 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
     wfQueue.clear()
   }
 
+  var wf: cyborg.waveformVisualizer.WFVisualizerControl = null
+  var ag: cyborg.Visualizer.VisualizerControl = null
 
   override def handleState(state: LiveState.type): Unit = {
-    new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
-    new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+    wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
+    ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
   }
 }
 

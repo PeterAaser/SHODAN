@@ -11,29 +11,17 @@ object waveformVisualizer {
   class WFVisualizerControl(canvas: html.Canvas,
                             dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
 
-    var maxVal = 1800
+    var maxVal = 1024
+    def setMaxVal(x: Int): Unit = {
+      say(s"new maxVal: $maxVal")
+      maxVal = x
+    }
+    def getMaxVal: Int = maxVal
 
     import params.waveformVisualizer._
 
     canvas.width = vizLength*8 + 4
     canvas.height = vizHeight*8 + 4
-
-    say(canvas.height)
-    say(canvas.width)
-
-
-    canvas.onmousewheel = { (e: dom.WheelEvent) =>
-      if(e.deltaY < 0){
-        if(maxVal > 128)
-          maxVal = maxVal/2
-      }
-      if(e.deltaY > 0){
-        if(maxVal < 65536)
-          maxVal *= 2
-      }
-    }
-
-    var testan = 0
 
     val renderer = canvas.getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
@@ -93,16 +81,14 @@ object waveformVisualizer {
     var num = 0
 
     // TODO what in the name of fuck it this running variable???
-    scalajs.js.timers.setInterval(25) {
+    scalajs.js.timers.setInterval(50) {
       if(!running){
         running = true
         if(dataqueue.size > 500){
-          // println("UH OH DATA QUEUE OVERFLOWING")
           println(dataqueue.size)
         }
         if(dataqueue.size > 0){
           val hurr = dataqueue.dequeue()
-          // say(hurr.toList.mkString(","))
           gogo(hurr)
         }
         running = false
@@ -146,8 +132,8 @@ object waveformVisualizer {
 
     // Clamps the data in the array
     def normalize(data: Array[Int]): Array[Int] = {
-      data.map( dataPoint =>
-        {
+      val hurr = data.map(
+        dataPoint => {
           val normalized = {
             if(dataPoint > maxVal){
               maxVal
@@ -159,7 +145,9 @@ object waveformVisualizer {
               dataPoint
           }
           (normalized*vizHeight)/(maxVal*2)
-      })
+        })
+      hurr
+
     }
 
     var globalCounter = 0
@@ -167,8 +155,8 @@ object waveformVisualizer {
     // Draws a single graph
     def drawPixelArray(index: Int, idx: Int, idy: Int): Unit = {
 
-      var prevMax = 0
-      var prevMin = 0
+      var prevMax = Int.MinValue
+      var prevMin = Int.MaxValue
 
       for(ii <- 0 until pixels(index).length/2){
         val x_offset = idx*vizLength
@@ -180,30 +168,14 @@ object waveformVisualizer {
         val drawMax = if(max < prevMin) prevMin else max
         val drawMin = if(min > prevMax) prevMax else min
 
-        // if(index == 18){
-        //   globalCounter += 1
-        //   renderer.fillStyle = "orange"
-        //   if((globalCounter % 10000) < 100){
-        //     if((max < prevMin) || (min > prevMax)){
-        //       say(s"prevMax = $prevMax")
-        //       say(s"prevMin = $prevMin")
-        //       say(s"max = $max")
-        //       say(s"min = $min")
-        //       say(s"drawMax = $drawMax")
-        //       say(s"drawMin = $drawMin")
-        //       say("\n")
-        //     }
-        //   }
-        // }
-
         prevMax = max
         prevMin = min
 
-        // renderer.fillRect(x_offset + ii, y_offset + drawMin, 2, drawMax)
-        renderer.fillRect(x_offset + ii, y_offset - drawMax, 2, drawMin)
-        renderer.fillStyle = "yellow"
+        val height = drawMax - drawMin
+        val start  = y_offset - drawMax
 
-
+        renderer.fillRect(x_offset + ii, start, 2, height)
+        renderer.fillStyle = "orange"
       }
     }
 

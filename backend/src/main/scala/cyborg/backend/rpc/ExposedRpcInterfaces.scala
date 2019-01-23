@@ -28,8 +28,7 @@ import sharedImplicits._
 import backendImplicits._
 
 object ClientRPChandle {
-  def apply(target: ClientRPCTarget)
-           (implicit ec: EC): MainClientRPC =
+  def apply(target: ClientRPCTarget): MainClientRPC =
     new DefaultClientRPC[MainClientRPC](target).get
 }
 
@@ -37,7 +36,7 @@ object ClientRPChandle {
 class ServerRPCendpoint(userQ: Queue[IO,UserCommand],
                         wfListeners: Ref[IO,List[ClientId]],
                         agentListeners: Ref[IO,List[ClientId]])
-                       (implicit ci: ClientId, ec: EC) extends MainServerRPC {
+                       (implicit ci: ClientId) extends MainServerRPC {
 
 
   override def registerWaveform   : Unit = wfListeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()

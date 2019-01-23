@@ -22,7 +22,52 @@ object utilz {
   type EC = ExecutionContext
 
   type Channel = Int
-  case class TaggedSegment(channel: Channel, data: Chunk[Int])
+
+  case class TaggedSegment(channel: Channel, data: Chunk[Int]){
+
+    /**
+      Will blow up in your face if you call it with numbers that aren't
+      divisible with segment size
+
+      call downsampleHiLo(100) on segment length 90 and you will get 0 output.
+      call downsampleHiLo(51)  on segment length 100 and you will get 1 output per segment only.
+
+      Gets the highest and lowest for every `dropEvery` element, so downsampleHiLo(20) on seg length
+      40 gives an output chunk of size 4
+      */
+    def downsampleHiLo(dropEvery: Int): Chunk[Int] = {
+      import scala.collection.mutable.ArrayBuffer
+      val buf = ArrayBuffer[Int]()
+
+      // Referentially transparent yo
+      var count = 0
+      var lowest = Int.MaxValue
+      var highest = Int.MinValue
+
+      for(ii <- 0 until data.size){
+        if(data(ii) > highest) highest = data(ii)
+        if(data(ii) < lowest)  lowest  = data(ii)
+
+        if(count == dropEvery) {
+          buf.append(lowest)
+          buf.append(highest)
+          lowest = Int.MaxValue
+          highest = Int.MinValue
+          count = 0
+        }
+        count += 1
+      }
+
+      if(count == dropEvery) {
+        buf.append(lowest)
+        buf.append(highest)
+      }
+
+      Chunk.buffer(buf)
+    }
+  }
+
+
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
   case class MuxedStream[F[_],I](numStreams: Int, stream: Stream[F,I])
 
@@ -647,21 +692,49 @@ object utilz {
     A normal drop size of 3 means that typically we take 3 inputs, and normalEmits
     means we do one normal drop, then one drop where we take an extra element, meaning
     that for 2 and 7 we get 3 4 3 4
+
+    Note that the downsampler does not distribute extras evenly.
+    Consider 5 out for every 17 in whic results in dropping
+    3 3 3 4 4 - 3 3 3 4 4 - 3 3 3 4 4...
     */
   def downsamplePipe[F[_],O](forEveryIncoming: Int, emitThisMany: Int): Pipe[F,O,O] = {
 
+    import scala.collection.mutable.ArrayBuffer
     val normalDropSize = forEveryIncoming / emitThisMany
     val normalEmits    = emitThisMany - (forEveryIncoming % emitThisMany)
 
-    def go(step: Int, s: Stream[F,O]): Pull[F,O,Unit] = {
-      val elementsToPull = normalDropSize + (if(step > normalEmits) 1 else 0)
-      s.pull.unconsN(elementsToPull,true).flatMap {
-        case Some((chunk, tl)) => Pull.output1(chunk.head.get) >> go(step % emitThisMany, tl) // RIP NonEmptyChunk
+    def go(s: Stream[F,O], nextEmit: Int, emitNum: Int): Pull[F,O,Unit] = {
+      s.pull.uncons.flatMap {
         case None => Pull.done
+        case Some((chunk, tl)) => {
+
+          val buf = ArrayBuffer[O]()
+          var done = false
+          var currentIdx = nextEmit
+          var currentEmitNum = emitNum
+
+          while(!done){
+            if(currentIdx >= chunk.size) {
+              currentIdx = currentIdx - chunk.size
+              done = true
+            }
+            else {
+              buf.append(chunk(currentIdx))
+              currentEmitNum = (currentEmitNum + 1) % emitThisMany
+
+              if(currentEmitNum >= normalEmits)
+                currentIdx = currentIdx + normalDropSize + 1
+              else
+                currentIdx = currentIdx + normalDropSize
+            }
+          }
+          Pull.output(Chunk.seq(buf)) >> go(tl, currentIdx, currentEmitNum)
+        }
       }
     }
-    in => go(0, in).stream
+    in => go(in, normalDropSize, 0).stream
   }
+
 
 
   /**
@@ -817,5 +890,44 @@ object utilz {
       }
 
     s => init(s).stream.concurrently(warnSource)
+  }
+
+
+  /**
+    Useful for testing :3
+    */
+  def randomChunkSizes[F[_],O](min: Int, max: Int): Pipe[F,O,O] = {
+
+    def go(s: Stream[F,O]): Pull[F,O,Unit] = {
+      val n = util.Random.nextInt(((max + 1) - min)) + min
+      if(n == 0){
+        Pull.output(Chunk.empty) >> go(s)
+      }
+      else
+        s.pull.unconsN(n,true).flatMap {
+          case Some((chunk, tl)) => Pull.output(chunk) >> go(tl)
+          case None => Pull.done
+        }
+    }
+
+    in => go(in).stream
+  }
+
+
+  /**
+    Pipe intended for testing the frontend
+    */
+  def testSegmentRewriter[F[_]]: Pipe[F,TaggedSegment,TaggedSegment] = {
+
+    val newData = Chunk.seq((-500 to 500).toList)
+
+    def go(s: Stream[F,TaggedSegment]): Pull[F,TaggedSegment,Unit] = {
+      s.pull.uncons.flatMap {
+        case Some((seg, tl)) => Pull.output(seg.map(_.copy(data = newData))) >> go(tl)
+        case None => Pull.done
+      }
+    }
+
+    in => go(in).stream
   }
 }

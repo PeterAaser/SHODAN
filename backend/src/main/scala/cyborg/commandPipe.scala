@@ -166,7 +166,7 @@ object staging {
     def handleFrontendVisualizer(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(z => (z.meameRunning, z.playbackRunning))).changes.tail map { case(a, b) =>
         if(a || b) for {
-          _         <- configureAndAttachFrontendWFSink(getConf, waveformListeners, rawDataTopic.subscribe(10))
+          _         <- configureAndAttachFrontendWFSink(getConf, waveformListeners, rawDataTopic.subscribe(100))
         } yield ()
         else for {
           _         <- IO.unit

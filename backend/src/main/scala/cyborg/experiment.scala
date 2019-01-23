@@ -63,11 +63,12 @@ class ClosedLoopExperiment[F[_]: Concurrent,FilterO,ReadoutO,TaskO,PerturbationO
     /**
       Creates a pipe for a single experiment.
       After experiment conclusion the pipe must terminate.
-      This must be encoded in the `taskRunner` pipe
+      This must be encoded in the `taskRunner` pipe (if not the evaluationSink
+      will not know that the stream is terminated)
       */
     def experimentRunner: Pipe[F,FilterO, Stream[F,Unit]] = { inStream =>
 
-      def go(inputStream: Stream[F,FilterO]): Pull[F,Stream[F,Unit],Unit] = {
+      def runOnce(inputStream: Stream[F,FilterO]): Pull[F,Stream[F,Unit],Unit] = {
 
         readoutSource.pull.uncons1 flatMap {
           case Some((readoutLayer,tl)) => {
@@ -80,7 +81,7 @@ class ClosedLoopExperiment[F[_]: Concurrent,FilterO,ReadoutO,TaskO,PerturbationO
 
             // Terminate after one run
             Pull.output1(experiment) >>
-              Pull.eval(Fsay("That's one done, terminating")) >>
+              Pull.eval(Fsay("Experiment completed")) >>
               Pull.done
           }
           case None => {
@@ -90,7 +91,7 @@ class ClosedLoopExperiment[F[_]: Concurrent,FilterO,ReadoutO,TaskO,PerturbationO
         }
       }
 
-      go(inStream).stream
+      runOnce(inStream).stream
     }
 
     // Sequentially run experiment streams

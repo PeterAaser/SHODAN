@@ -13,13 +13,13 @@ object Setting {
 
   object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
     val default = ExperimentSettings(
-      samplerate         = 10000,
+      samplerate         = 20000,
       stimulusElectrodes = List(
         List(54, 55, 56, 57, 58, 59),
         List(0,   1,  2,  3,  4,  5),
         List(6,  14, 22,     38, 46),
       ).map(_.map(getMCSstimChannel)),
-      segmentLength      = 1000
+      segmentLength      = 2000
     )}
 
 
@@ -44,23 +44,27 @@ object Setting {
 
   // Settings for the readout layer, that is the artificial neural network
   case class ReadoutSettings(
-    inputChannels   : List[Int],
-    weightMin       : Double,
-    weightMax       : Double,
-    MAGIC_THRESHOLD : Int,
-    ANNlayout       : List[Int]
-  )
+    inputChannels     : List[Int],
+    weightMin         : Double,
+    weightMax         : Double,
+    MAGIC_THRESHOLD   : Int,
+    ANNinternalLayout : List[Int],
+    outputs           : Int
+  ){
+    val layout = inputChannels.size :: ANNinternalLayout ::: List(outputs)
+  }
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
 
     val default = ReadoutSettings(
-        weightMin       = -2.0,
-        weightMax       = 2.0,
-        MAGIC_THRESHOLD = 1000,
-        ANNlayout       = List(), // empty list encodes a network with no hidden outputs
-        inputChannels   = List(16, 17, 18, 19, 20, 21,
+        weightMin         = -2.0,
+        weightMax         = 2.0,
+        MAGIC_THRESHOLD   = 1000,
+        ANNinternalLayout = List(), // empty list encodes a network with no hidden outputs
+        outputs           = 2,
+        inputChannels     = List(16, 17, 18, 19, 20, 21,
                                24, 25, 26, 27, 28, 29,
                                32, 33, 34, 35, 36, 37,
-                               40, 41, 42, 43, 44, 45).map(getMCSdataChannel)
+                               40, 41, 42, 43, 44, 45).map(getMCSdataChannel),
       )}
 
 

@@ -12,15 +12,38 @@ inThisBuild(Seq(
   scalaVersion := Dependencies.versionOfScala,
   organization := "cyborg",
   scalacOptions ++= Seq(
-    "-feature",
+
+    // Emit warning and location for usages of features that should be imported explicitly.
+    // Det trenger vi vel egentlig ikke, blir bare masse støy
+    // "-feature",
+
+    "-explaintypes",
+
+    // Lol no HKT
     "-language:higherKinds",
+
+    // Under tvil, kan fint taes av lokalt
     "-deprecation",
+
+    // Enable additional warnings where generated code depends on assumptions.
     "-unchecked",
+
+    // Allow definition of implicit functions called views
     "-language:implicitConversions",
-    // "-language:existentials",
-    "-language:dynamics",
+
+    // Existential types (besides wildcard types) can be written and inferred
+    "-language:existentials",
+
+    // "-language:dynamics",
+
+    // Turn on future language features
     "-Xfuture",
-    "-language:postfixOps",
+
+    // Allows 2 second as opposed to 2.second
+    // Generally adviced against, but I kinda like having them
+    "-language:postfixOps"
+
+    // Yeah no
     // "-Xfatal-warnings",
     // "-Xlint:_,-missing-interpolator,-adapted-args"
   ),

@@ -74,8 +74,12 @@ object DSP {
   } yield ()
 
 
-  def stimuliRequestSink(allowed: List[Int] = List(0,1,2))(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] =
-    DspCalls.stimuliRequestSink(allowed)
+  /**
+    Creates stimulus requests for the supplied period, or toggles the group off when the period is None.
+    For debugging convenience the three electrode groups can be toggled by supplying a list of allowed groups.
+    */
+  def stimuliRequestSink(toggledGroups: List[Int] = List(0,1,2))(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] =
+    DspCalls.stimuliRequestSink(toggledGroups)
 
   def flashDSP: IO[Unit] = HttpClient.DSP.flashDsp
 }

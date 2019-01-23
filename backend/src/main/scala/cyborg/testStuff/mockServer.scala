@@ -109,7 +109,8 @@ object mockServer {
     case req @ POST -> Root / "write" => {
       req.decode[DspRegisters.RegisterSetList] { data =>
         // (data.addresses zip data.values).foreach{ case(r,v) => dspRegisterState.update(r, v)}
-        Fsay[IO](s"got dsp write request: $data") >> Ok("")
+        // Fsay[IO](s"got dsp write request: $data") >> Ok("")
+        Ok("")
       }
     }
   }
@@ -134,11 +135,23 @@ object mockServer {
       case 40000 => ???
     }
 
+    val recordingId = hardcode(10)
+
     // Already throttled
-    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(10).repeat
+    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(recordingId).repeat
     val broadcast = Stream.eval(SignallingRef[IO,Frame](Chunk.empty)) flatMap { signal =>
       val dataIn = fromDB.vecN(60)
         .map(x => Chunk.concatInts(x.map(_.data)))
+        .evalMap(signal.set(_))
+
+      val dataInAsChannel = fromDB.vecN(60)
+        .map( x => {
+               val huh = x.mapWithIndex{ case (ts, idx) =>
+                 ts.data.map(_ => idx)
+               }
+               Chunk.concatInts(huh)
+             }
+        )
         .evalMap(signal.set(_))
 
 
@@ -157,6 +170,7 @@ object mockServer {
         .parJoinUnbounded
 
       dataIn.concurrently(attachSinks)
+      // dataInAsChannel.concurrently(attachSinks)
     }
     broadcast
   }
@@ -206,6 +220,7 @@ object mockServer {
   def assembleTestTcpServer(port: Int): Stream[IO, Unit] = {
     for {
       listeners <- Stream.eval(Queue.bounded[IO,Resource[IO,Socket[IO]]](10))
+      _ = say("TCP serverino starterino", Console.CYAN)
       _ <- Stream(tcpServer(listeners), broadcastDataStream(listeners)).parJoinUnbounded
     } yield ()
   }
