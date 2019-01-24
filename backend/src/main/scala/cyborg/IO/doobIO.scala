@@ -80,7 +80,7 @@ object DoobieQueries {
     """.query[(Int, String, String)]
 
     checkQuery(q)
-    q.unique.map{ case(_, λ, µ) => DataRecording(λ, µ) }
+    q.unique.map{ case(_, x, µ) => DataRecording(x, µ) }
   }
 
 

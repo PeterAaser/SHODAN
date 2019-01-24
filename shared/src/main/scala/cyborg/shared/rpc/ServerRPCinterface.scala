@@ -7,11 +7,10 @@ import scala.concurrent.Future
 import cyborg._
 import cyborg.shared.rpc._
 import RPCmessages._
-import Setting._
+import Settings._
 import sharedImplicits._
 
 // The methods the frontend can call from the backend
-@RPC
 trait MainServerRPC {
 
   def registerWaveform: Unit

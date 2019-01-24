@@ -60,15 +60,15 @@ object waveformVisualizer {
 
 
     val topRowWithCoords: List[(Int, Int)] =
-      (1 to 6).map(λ => (λ,0)).toList
+      (1 to 6).map(x => (x,0)).toList
 
     val botRowWithCoords: List[(Int, Int)] =
-      (1 to 6).map(λ => (λ,7)).toList
+      (1 to 6).map(x => (x,7)).toList
 
     val middleRowsWithCoords = (0 until 48).sliding(8,8)
       .map( row => row zip (0 to 7) ).toList.transpose
       .map( column => column zip (1 to 6) )
-      .map(_.map(λ => (λ._1._2, λ._2)))
+      .map(_.map(x => (x._1._2, x._2)))
       .transpose
       .flatten
 
@@ -99,7 +99,7 @@ object waveformVisualizer {
       groupSize = data.size/60
       clear()
       val chopped = data.grouped(groupSize).zipWithIndex.toList
-      chopped.foreach(λ => drawToPixelArray(λ._1, λ._2 % 60))
+      chopped.foreach(x => drawToPixelArray(x._1, x._2 % 60))
       renderer.fillStyle = "yellow"
       drawPixelArrays()
       drawGrid()
@@ -209,9 +209,9 @@ object waveformVisualizer {
       renderer.fillRect(0,           0 + vizHeight, 4, vizHeight*6) // |
       renderer.fillRect(vizLength*8, 0 + vizHeight, 4, vizHeight*6) //          |
 
-      (1 to 7).foreach{ λ =>
-        renderer.fillRect(0, λ*vizHeight, vizLength*8, 4) // ---
-        renderer.fillRect(λ*vizLength, 0, 4, vizHeight*8) // |||
+      (1 to 7).foreach{ x =>
+        renderer.fillRect(0, x*vizHeight, vizLength*8, 4) // ---
+        renderer.fillRect(x*vizLength, 0, 4, vizHeight*8) // |||
       }
     }
 

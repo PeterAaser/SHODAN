@@ -84,8 +84,8 @@ object agentPipe {
       evalSink: Sink[F,Double]): Pipe[F,ffANNoutput,Agent] = s => {
 
       val t = s.through(experimentPipe)
-      t.observeAsync(100)(λ =>
-        λ.through(evaluateRun).fold(.0)(_+_).through(_.map(evalFunc(_)))
+      t.observeAsync(100)(x =>
+        x.through(evaluateRun).fold(.0)(_+_).through(_.map(evalFunc(_)))
           .through(evalSink)
       )
     }

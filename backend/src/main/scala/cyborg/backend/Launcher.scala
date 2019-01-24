@@ -4,6 +4,7 @@ import fs2.concurrent.Broadcast
 import scala.concurrent.duration._
 
 import cyborg._
+import scala.util.Random
 import utilz._
 import cats.effect._
 import fs2._
@@ -13,10 +14,10 @@ import cyborg.dsp.calls.DspCalls._
 
 
 object Launcher {
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {                                                                                                       say("wello")
 
-    say("wello")
+    // Assemblers.startSHODAN.compile.drain.unsafeRunSync()
+    MemeFactory.doIt
 
-    Assemblers.startSHODAN.compile.drain.unsafeRunSync()
   }
 }

@@ -71,8 +71,8 @@ object sIO {
       * For when we don't really need to log the metadata and just want to store to file
       */
     def streamToFile(rawDataStream: Stream[IO,TaggedSegment]): Stream[IO, Unit] = {
-      Stream.eval(fileIO.writeCSV[IO]) flatMap { λ =>
-        rawDataStream.through(_.map(_.data)).through(chunkify).through(λ._2)
+      Stream.eval(fileIO.writeCSV[IO]) flatMap { x =>
+        rawDataStream.through(_.map(_.data)).through(chunkify).through(x._2)
       }
     }
 

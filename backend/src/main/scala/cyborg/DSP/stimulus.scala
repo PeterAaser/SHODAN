@@ -163,8 +163,8 @@ object WaveformGenerator {
       .map(_/mVperUnit).map(_.toInt)
       .map(_ + dspVoltageOffset)
       .foldLeft((List[StimPoint](), 0, 0)){
-        (λ, voltage) => {
-          val (stimPoints, previousVoltage, ticks) = λ
+        (x, voltage) => {
+          val (stimPoints, previousVoltage, ticks) = x
           val shouldUpdate = voltage != previousVoltage
           if(shouldUpdate) {
             val sp = StimPoint(ticks, voltage)
@@ -188,8 +188,8 @@ object WaveformGenerator {
 
     val stimReset   = RegisterSetList(List(0x0 -> stimResetAddress))
     val SBSReset    = RegisterSetList(List(0x0 -> SBSResetAddress))
-    val stimUploads = RegisterSetList(stimWords.map(λ => (λ.invoke, channelAddress)))
-    val SBSUploads  = RegisterSetList(SBSWords.map(λ  => (λ.invoke, channelAddress + 4)))
+    val stimUploads = RegisterSetList(stimWords.map(x => (x.invoke, channelAddress)))
+    val SBSUploads  = RegisterSetList(SBSWords.map(x  => (x.invoke, channelAddress + 4)))
 
     import cats.syntax._
     import cats.implicits._

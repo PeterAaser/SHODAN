@@ -18,8 +18,8 @@ case class RegistryGroup(
   valueToSettings: Map[Bits, SettingName],
   description: String){
   val settingsToValue:  Map[SettingName, Bits] = valueToSettings.map(_.swap)
-  val fieldNameToField: Map[FieldName, Field]  = fields.sorted.map(λ => (λ.name, λ)).toMap
-  val groupedByAddress: List[(Reg, List[Field])] = fields.sorted.groupBy(λ => λ.address).toList
+  val fieldNameToField: Map[FieldName, Field]  = fields.sorted.map(x => (x.name, x)).toMap
+  val groupedByAddress: List[(Reg, List[Field])] = fields.sorted.groupBy(x => x.address).toList
 
   def getReadList: RegisterReadList =
     RegisterReadList(fields.map(_.address.r).toSet.toList)

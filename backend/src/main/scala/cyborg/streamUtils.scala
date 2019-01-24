@@ -1,5 +1,6 @@
 package cyborg
 
+import cats.data.Kleisli
 import cats.effect.{ Async, Concurrent, Effect, Sync, Timer }
 import cats.implicits._
 import cats._
@@ -9,7 +10,7 @@ import fs2.concurrent.{ InspectableQueue, Queue, Signal, SignallingRef, Topic }
 import java.nio.{ ByteBuffer, ByteOrder }
 import scala.concurrent.ExecutionContext
 
-import cyborg.Setting._
+import cyborg.Settings._
 
 import scala.concurrent.duration._
 
@@ -20,8 +21,12 @@ import sourcecode._
 object utilz {
 
   type EC = ExecutionContext
-
   type Channel = Int
+
+  // Streams and IOs that need Settings to run
+  type ConfStream[F[_], A] = Kleisli[Stream[F,?], Settings.FullSettings, A]
+  type ConfF[F[_], A] = Kleisli[F, Settings.FullSettings, A]
+  type ConfId[A] = Kleisli[Id,Settings.FullSettings, A]
 
   case class TaggedSegment(channel: Channel, data: Chunk[Int]){
 

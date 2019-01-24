@@ -16,15 +16,15 @@ object STG {
                              Bits(x2"10") -> SettingName("Trigger 3"))
 
   val TriggerSelect = List(
-    Field(Reg(0x9104), 24, 2, FieldName("Mem 7"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 16, 2, FieldName("Mem 5"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 8,  2, FieldName("Mem 3"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9104), 0,  2, FieldName("Mem 1"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 24, 2, FieldName("Mem 7"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 16, 2, FieldName("Mem 5"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 8,  2, FieldName("Mem 3"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9104), 0,  2, FieldName("Mem 1"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
 
-    Field(Reg(0x9108), 24, 2, FieldName("Mem 8"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 16, 2, FieldName("Mem 6"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 8,  2, FieldName("Mem 4"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n),
-    Field(Reg(0x9108), 0,  2, FieldName("Mem 2"), (_,λ) => TriggerSelectMap.get(λ).getOrElse(invalidSetting).n)
+    Field(Reg(0x9108), 24, 2, FieldName("Mem 8"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 16, 2, FieldName("Mem 6"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 8,  2, FieldName("Mem 4"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n),
+    Field(Reg(0x9108), 0,  2, FieldName("Mem 2"), (_,x) => TriggerSelectMap.get(x).getOrElse(invalidSetting).n)
   )
   val TriggerSelectBF = RegistryGroup(
     "Assignment of trigger to stimulus memory source.",

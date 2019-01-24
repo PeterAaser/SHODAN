@@ -8,7 +8,7 @@ import fs2._
 
 object FFANN {
 
-  val defaultActivator: Double => Double = λ => λ
+  val defaultActivator: Double => Double = x => x
 
   // Unlike the previous version bias is not a separate list
   case class FeedForward(layout: List[Int], weights: List[Double], activator: Double => Double = defaultActivator) {

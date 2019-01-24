@@ -31,7 +31,7 @@ class RecordingView(model: ModelProperty[RecordingModel],
                     wfCanvas: html.Canvas,
                     recordings: SeqProperty[RecordingInfo],
                     selectedRecord: Property[RecordingInfo],
-                    conf: Property[Setting.FullSettings]) extends FinalView with CssView {
+                    conf: Property[Settings.FullSettings]) extends FinalView with CssView {
 
   val playButton = UdashButton()(Icons.FontAwesome.play)
   val pauseButton = UdashButton()(Icons.FontAwesome.pause)
@@ -69,7 +69,7 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
                          wfCanvas: html.Canvas,
                          recordings: SeqProperty[RecordingInfo],
                          selectedRecord: Property[RecordingInfo],
-                         conf: Property[Setting.FullSettings]) extends Presenter[RecordingState.type] {
+                         conf: Property[Settings.FullSettings]) extends Presenter[RecordingState.type] {
 
 
   import cyborg.frontend.services.rpc._
@@ -126,7 +126,7 @@ case object RecordingViewFactory extends ViewFactory[RecordingState.type] {
     val recordings = SeqProperty[RecordingInfo]
     val selectedRecord = Property.empty[RecordingInfo]
     val model = ModelProperty( RecordingModel(false, false, false) )
-    val conf = Property[Setting.FullSettings](Setting.FullSettings.default)
+    val conf = Property[Settings.FullSettings](Settings.FullSettings.default)
 
     val presenter = new RecordingPresenter(model, wfCanvas, recordings, selectedRecord, conf)
     val view = new RecordingView(model, presenter, wfCanvas, recordings, selectedRecord, conf)

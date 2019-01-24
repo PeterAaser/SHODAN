@@ -27,30 +27,30 @@ object BitDrawing {
   def renderFields(fields: List[Field]): Map[Reg, String] = {
 
     def renderFieldGroup(fields: List[Field]): String = {
-      val bitNumString = (0 until 32).toList.reverse.map(λ => "%02d".format(λ))
+      val bitNumString = (0 until 32).toList.reverse.map(x => "%02d".format(x))
 
       def getColor(c: Int) =
         if(c % 2 == 0) Console.YELLOW_B else Console.RED_B
 
       case class Accumulated(bitPositions: List[String], color: Int, pos: Int)
-      val renderedPositions = fields.foldLeft(Accumulated(Nil,0,31)){ (λ,µ) =>
+      val renderedPositions = fields.foldLeft(Accumulated(Nil,0,31)){ (x,µ) =>
 
-        val deadDrop = 31 - λ.pos
-        val deadTake = λ.pos - µ.last
-        val liveDrop = (31 - λ.pos) + (λ.pos - µ.last)
+        val deadDrop = 31 - x.pos
+        val deadTake = x.pos - µ.last
+        val liveDrop = (31 - x.pos) + (x.pos - µ.last)
         val liveTake = µ.size
         val taken = deadTake + liveTake
 
         val deadPosString = bitNumString.drop(deadDrop).take(deadTake)
           .map(Console.CYAN + _ + Console.RESET)
         val livePosString = bitNumString.drop(liveDrop).take(liveTake)
-          .map(getColor(λ.color) + _ + Console.RESET)
+          .map(getColor(x.color) + _ + Console.RESET)
 
-        val nextPos = λ.pos - taken
+        val nextPos = x.pos - taken
 
-        λ.copy(
-          bitPositions = λ.bitPositions ::: deadPosString ::: livePosString,
-          color = λ.color + 1,
+        x.copy(
+          bitPositions = x.bitPositions ::: deadPosString ::: livePosString,
+          color = x.color + 1,
           pos = nextPos
         )
       }
@@ -62,7 +62,7 @@ object BitDrawing {
     }
 
 
-    fields.groupBy(_.address).mapValues(λ => renderFieldGroup(λ.sorted.reverse))
+    fields.groupBy(_.address).mapValues(x => renderFieldGroup(x.sorted.reverse))
   }
 
 
@@ -77,30 +77,30 @@ object BitDrawing {
         if(c % 2 == 0) Console.YELLOW else Console.RED
 
       case class Accumulated(wordString: List[String], color: Int, pos: Int)
-      val renderedWord = fieldz.sorted.reverse.foldLeft(Accumulated(Nil,0,31)){ (λ,µ) =>
+      val renderedWord = fieldz.sorted.reverse.foldLeft(Accumulated(Nil,0,31)){ (x,µ) =>
 
-        val deadDrop = 31 - λ.pos
-        val deadTake = λ.pos - µ.last
-        val liveDrop = (31 - λ.pos) + (λ.pos - µ.last)
+        val deadDrop = 31 - x.pos
+        val deadTake = x.pos - µ.last
+        val liveDrop = (31 - x.pos) + (x.pos - µ.last)
         val liveTake = µ.size
         val taken = deadTake + liveTake
 
         val deadWordString = wordString.drop(deadDrop).take(deadTake)
           .map(Console.CYAN + _ + Console.RESET)
         val liveWordString = wordString.drop(liveDrop).take(liveTake)
-          .map(getColor(λ.color) + _ + Console.RESET)
+          .map(getColor(x.color) + _ + Console.RESET)
 
 
-        val nextPos = λ.pos - taken
+        val nextPos = x.pos - taken
 
-        λ.copy(
-          wordString = λ.wordString ::: deadWordString ::: liveWordString,
-          color = λ.color + 1,
+        x.copy(
+          wordString = x.wordString ::: deadWordString ::: liveWordString,
+          color = x.color + 1,
           pos = nextPos
         )
       }
 
-      val settings = fieldz.reverse.foldLeft((0,""))( (λ,µ) => ((λ._1 + 1), (λ._2 + getColor(λ._1) + s"${µ.name.n} <- ${µ.getFieldString(word)}\n")))._2
+      val settings = fieldz.reverse.foldLeft((0,""))( (x,µ) => ((x._1 + 1), (x._2 + getColor(x._1) + s"${µ.name.n} <- ${µ.getFieldString(word)}\n")))._2
       val frame = List.fill(32)("").mkString("+--","+--","+\n")
 
       val done = renderedWord.copy(
@@ -114,6 +114,6 @@ object BitDrawing {
 
     val merged = bonus.intersect(fields, reads)
 
-    merged.mapValues(λ => renderFieldGroup(λ._2, λ._1))
+    merged.mapValues(x => renderFieldGroup(x._2, x._1))
   }
 }

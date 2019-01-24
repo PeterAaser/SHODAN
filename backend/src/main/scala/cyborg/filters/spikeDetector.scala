@@ -34,7 +34,7 @@ object spikeDetector {
             // say("spike detecting")
             // val flattened = seg.force.toVector
             val refactored = chunk.drop(spikeCooldownTimer).toList
-            val index = refactored.indexOf((λ: Boolean) => λ)
+            val index = refactored.indexOf((x: Boolean) => x)
             if (index == -1) {
               // The case where none of the elements able to produce a spike triggered
               // For scala/java interop legacy reasons we have to use -1 instead of Option
@@ -56,7 +56,7 @@ object spikeDetector {
 
     (s: Stream[F,Int]) => s.through(_.map(_ > threshold))
       .through(spikeDetector)
-      .through(_.map(λ => (if(λ) 1 else 0)))
+      .through(_.map(x => (if(x) 1 else 0)))
       .through(utilz.fastMovingAverage(10))
   }
 

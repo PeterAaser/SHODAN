@@ -1,5 +1,6 @@
 package cyborg
 
+import cats.data.Kleisli
 import fs2._
 import fs2.concurrent.{ Queue, Signal, SignallingRef, Topic }
 import cats.effect.implicits._
@@ -16,7 +17,7 @@ import cats.effect._
 import cats.implicits._
 
 import cyborg.backend.server.ApplicationServer
-import cyborg.Setting._
+import cyborg.Settings._
 import cyborg.utilz._
 
 import scala.concurrent.duration._
@@ -42,9 +43,9 @@ object Assemblers {
     val meameFeedbackSink: Sink[IO,List[Double]] = PerturbationTransform.toStimReq() andThen cyborg.dsp.DSP.stimuliRequestSink()
 
     for {
-      conf              <- Stream.eval(assembleConfig)
-      getConf           =  conf.get
-      staleConf         <- Stream.eval(conf.get)
+      confServer        <- Stream.eval(assembleConfig)
+      getConf           =  confServer.get
+      staleConf         <- Stream.eval(confServer.get)
       waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
@@ -64,7 +65,7 @@ object Assemblers {
                                      waveformListeners,
                                      agentListeners,
                                      state,
-                                     conf))
+                                     confServer))
 
 
       frontend          <- rpcServer
@@ -111,6 +112,14 @@ object Assemblers {
   }
 
 
+  def assembleMazeRunnerK(broadcastSource : List[Topic[IO,TaggedSegment]], agentTopic: Topic[IO,Agent]): Stream[IO,Unit] = {
+
+    val perturbationSink: Sink[IO,List[Double]] =
+      _.through(PerturbationTransform.toStimReq())
+        .to(cyborg.dsp.DSP.stimuliRequestSink())
+
+    Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
+  }
   def assembleMazeRunner(broadcastSource : List[Topic[IO,TaggedSegment]], agentTopic: Topic[IO,Agent]): Stream[IO,Unit] = {
 
     val perturbationSink: Sink[IO,List[Double]] =
@@ -238,7 +247,7 @@ object Assemblers {
                            .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
           .through(experimentPipe)
           .observe(frontendAgentObserver)
-          .through(_.map((λ: Agent) => {λ.distances}))
+          .through(_.map((x: Agent) => {x.distances}))
           .through(feedbackSink)
           .compile.drain)}
 
@@ -264,13 +273,25 @@ object Assemblers {
     ).concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
 
 
-  def setupDSP(conf: Setting.FullSettings): Stream[IO, Unit] = {
+  import Settings._
+
+  // Stream[IO,?] == IOStream[A]
+  // type IOStream = Stream[IO,?]
+  // type IOStream[A] = Stream[IO,A]
+
+  def setupDSPK: Kleisli[Stream[IO,?], FullSettings, Unit] =
+    Kleisli((conf: FullSettings) =>
+      for {
+        _ <- Ssay[IO]("Starting DSP...")
+        _ <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
+        _ <- Ssay[IO]("DSP started")
+      } yield ())
+
+  def setupDSP(conf: FullSettings): Stream[IO, Unit] = {
     for {
-      _                 <- Ssay[IO]("Starting DSP...")
-      _                 <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
-      // _                 <- Stream.eval(cyborg.dsp.DSP.setStimgroupPeriod(0, 400.millis))
-      // _                 <- Stream.eval(cyborg.dsp.DSP.enableStimGroup(0))
-      _                 <- Ssay[IO]("DSP started")
+      _ <- Ssay[IO]("Starting DSP...")
+      _ <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
+      _ <- Ssay[IO]("DSP started")
     } yield ()
   }
 }

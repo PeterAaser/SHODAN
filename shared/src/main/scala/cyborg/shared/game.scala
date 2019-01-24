@@ -29,8 +29,8 @@ object wallAvoid {
     // We want the agent to have 4 eyes, so we need 4 angles, one for each eye
     val viewAngles: List[Double] =
       (0 until viewPoints).toList
-        .map( λ =>
-          (λ.toDouble
+        .map( x =>
+          (x.toDouble
           *(radFieldOfView/(viewPoints.toDouble - 1.0))
           - radFieldOfView/2.0 + heading)
       ).map(normalizeAngle)

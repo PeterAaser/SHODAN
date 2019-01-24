@@ -172,14 +172,14 @@ case object DspTestViewFactory extends ViewFactory[DspTestState.type] {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   override def create(): (View, Presenter[DspTestState.type]) = {
-    val model = ModelProperty( DspTestModel( Setting.FullSettings.default, false, false, 100, 1000) )
+    val model = ModelProperty( DspTestModel( Settings.FullSettings.default, false, false, 100, 1000) )
     val presenter = new DspTestViewPresenter(model)
     val view = new DspTestView(model, presenter)
     (view, presenter)
   }
 }
 
-case class DspTestModel(conf: Setting.FullSettings,
+case class DspTestModel(conf: Settings.FullSettings,
                         confReady: Boolean,
                         stateReady: Boolean,
                         amplitude: Int,

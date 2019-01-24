@@ -11,7 +11,7 @@ object DspRegisters {
   }
   case class RegisterReadList(addresses: List[Int])
   case class RegisterReadResponse(addresses: List[Int], values: List[Int]){
-    def asMap: Map[Reg, Word] = (addresses zip values).map(λ => (Reg(λ._1),Word(λ._2))).toMap
+    def asMap: Map[Reg, Word] = (addresses zip values).map(x => (Reg(x._1),Word(x._2))).toMap
     override def toString: String = {
       (addresses zip values).map{ case(a, v) => s"at address 0x${a.toHexString}: ${v}" }.mkString("\n","\n","\n")
     }

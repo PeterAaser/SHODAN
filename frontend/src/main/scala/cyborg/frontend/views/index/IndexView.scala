@@ -123,12 +123,12 @@ case object IndexViewFactory extends ViewFactory[IndexState.type] {
   say("index view factory called")
 
   override def create(): (View, Presenter[IndexState.type]) = {
-    val model = ModelProperty( IndexModel( Setting.FullSettings.default, Right(())) )
+    val model = ModelProperty( IndexModel( Settings.FullSettings.default, Right(())) )
     val presenter = new IndexViewPresenter(model)
     val view = new IndexView(model, presenter)
     (view, presenter)
   }
 }
 
-case class IndexModel(conf: Setting.FullSettings, meameState: EquipmentState)
+case class IndexModel(conf: Settings.FullSettings, meameState: EquipmentState)
 object IndexModel extends HasModelPropertyCreator[IndexModel]

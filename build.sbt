@@ -41,16 +41,21 @@ inThisBuild(Seq(
 
     // Allows 2 second as opposed to 2.second
     // Generally adviced against, but I kinda like having them
-    "-language:postfixOps"
+    "-language:postfixOps",
+
+    // Makes inference work better for partially parametrized types
+    // such as foo[F[_], A]
+    "-Ypartial-unification",
 
     // Yeah no
     // "-Xfatal-warnings",
     // "-Xlint:_,-missing-interpolator,-adapted-args"
   ),
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.8" cross CrossVersion.binary),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
 ))
 
 resolvers += Resolver.sonatypeRepo("releases")
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
 
 val TestAndCompileDep = "test->test;compile->compile"
 
@@ -108,6 +113,14 @@ lazy val shared = crossProject
 
 lazy val sharedJVM = shared.jvm
 lazy val sharedJS = shared.js
+
+lazy val backend = project.in(file("backend"))
+  .dependsOn(sharedJVM % TestAndCompileDep)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.backendDeps.value,
+    Compile / mainClass := Some("cyborg.backend.Launcher"),
+    )
 
 val frontendWebContent = "UdashStatics/WebContent"
 lazy val frontend = project.in(file("frontend"))
@@ -172,13 +185,6 @@ lazy val frontend = project.in(file("frontend"))
         frontendWebContent / "scripts" / "frontend-deps.js"
   )
 
-lazy val backend = project.in(file("backend"))
-  .dependsOn(sharedJVM % TestAndCompileDep)
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Dependencies.backendDeps.value,
-    Compile / mainClass := Some("cyborg.backend.Launcher"),
-  )
 
 lazy val packager = project
   .in(file("packager"))

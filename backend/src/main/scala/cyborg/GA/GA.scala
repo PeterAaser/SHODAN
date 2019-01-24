@@ -75,8 +75,8 @@ class GArunner[F[_]](gaSettings: Setting.GAsettings, filterSettings: Setting.Rea
       def scoreSum: Double = repr.foldLeft(.0)( (sum, tup) => sum + tup._1)
       def sort = copy(Chunk.seq(repr.toList.sortWith(_._1 < _._1)))
 
-      def normalize = copy(repr.map(λ => (λ._1/scoreSum, λ._2)))
-      def scale(f: (Double,Double) => Double) = copy(repr.map(λ => (f(scoreSum,λ._1),λ._2)))
+      def normalize = copy(repr.map(x => (x._1/scoreSum, x._2)))
+      def scale(f: (Double,Double) => Double) = copy(repr.map(x => (f(scoreSum,x._1),x._2)))
 
       def strip: Chunk[A] = repr.map(_._2)
 
@@ -85,17 +85,17 @@ class GArunner[F[_]](gaSettings: Setting.GAsettings, filterSettings: Setting.Rea
         */
       def rouletteScale = copy(
         Chunk.seq(
-          repr.foldLeft((.0,List[(Double,A)]()))((acc, λ) =>
+          repr.foldLeft((.0,List[(Double,A)]()))((acc, x) =>
             {
-              val nextScore = acc._1 + λ._1
-              val nextElement = (nextScore, λ._2)
+              val nextScore = acc._1 + x._1
+              val nextElement = (nextScore, x._2)
               (nextScore, acc._2 :+ nextElement)
             })._2)
       )
 
       def randomSample(samples: Int) = {
         val indexes = Random.shuffle(0 to repr.size - 1).take(samples)
-        copy(Chunk.seq(indexes.map(λ => repr(λ))))
+        copy(Chunk.seq(indexes.map(x => repr(x))))
       }
 
       /**
@@ -119,7 +119,7 @@ class GArunner[F[_]](gaSettings: Setting.GAsettings, filterSettings: Setting.Rea
           }
 
         def hapler(target: Double, animals: Vector[(Double,A)]): (A, Vector[(Double,A)]) = {
-          val memes = animals.dropWhile(λ => (target > λ._1))
+          val memes = animals.dropWhile(x => (target > x._1))
           (memes.head._2, memes)
         }
 
