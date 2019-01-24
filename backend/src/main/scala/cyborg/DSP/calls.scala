@@ -1,4 +1,5 @@
 package cyborg.dsp.calls
+import cats.data.Kleisli
 import cyborg._
 
 import HttpClient._
@@ -37,53 +38,11 @@ object DspCalls {
   val SET_BLANKING                         = 14
   val SET_BLANKING_PROTECTION              = 15
 
-
-  implicit class FiniteDurationDSPext(t: FiniteDuration) {
-    def toDSPticks = (t.toMicros/20).toInt
-  }
-
-  implicit class DSPIntOps(i: Int) {
-    def fromDSPticks: FiniteDuration = (i*20).micros
-  }
-
-
-  def configureStimGroup(group: Int, electrodes: List[Int]) = {
-    val elec0 = electrodes.filter(_ <= 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    val elec1 = electrodes.filterNot(_ <= 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    for {
-      _ <- dspCall( CONFIGURE_ELECTRODE_GROUP,
-                    group -> STIM_QUEUE_GROUP,
-                    elec0  -> STIM_QUEUE_ELEC0,
-                    elec1  -> STIM_QUEUE_ELEC1).void
-      _ <- Fsay[IO](s"Enabling electrodes for stim group $group (dsp call $CONFIGURE_ELECTRODE_GROUP)")
-      _ <- Fsay[IO](s"elec0: ${elec0.asBinarySpaced}")
-      _ <- Fsay[IO](s"elec1: ${elec1.asBinarySpaced}")
-    } yield ()
-  }
-
-
   /**
-    Toggles electrode mode to auto for all listed electrodes.
-    An empty list signifies setting all electrodes to manual (0)
+    conversion from time to ticks and vice versa
     */
-  def setElectrodeModes(electrodes: List[Int]) = {
-    val elec0 = electrodes.filter(idx => (idx >= 0  && idx < 15)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel -  0) * 2)) }
-    val elec1 = electrodes.filter(idx => (idx >= 15 && idx < 30)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 15) * 2)) }
-    val elec2 = electrodes.filter(idx => (idx >= 30 && idx < 45)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 30) * 2)) }
-    val elec3 = electrodes.filter(idx => (idx >= 45 && idx < 60)).foldLeft(0){ case(acc, channel) => acc + (3 << ((channel - 45) * 2)) }
-
-    say("set elec mode payload is:")
-    say(s"elec0: ${elec0.asBinarySpaced}")
-    say(s"elec1: ${elec1.asBinarySpaced}")
-    say(s"elec2: ${elec2.asBinarySpaced}")
-    say(s"elec3: ${elec3.asBinarySpaced}")
-
-    dspCall(SET_ELECTRODE_GROUP_MODE,
-        elec0 -> ELECTRODE_MODE_ARG1,
-        elec1 -> ELECTRODE_MODE_ARG2,
-        elec2 -> ELECTRODE_MODE_ARG3,
-        elec3 -> ELECTRODE_MODE_ARG4)
-  }
+  implicit class FiniteDurationDSPext(t: FiniteDuration) { def toDSPticks = (t.toMicros/20).toInt }
+  implicit class DSPIntOps(i: Int) { def fromDSPticks: FiniteDuration = (i*20).micros }
 
   val commitConfig = for {
     _ <- Fsay[IO](s"commiting config (dsp call $COMMIT_CONFIG)")
@@ -106,39 +65,25 @@ object DspCalls {
   } yield ()
 
   def stimGroupChangePeriod(group: Int, period: FiniteDuration): IO[Unit] = for {
-    // _ <- Fsay[IO](s"stim group change period, group $group to ${period.toMillis}ms (dsp call $SET_ELECTRODE_GROUP_PERIOD)")
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
   } yield ()
 
-
   def enableStimReqGroup(group: Int): IO[Unit] = for {
-    // _ <- Fsay[IO](s"enabling stim group $group (dsp call $ENABLE_STIM_GROUP)")
-    // errors <- checkForErrors
-    // _ <- errors match {
-    //   case Some(s) => Fsay[IO](s"error: $s")
-    //   case None    => IO.unit
-    // }
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
 
   def disableStimReqGroup(group: Int): IO[Unit] = for {
-    // _ <- Fsay[IO](s"disabling stim group $group (dsp call $DISABLE_STIM_GROUP)")
     _ <- dspCall(DISABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
-
-
-
-
 
   def uploadWave(upload: IO[Unit]): IO[Unit] = for {
     _ <- stopStimQueue
     _ <- upload
   } yield ()
-
 
   def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
     _ <- Fsay[IO](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
@@ -147,12 +92,10 @@ object DspCalls {
     _ <- uploadWave( WaveformGenerator.balancedSquareWave(2, period, amplitude))
   } yield ()
 
-
   def uploadSineTest(period: FiniteDuration, amplitude: Int): IO[Unit] = for {
     _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
     _ <- uploadWave( WaveformGenerator.sineWave(0, period, amplitude) )
   } yield ()
-
 
   val readElectrodeConfig: IO[String] = for {
     _ <- Fsay[IO](s"reading electrode config")
@@ -185,7 +128,6 @@ object DspCalls {
       ).mkString("\n","\n","\n")
     }
 
-
   val readDebug: IO[Unit] = for {
     dbg <- readRegistersRequest(
       RegisterReadList(
@@ -197,7 +139,6 @@ object DspCalls {
         )))
     _ <- Fsay[IO](s"\nhere's some debug:\n$dbg")
   } yield ()
-
 
   val readStimQueueState: IO[Unit] = for {
     _ <- dspCall(WRITE_SQ_DEBUG)
@@ -232,7 +173,6 @@ object DspCalls {
     }
   } yield ()
 
-
   val sayElectrodeConfig: IO[Unit] = for {
     cfg <- readElectrodeConfig
     _ <- Fsay[IO](cfg)
@@ -256,60 +196,6 @@ object DspCalls {
   } yield ()
 
 
-  /**
-    Toggles blanking on supplied electrodes. If an empty list is passed
-    this is equivalent to untoggling blanking for all electrodes.
-    */
-  def setBlanking(electrodes: List[Int], shouldBlank: Boolean): IO[Unit] = {
-    val elec0 = electrodes.filter(_ < 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    val elec1 = electrodes.filterNot(_ < 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-
-    say("set blanking payload is:")
-    say(s"elec0: ${elec0.asBinarySpaced}")
-    say(s"elec1: ${elec1.asBinarySpaced}")
-
-    if(shouldBlank)
-      dspCall(SET_BLANKING,
-              elec0 -> BLANKING_EN_ELECTRODES1,
-              elec1 -> BLANKING_EN_ELECTRODES2)
-    else
-      dspCall(SET_BLANKING,
-              elec0 -> 0,
-              elec1 -> 0)
-  }
-
-  def setBlankingAll(shouldBlank: Boolean): IO[Unit] = {
-    setBlanking((0 to 59).toList, shouldBlank)
-  }
-
-
-  /**
-    Toggles blanking on supplied electrodes. If an empty list is passed
-    this is equivalent to untoggling blanking for all electrodes.
-    */
-  def setBlankingProtection(electrodes: List[Int], shouldBlank: Boolean): IO[Unit] = {
-    val elec0 = electrodes.filter(_ < 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-    val elec1 = electrodes.filterNot(_ < 30).map(_-30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
-
-    say("set blanking protection payload is:")
-    say(s"elec0: ${elec0.asBinarySpaced}")
-    say(s"elec1: ${elec1.asBinarySpaced}")
-
-    if(shouldBlank)
-      dspCall(SET_BLANKING_PROTECTION,
-              elec0 -> BLANK_PROT_EN_ELECTRODES1,
-              elec1 -> BLANK_PROT_EN_ELECTRODES2)
-    else
-      dspCall(SET_BLANKING_PROTECTION,
-              elec0 -> 0,
-              elec1 -> 0)
-  }
-
-  def setBlankingProtectionAll(shouldBlank: Boolean): IO[Unit] = {
-    setBlanking((0 to 59).toList, shouldBlank)
-  }
-
-
   def lookupErrorName(errorCode: Int): String = {
     val errorCodes = Map(
       0 -> "No error",
@@ -322,74 +208,4 @@ object DspCalls {
 
     errorCodes.lift(errorCode).map(x => s"$errorCode -> $x")getOrElse(s"Error code $errorCode is not recognized.")
   }
-
-  def stimuliRequestSink(allowed: List[Int] = List(0, 1, 2))(implicit ec: EC): Sink[IO, (Int,Option[FiniteDuration])] = {
-    def go(s: Stream[IO, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[IO, Unit, Unit] = {
-      s.pull.uncons1.flatMap {
-        case Some(((idx, Some(period)), tl)) if !state(idx) =>
-          Pull.eval(stimGroupChangePeriod(idx, period)) >>
-            Pull.eval(enableStimReqGroup(idx)) >>
-            go(tl, state.updated(idx, true))
-
-        case Some(((idx, None), tl)) if state(idx) =>
-          Pull.eval(disableStimReqGroup(idx)) >>
-            go(tl, state.updated(idx, false))
-
-        case Some(((idx, Some(period)), tl)) =>
-          Pull.eval(stimGroupChangePeriod(idx, period)) >>
-            go(tl, state)
-
-        case Some((_, tl)) => go(tl, state)
-
-        case None => Pull.done
-      }
-    }
-
-    ins => go(
-      ins.filter{ case(idx, req) => allowed.contains(idx)},
-      allowed.map((_, false)).toMap
-    ).stream
-  }
-
-  def setup(blanking: Boolean, blankingProtection: Boolean): Setting.ExperimentSettings => IO[Unit] = config =>
-  for {
-    _ <- Fsay[IO](s"Flashing DSP")
-    _ <- cyborg.dsp.DSP.flashDSP
-    _ <- Fsay[IO](s"Stopping and resetting stim Q")
-    _ <- stopStimQueue
-    _ <- resetStimQueue
-
-    // _ <- Fsay[IO]("BLANKING IS NOT TOGGLED")
-    // _ <- setBlanking(Nil, blanking)
-    // _ <- setBlankingProtection(Nil, blankingProtection)
-
-    // _ <- Fsay[IO](s"BLANKING ONLY FOR STIM ELECTRODES")
-    // _ <- setBlanking(config.stimulusElectrodes.flatten, blanking)
-    // _ <- setBlankingProtection(config.stimulusElectrodes.flatten, blankingProtection)
-
-    // _ <- Fsay[IO](s"BLANKING ONLY FOR NONE STIM ELECTRODES")
-    // electrodes = ((0 to 59).toSet - config.stimulusElectrodes.toSet).toList
-    // _ <- setBlanking(electrodes, blanking)
-    // _ <- setBlankingProtection(electrodes, blankingProtection)
-
-    _ <- Fsay[IO](s"BLANKING ON ALL ELECTRODES")
-    _ <- setBlanking((0 to 59).toList, blanking)
-    _ <- setBlankingProtection((0 to 59).toList, blankingProtection)
-
-    _ <- Fsay[IO](s"Uploading stimulus")
-    _ <- uploadSquareTest(1000.micros, 200)
-    _ <- WaveformGenerator.sineWave(0, 10.millis, 200)
-
-    _ <- Fsay[IO](s"Reading debug config")
-    _ <- cyborg.dsp.DSP.configureElectrodes(config)
-    // s <- readElectrodeConfig
-    // _ <- Fsay[IO](s"$s")
-
-    _ <- Fsay[IO](s"Checking debug registers")
-    // _ <- readDebug
-
-    _ <- Fsay[IO](s"Committing config, we're LIVE")
-    _ <- commitConfig
-    _ <- startStimQueue
-  } yield ()
 }
