@@ -211,6 +211,7 @@ object ReservoirPlot {
   }
 }
 
+
 /**
   * The examples (well, graphing in general) really don't keep up very
   * well with bigger sample rates for now. As real data becomes
@@ -268,7 +269,7 @@ object PlotExamples {
     * RBNs will output sawtooth waves, so they fit as a simple
     * example.
     */
-  def RBNExample: Unit = {
+  def RBNStreamExample: Unit = {
     import RBN._
     import RBNGen._
     import RBNStreams._
