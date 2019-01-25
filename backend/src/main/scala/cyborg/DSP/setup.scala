@@ -47,8 +47,8 @@ object DspSetup {
         }
 
         ins => go(
-          ins.filter{ case(idx, req) => conf.dspSettings.allowed.contains(idx)},
-          conf.dspSettings.allowed.map((_, false)).toMap
+          ins.filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
+          conf.dsp.allowed.map((_, false)).toMap
         ).stream
       }
 
@@ -144,14 +144,14 @@ object DspSetup {
       for {
         _ <- DspCalls.resetStimQueue
         _ <- configureBlanking(
-          conf.dspSettings.stimulusElectrodes.flatten,
-          conf.dspSettings.blanking,
-          conf.dspSettings.blankingProtection
+          conf.dsp.stimulusElectrodes.flatten,
+          conf.dsp.blanking,
+          conf.dsp.blankingProtection
         )
-        _ <- configureStimGroup(0, conf.dspSettings.stimulusElectrodes.lift(0).getOrElse(Nil))
-        _ <- configureStimGroup(1, conf.dspSettings.stimulusElectrodes.lift(1).getOrElse(Nil))
-        _ <- configureStimGroup(2, conf.dspSettings.stimulusElectrodes.lift(2).getOrElse(Nil))
-        _ <- setElectrodeModes(conf.dspSettings.stimulusElectrodes.flatten)
+        _ <- configureStimGroup(0, conf.dsp.stimulusElectrodes.lift(0).getOrElse(Nil))
+        _ <- configureStimGroup(1, conf.dsp.stimulusElectrodes.lift(1).getOrElse(Nil))
+        _ <- configureStimGroup(2, conf.dsp.stimulusElectrodes.lift(2).getOrElse(Nil))
+        _ <- setElectrodeModes(conf.dsp.stimulusElectrodes.flatten)
       } yield ()
     })
     ////////////////////////////////////////////////////////////////////////////////

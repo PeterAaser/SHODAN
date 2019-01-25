@@ -1,10 +1,12 @@
 package cyborg.io
+import cats.data.Kleisli
 import cats.effect._
 import cyborg._
 import cyborg.io.files._
 import cyborg.io.network._
 import cyborg.RPCmessages._
 
+import cyborg.Settings._
 
 import fs2._
 import fs2.Stream._
@@ -32,7 +34,6 @@ object sIO {
       Stream.eval(params).flatMap ( p =>
         experimentData
           .through(tagPipe(p.segmentLength)))
-
     }
 
 
@@ -43,8 +44,7 @@ object sIO {
       Stream.eval(params).flatMap ( p =>
         experimentData
           .through(utilz.throttlerPipe[IO,Int](p.samplerate*60, 0.05.second))
-          .through(tagPipe(p.segmentLength))
-      )
+          .through(tagPipe(p.segmentLength)))
     }
 
 
@@ -58,10 +58,9 @@ object sIO {
     /**
       * Writes data to a CSV file. The metadata is stored to database
       */
-    def streamToDatabase(
-      rawDataStream: Stream[IO,TaggedSegment],
-      comment: String,
-      getConf: IO[Setting.FullSettings]): IO[InterruptableAction[IO]] = databaseIO.streamToDatabase(rawDataStream, comment, getConf)
+    def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment],
+                         comment: String): Kleisli[IO,FullSettings,InterruptableAction[IO]] =
+      databaseIO.streamToDatabase(rawDataStream, comment)
   }
 
 

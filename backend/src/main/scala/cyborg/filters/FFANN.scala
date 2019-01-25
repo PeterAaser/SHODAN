@@ -80,7 +80,7 @@ object FFANN {
   }
 
 
-  def randomNet(configuration: Setting.ReadoutSettings): FeedForward = {
+  def randomNet(configuration: Settings.ReadoutSettings): FeedForward = {
 
     import configuration._
 

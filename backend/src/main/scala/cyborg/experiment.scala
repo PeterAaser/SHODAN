@@ -16,7 +16,7 @@ import cats.effect._
 import cats.implicits._
 
 import cyborg.backend.server.ApplicationServer
-import cyborg.Setting._
+import cyborg.Settings._
 import cyborg.utilz._
 
 import scala.concurrent.duration._

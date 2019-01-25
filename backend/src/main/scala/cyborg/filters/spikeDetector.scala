@@ -1,8 +1,11 @@
 package cyborg
 
+import cats.data.Kleisli
 import fs2._
+import cats._
 import cats.effect._
 import cats.implicits._
+import utilz._
 
 object spikeDetector {
 
@@ -13,59 +16,48 @@ object spikeDetector {
     The spike detector feeds its output to a moving average pipe which ensures that the agent can
     act somewhat consistantly inbetween detected spikes.
     */
-  def spikeDetectorPipe[F[_]: Effect](getConf: F[Setting.FullSettings]): F[Pipe[F, Int, Double]] = getConf map { conf =>
+  def spikeDetectorPipe[F[_]] = Kleisli[Id, Settings.FullSettings, Pipe[F,Int,Double]](
+    conf => {
 
-    import conf.experimentSettings._
-    import params.experiment.maxSpikesPerSec
+      /**
+        spikeCooldownTimer: The refactory period between two spikes
+        windowTimer:        How much remains of the current window
 
-    val spikeCooldown = (samplerate/maxSpikesPerSec)
-    val threshold = conf.filterSettings.MAGIC_THRESHOLD
-
-    /**
-      spikeCooldownTimer: The refactory period between two spikes
-      windowTimer:        How much remains of the current window
-
-      the window must be the same length or shorter than the spike cooldown timer
-      */
-    def spikeDetector: Pipe[F, Boolean, Boolean] = {
-      def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F, Boolean, Unit] = {
-        s.pull.unconsN(spikeCooldown) flatMap {
-          case Some((chunk, tl)) => {
-            // say("spike detecting")
-            // val flattened = seg.force.toVector
-            val refactored = chunk.drop(spikeCooldownTimer).toList
-            val index = refactored.indexOf((x: Boolean) => x)
-            if (index == -1) {
-              // The case where none of the elements able to produce a spike triggered
-              // For scala/java interop legacy reasons we have to use -1 instead of Option
-              Pull.output1(false) >> go(0, tl)
+        the window must be the same length or shorter than the spike cooldown timer
+        */
+      def spikeDetector: Pipe[F, Boolean, Boolean] = {
+        def go(spikeCooldownTimer: Int, s: Stream[F,Boolean]): Pull[F, Boolean, Unit] = {
+          s.pull.unconsN(conf.filter.spikeCooldown) flatMap {
+            case Some((chunk, tl)) => {
+              val refactored = chunk.drop(spikeCooldownTimer).toList
+              val index = refactored.indexOf((x: Boolean) => x)
+              if (index == -1) {
+                Pull.output1(false) >> go(0, tl)
+              }
+              else {
+                val nextCooldown = conf.filter.spikeCooldown - (spikeCooldownTimer + index)
+                Pull.output1(true) >> go(nextCooldown, tl)
+              }
             }
-            else {
-              // The case where a spike was triggered after cooldown lifted. The next
-              // pull cooldown is calculated, and a spike is emitted
-              val nextCooldown = spikeCooldown - (spikeCooldownTimer + index)
-              Pull.output1(true) >> go(nextCooldown, tl)
-            }
+            case None => Pull.done
           }
-          case None => Pull.done
         }
+        in => go(0, in).stream
       }
-      in => go(0, in).stream
-    }
 
 
-    (s: Stream[F,Int]) => s.through(_.map(_ > threshold))
-      .through(spikeDetector)
-      .through(_.map(x => (if(x) 1 else 0)))
-      .through(utilz.fastMovingAverage(10))
-  }
+      (s: Stream[F,Int]) => s.through(_.map(_ > conf.filter.threshold))
+        .through(spikeDetector)
+        .through(_.map(x => (if(x) 1 else 0)))
+        .through(utilz.fastMovingAverage(10))
+    })
 
   /**
     * Spike detector pipe meant to use for plug and play with any
     * integer stream. Mostly useful for visualization and debugging
     * purposes, and not for real time analysis.
     */
-  def unsafeSpikeDetector[F[_]](samplerate: Int,
+  def unsafeSpikeDetectorr[F[_]](samplerate: Int,
     threshold: Int, replicate: Boolean = false): Pipe[F,Int,Int] = {
     val maxSpikesPerSec = params.experiment.maxSpikesPerSec
     val spikeCooldown = samplerate/maxSpikesPerSec

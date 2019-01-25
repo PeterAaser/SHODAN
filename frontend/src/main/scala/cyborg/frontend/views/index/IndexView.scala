@@ -86,8 +86,8 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
 
       ul(
         b("Conf:"),
-        li(produce(model)(m => b(s"samplerate is ${m.conf.experimentSettings.samplerate}").render)),
-        li(produce(model)(m => b(s"segment length is ${m.conf.experimentSettings.samplerate}").render)),
+        li(produce(model)(m => b(s"samplerate is ${m.conf.daq.samplerate}").render)),
+        li(produce(model)(m => b(s"segment length is ${m.conf.daq.samplerate}").render)),
       ),
       childViewContainer
     ),

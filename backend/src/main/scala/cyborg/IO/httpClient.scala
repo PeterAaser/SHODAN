@@ -14,6 +14,7 @@ import org.http4s.circe._
 
 import DspRegisters._
 import MEAMEmessages._
+import Settings._
 
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.syntax._
@@ -34,10 +35,10 @@ object HttpClient {
   ////////////////////////////////////////
   ////////////////////////////////////////
   // General
-  def startMEAMEserver(settingServer: IO[Setting.FullSettings]): IO[Unit] = {
+  def startMEAMEserver(settingServer: IO[FullSettings]): IO[Unit] = {
     for {
       conf <- settingServer
-      params = DAQparams(conf.experimentSettings.samplerate, conf.experimentSettings.segmentLength)
+      params = DAQparams(conf.daq.samplerate, conf.daq.segmentLength)
       _ <- connectDAQrequest(params)
       _ <- startDAQrequest
     } yield ()

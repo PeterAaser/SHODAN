@@ -1,6 +1,8 @@
 package cyborg
 
+import cats.data.Kleisli
 import cats.effect._
+import cats._
 import fs2._
 import fs2.Stream._
 import fs2.concurrent.Queue
@@ -9,13 +11,15 @@ import utilz._
 import FFANN._
 import Genetics._
 import scala.util.Random
+import Settings._
 
 /**
   Responsible for trying different neural networks as well as handling the
   unpleasentries dealing with queues etc.
   Currently not really a GA, just a mockup for the sake of API and some results
   */
-class GArunner[F[_]](gaSettings: Setting.GAsettings, filterSettings: Setting.ReadoutSettings) {
+
+class GArunner[F[_]](gaSettings: Settings.GAsettings, filterSettings: Settings.ReadoutSettings) {
 
   import GAChunkUtils._
   import gaSettings._
@@ -128,4 +132,7 @@ class GArunner[F[_]](gaSettings: Setting.GAsettings, filterSettings: Setting.Rea
       }
     }
   }
+}
+object GArunnerz {
+  def asKleisli[F[_]] = Kleisli[Id, FullSettings, GArunner[F]](conf => new GArunner[F](conf.ga, conf.readout))
 }

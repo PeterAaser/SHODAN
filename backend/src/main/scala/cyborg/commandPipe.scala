@@ -11,6 +11,7 @@ import cats.implicits._
 import RPCmessages._
 import cyborg.wallAvoid.Agent
 import fs2._
+import Settings._
 
 import cats.effect.IO
 import cats.effect._
@@ -50,10 +51,12 @@ object staging {
     meameFeedbackSink  : Sink[IO,List[Double]],
     frontendAgentTopic : Topic[IO,Agent],
     state              : SignallingRef[IO,ProgramState],
-    getConf            : IO[Setting.FullSettings],
+    getConf            : IO[FullSettings],
     eventQueue         : Queue[IO,String],
     waveformListeners  : Ref[IO,List[ClientId]],
     agentListeners     : Ref[IO,List[ClientId]]) : IO[Sink[IO,UserCommand]] = {
+
+
 
     def handleMEAMEstateChange(state: State, actions: Actions): Stream[IO,Unit] = {
       val tasks = state.discrete.through(_.map(_.meameRunning)).changes.tail map { start =>

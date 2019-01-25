@@ -15,12 +15,13 @@ import cyborg.wallAvoid.Agent
 import _root_.io.udash.rpc._
 
 import cyborg.backend.rpc.ClientRPChandle
+import cyborg.Settings._
 
 object ApplicationServer {
 
 
   // Is it overkill to use conf effects here?? (yes, it is)
-  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings]): IO[Sink[IO,Agent]] = {
+  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,Agent]] = {
 
     def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
       listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
@@ -40,7 +41,7 @@ object ApplicationServer {
 
 
 
-  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[Setting.FullSettings]): IO[Sink[IO,TaggedSegment]] = {
+  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,TaggedSegment]] = {
 
     def sendData: Sink[IO,Array[Int]] = {
       def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
@@ -88,7 +89,7 @@ object ApplicationServer {
     agentListeners    : Ref[IO,List[ClientId]],
     waveformListeners : Ref[IO,List[ClientId]],
     state             : Signal[IO,ProgramState],
-    conf              : Signal[IO,Setting.FullSettings])
+    conf              : Signal[IO,FullSettings])
       : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._

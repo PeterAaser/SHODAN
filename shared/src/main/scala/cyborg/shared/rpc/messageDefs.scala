@@ -14,7 +14,7 @@ object RPCmessages {
   // TODO find a less asinine way to work with time
   // The problem is pretty much that there is no easy way to get the same jodatime backend and frontend
   case class RecordingInfo(
-    experimentSettings : ExperimentSettings,
+    daqSettings        : DAQSettings,
     id                 : Int,
     date               : String,
     duration           : Option[String],

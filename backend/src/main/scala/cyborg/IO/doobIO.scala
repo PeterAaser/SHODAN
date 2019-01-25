@@ -97,7 +97,7 @@ object DoobieQueries {
   }
 
 
-  def insertNewExperiment(path: Path, comment: String = "No comment atm", conf: Setting.ExperimentSettings): ConnectionIO[Int] = {
+  def insertNewExperiment(path: Path, comment: String = "No comment atm", conf: Settings.DAQSettings): ConnectionIO[Int] = {
     say("insert new experiment")
     import doobie.implicits._
 
@@ -135,7 +135,7 @@ object DoobieQueries {
   }
 
 
-  def insertParams(id: Int, conf: Setting.ExperimentSettings): ConnectionIO[Int] = {
+  def insertParams(id: Int, conf: Settings.DAQSettings): ConnectionIO[Int] = {
     import conf._
     val q = sql"""
       INSERT INTO experimentParams (experimentid, sampleRate, segmentLength)

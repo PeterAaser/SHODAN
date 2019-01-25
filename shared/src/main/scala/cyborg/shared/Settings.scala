@@ -6,9 +6,15 @@ import pprint._
 object Settings {
   import mcsChannelMap._
 
-  case class ExperimentSettings(
+  case class DAQSettings(
     samplerate         : Int,
     segmentLength      : Int)
+
+  case class FilterSettings(
+    spikeCooldown   : Int,
+    maxSpikesPerSec : Int,
+    threshold      : Int
+  )
 
   case class GAsettings(
     pipesPerGeneration      : Int,
@@ -39,16 +45,17 @@ object Settings {
   )
 
   case class FullSettings(
-    experimentSettings : ExperimentSettings,
-    filterSettings     : ReadoutSettings,
-    gaSettings         : GAsettings,
-    dspSettings        : DSPsettings)
+    daq     : DAQSettings,
+    readout : ReadoutSettings,
+    ga      : GAsettings,
+    dsp     : DSPsettings,
+    filter  : FilterSettings)
 
   ////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////
   ////  DEFAULTS
-  object ExperimentSettings extends HasGenCodec[ExperimentSettings] {
-    val default = ExperimentSettings(
+  object DAQSettings extends HasGenCodec[DAQSettings] {
+    val default = DAQSettings(
       samplerate         = 20000,
       segmentLength      = 2000
     )}
@@ -88,12 +95,22 @@ object Settings {
       )
   }
 
+  object FilterSettings extends HasGenCodec[FilterSettings] {
+    val default = FilterSettings(
+      spikeCooldown   = 10,
+      maxSpikesPerSec = 10,
+      threshold       = 1
+    )
+  }
+
+
   object FullSettings extends HasGenCodec[FullSettings] {
     val default = FullSettings(
-      ExperimentSettings.default,
+      DAQSettings.default,
       ReadoutSettings.default,
       GAsettings.default,
-      DSPsettings.default
+      DSPsettings.default,
+      FilterSettings.default
     )
   }
 }

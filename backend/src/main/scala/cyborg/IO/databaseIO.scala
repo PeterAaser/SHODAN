@@ -1,6 +1,13 @@
 package cyborg.io.database
+import cats.Monad
+import cats.data.Kleisli
+import cats.effect.implicits._
+import cats.implicits._
+import cats.effect._
+
 import cyborg._
 import cyborg.io.files._
+import cyborg.Settings._
 
 import org.joda.time._
 import org.joda.time.Interval
@@ -9,13 +16,9 @@ import org.joda.convert._
 import org.joda.time.format.DateTimeFormat
 import utilz._
 
-import cats.implicits._
-import cats.effect._
-
 import fs2._
 import fs2.Stream._
 import fs2.concurrent.SignallingRef
-import cats.effect.IO
 import java.nio.file.Path
 
 import cyborg.utilz._
@@ -23,12 +26,12 @@ import DoobieQueries._
 import cyborg.RPCmessages._
 
 import cats.effect.IO
+import backendImplicits._
 
 object databaseIO {
 
-  import backendImplicits._
 
-  implicit val huh = IO.contextShift _
+  implicit val shouldThisReallyBeHere = IO.contextShift _
 
   // haha nice meme dude!
   val username = "memer"
@@ -46,7 +49,7 @@ object databaseIO {
   /**
     Gets a resource URI from the database and returns the content of the file as a Stream
     */
-  def dbChannelStream(experimentId: Int)(implicit ec: EC): Stream[IO, Int] = {
+  def dbChannelStream(experimentId: Int): Stream[IO, Int] = {
     say(s"making stream for experiment $experimentId")
 
     val data = Stream.eval(DoobieQueries.getExperimentDataURI(experimentId)).transact(xa) flatMap { (data: DataRecording) =>
@@ -86,13 +89,11 @@ object databaseIO {
   }
 
 
-  def streamToDatabase(
-    rawDataStream: Stream[IO,TaggedSegment],
-    comment: String,
-    getConf: IO[Setting.FullSettings]): IO[InterruptableAction[IO]] = {
+  def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment], comment: String)
+    : Kleisli[IO,FullSettings,InterruptableAction[IO]] = {
 
-    SignallingRef[IO,Boolean](false).flatMap { interruptSignal =>
-      databaseIO.createRecordingSink("", getConf).map { recordingSink =>
+    def runStream(recordingSink: RecordingSink) = {
+      SignallingRef[IO,Boolean](false).map { interruptSignal =>
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
           rawDataStream
@@ -104,9 +105,15 @@ object databaseIO {
         )
       }
     }
+
+    for {
+      sink   <- createRecordingSink(comment)
+      action <- Kleisli.liftF(runStream(sink))
+    } yield (action)
   }
 
-  def getRecordingInfo(id: Int)(implicit ec: EC): IO[RecordingInfo] = {
+
+  def getRecordingInfo(id: Int): IO[RecordingInfo] = {
 
     val info = DoobieQueries.getExperimentInfo(id)
     val params = DoobieQueries.getExperimentParams(id)
@@ -120,7 +127,7 @@ object databaseIO {
 
     info.flatMap { info =>
       params.map { params =>
-        val setting = Setting.ExperimentSettings(params.samplerate,Nil,params.segmentLength)
+        val setting = Settings.DAQSettings(params.samplerate, params.segmentLength)
         val timeString = info.startTime.toString()
         val duration = info.finishTime.map{ f => shittyFormat(Seconds.secondsBetween(f, info.startTime)) }
 
@@ -147,21 +154,19 @@ object databaseIO {
     The sink only gets created at the first received element, thus
     ensuring that a database recording will only be made once data
     actually arrives.
+
+    TODO: This might have the risk of stale conf.
+    */
+  /**
+    TODO: Uhh, what does this actually do??
     */
   case class RecordingSink(finalizer: IO[Unit], sink: Sink[IO,Int])
-  def createRecordingSink(comment: String, getConf: IO[Setting.FullSettings])(implicit ec: EC): IO[RecordingSink] = {
-
-    // Action for setting up path, sink and experiment record.
-    // Since experiment record wont be inserted before 1st element
-    // we do not need to keep track of the time in the program.
-    // We also supply a finalizer method that will NYI freeze everything
+  def createRecordingSink(comment: String) = Kleisli[IO, FullSettings, RecordingSink]{ conf =>
     SignallingRef[IO,IO[Unit]](IO.unit) map { finalizer =>
 
       val onFirstElement = for {
         pathAndSink  <- fileIO.writeCSV[IO]
-        conf         <- getConf
-        experimentId <- insertNewExperiment(pathAndSink._1, comment,conf.experimentSettings).transact(xa)
-        _ = say("on first element for comp running")
+        experimentId <- insertNewExperiment(pathAndSink._1, comment, conf.daq).transact(xa)
         _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
       } yield (pathAndSink._2)
 

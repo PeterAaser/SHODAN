@@ -25,7 +25,15 @@ object utilz {
 
   // Streams and IOs that need Settings to run
   type ConfStream[F[_], A] = Kleisli[Stream[F,?], Settings.FullSettings, A]
+  type StreamKleisli[F[_],A] = Kleisli[Stream[F,?], Settings.FullSettings, A]
   type ConfF[F[_], A] = Kleisli[F, Settings.FullSettings, A]
+
+  /**
+    In order for ConfId to infer it is necessary to annotate the return
+    expression as Id, like so:
+
+    val a: ConfId[Int] = Kleisli(s => 1: Id)
+   */
   type ConfId[A] = Kleisli[Id,Settings.FullSettings, A]
 
   case class TaggedSegment(channel: Channel, data: Chunk[Int]){
@@ -76,6 +84,9 @@ object utilz {
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
   case class MuxedStream[F[_],I](numStreams: Int, stream: Stream[F,I])
 
+  /**
+    Apparently it's spelled interrupt*i*ble, not inturrupt*a*ble
+    */
   case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit])
   object InterruptableAction {
     def apply[F[_]: Concurrent](a: Stream[F,Unit]): F[InterruptableAction[F]] = {
@@ -363,6 +374,18 @@ object utilz {
   }
 
 
+  /**
+    TODO: Do this with chunks from the get-go
+    */
+  def roundRobinC[F[_],I](streams: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
+    def zip2List(a: Stream[F,I], b: Stream[F,List[I]]): Stream[F,List[I]] = {
+      a.zipWith(b)(_::_)
+    }
+    val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
+    streams.foldRight(mpty)((z,u) => zip2List(z,u)).map(Chunk.seq(_))
+  }
+
+
   def flatRoundRobinL[F[_],I](streams: List[Stream[F,I]]): MuxedStream[F,I] = {
     val muxedStream = roundRobinL(streams)
     MuxedStream(streams.length, muxedStream.map(Chunk.seq).through(chunkify))
@@ -421,10 +444,9 @@ object utilz {
     config          : FullSettings
   ): Stream[F,Seq[Double]] = {
 
-    val channels = config.filterSettings.inputChannels
+    val channels = 60
 
-    // selects relevant topics and subscribe to them
-    val inputTopics = (channels).toList.map(broadcastSource(_))
+    val inputTopics = (0 until channels).toList.map(broadcastSource(_))
     val channelStreams = inputTopics.map(_.subscribe(10000))
 
     val spikeChannels = channelStreams
@@ -814,6 +836,8 @@ object utilz {
     s => s.through(_.map(z => Stream.eval(f(z)))).parJoin(n)
 
 
+
+
   def say(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
     import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
@@ -935,4 +959,25 @@ object utilz {
 
     in => go(in).stream
   }
+
+
+  /**
+    Reads relevant neuro data from a topic list and pipes each channel through a spike
+    detector, before aggregating spikes from each channel into ANN input vectors
+
+    Type inference does not like id :(
+    */
+  def assembleInputFilter[F[_]](broadcastSource : List[Topic[F,TaggedSegment]]) =
+    Kleisli[Id, Settings.FullSettings, Pipe[F,Int,Double] => Stream[F,Chunk[Double]]](
+      conf => {
+        val inputs = conf.readout.inputChannels
+        val channelStreams = inputs.map(broadcastSource(_).subscribe(10000))
+        spikeFilter => {
+          val spikeChannels = channelStreams.map(
+            _.map(_.data).chunkify.through(spikeFilter))
+
+          roundRobinC(spikeChannels).covary[F]
+        }
+      })
+
 }

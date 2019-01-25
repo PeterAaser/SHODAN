@@ -30,8 +30,8 @@ object compz {
     produce(r)(r => ul(
       li(p( s"Date: ${r.date}" )),
       li(r.duration.map( x => p(s"Duration: $x")).getOrElse(p("Duration missing!"))),
-      li(p( s"samplerate: ${r.experimentSettings.samplerate}" )),
-      li(p( s"segment length ${r.experimentSettings.segmentLength}" )),
+      li(p( s"samplerate: ${r.daqSettings.samplerate}" )),
+      li(p( s"segment length ${r.daqSettings.segmentLength}" )),
       li(p( s"comment: ${r.comment }" )),
     ).render)
   }

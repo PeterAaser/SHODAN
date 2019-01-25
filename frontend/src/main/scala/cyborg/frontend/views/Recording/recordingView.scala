@@ -101,7 +101,7 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
   def recordingClicked(rec: RecordingInfo) = {
     selectedRecord.set(rec)
     model.set(model.get.copy(recordingSelected = true))
-    conf.set( conf.get.copy( experimentSettings = conf.get.experimentSettings.copy( samplerate = rec.experimentSettings.samplerate, segmentLength = rec.experimentSettings.segmentLength )))
+    conf.set( conf.get.copy( daq = conf.get.daq.copy( samplerate = rec.daqSettings.samplerate, segmentLength = rec.daqSettings.segmentLength )))
     new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
   }
 

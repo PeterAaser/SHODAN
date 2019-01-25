@@ -14,6 +14,7 @@ import org.joda.time.Seconds
 import scala.language.higherKinds
 import cats.effect.IO
 import cats.effect._
+import cats._
 import cats.implicits._
 
 import cyborg.backend.server.ApplicationServer
@@ -26,9 +27,6 @@ import backendImplicits._
 
 object Assemblers {
 
-  type ffANNinput = Vector[Double]
-  type ffANNoutput = List[Double]
-
   /**
     Assembles the necessary components to start SHODAN
     */
@@ -40,7 +38,9 @@ object Assemblers {
 
     val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
 
-    val meameFeedbackSink: Sink[IO,List[Double]] = PerturbationTransform.toStimReq() andThen cyborg.dsp.DSP.stimuliRequestSink()
+
+    val meameFeedbackSink: Sink[IO,List[Double]] = ???
+    // val meameFeedbackSink: Sink[IO,List[Double]] = PerturbationTransform.toStimReq() andThen cyborg.dsp.DSP.stimuliRequestSink()
 
     for {
       confServer        <- Stream.eval(assembleConfig)
@@ -56,7 +56,6 @@ object Assemblers {
       topics            <- assembleTopics.chunkN(60,false)
 
       _                 <- assembleMockServer()
-      _                 <- setupDSP(staleConf)
 
       rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                      commandQueue,
@@ -93,65 +92,37 @@ object Assemblers {
                              .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
                              .concurrently(topics(0).subscribe(1000).clogWarn(12.second, "topic 0 has not received any data yet", 2).take(5))
                              .concurrently(topics(1).subscribe(1000).clogWarn(12.second, "topic 1 has not received any data yet", 2).take(5))
-                             // .concurrently(assembleMazeRunner(topics.toList, agentTopic))
-                             .concurrently(eventQueue.dequeue.through(hurr))
+                             .concurrently(eventQueue.dequeue.through(hurr)) // or mock dsp does nothing...
     } yield ()
   }
 
 
-  def assembleXOR(broadcastSource : List[Topic[IO,TaggedSegment]]): Stream[IO,Unit] = {
-
-    say("XOR experiment is go")
-    val perturbationSink = (s: Stream[IO, (Option[FiniteDuration], Option[FiniteDuration], Option[FiniteDuration])]) => {
-      s.map{ case(a,b,c) => Chunk.seq(List((0,a),(1,b),(2,c))) }
-        .chunkify
-        .to(cyborg.dsp.DSP.stimuliRequestSink())
-    }
-
-    XOR.runXOR(broadcastSource, perturbationSink)
-  }
-
-
-  def assembleMazeRunnerK(broadcastSource : List[Topic[IO,TaggedSegment]], agentTopic: Topic[IO,Agent]): Stream[IO,Unit] = {
-
-    val perturbationSink: Sink[IO,List[Double]] =
-      _.through(PerturbationTransform.toStimReq())
-        .to(cyborg.dsp.DSP.stimuliRequestSink())
-
-    Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
-  }
-  def assembleMazeRunner(broadcastSource : List[Topic[IO,TaggedSegment]], agentTopic: Topic[IO,Agent]): Stream[IO,Unit] = {
-
-    val perturbationSink: Sink[IO,List[Double]] =
-      _.through(PerturbationTransform.toStimReq())
-        .to(cyborg.dsp.DSP.stimuliRequestSink())
-
-    Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
-  }
-
-
   /**
-    Reads relevant neuro data from a topic list and pipes each channel through a spike
-    detector, before aggregating spikes from each channel into ANN input vectors
+    XOR is taking a break atm
     */
-  def assembleInputFilter(
+  // def assembleXOR(broadcastSource : List[Topic[IO,TaggedSegment]]): Stream[IO,Unit] = {
+  //   say("XOR experiment is go")
+  //   val perturbationSink = (s: Stream[IO, (Option[FiniteDuration], Option[FiniteDuration], Option[FiniteDuration])]) => {
+  //     s.map{ case(a,b,c) => Chunk.seq(List((0,a),(1,b),(2,c))) }
+  //       .chunkify
+  //       .to(cyborg.dsp.DSP.stimuliRequestSink())
+  //   }
+  //   XOR.runXOR(broadcastSource, perturbationSink)
+  // }
+
+
+  def assembleMazeRunner(
     broadcastSource : List[Topic[IO,TaggedSegment]],
-    spikeDetector   : Pipe[IO,Int,Double],
-    getConf         : IO[FullSettings])
-      : IO[Stream[IO,ffANNinput]] = getConf map { conf =>
+    agentTopic: Topic[IO,Agent])
+      : ConfF[Id,Stream[IO,Unit]] = Kleisli{ conf =>
 
-    val channels = conf.filterSettings.inputChannels
+    val perturbationSink: Sink[IO,List[Double]] =
+      _.through(PerturbationTransform.toStimReq())
+        .to(cyborg.dsp.DSP.stimuliRequestSink(conf))
 
-    // selects relevant topics and subscribe to them
-    val inputTopics = (channels).toList.map(broadcastSource(_))
-    val channelStreams = inputTopics.map(_.subscribe(10000))
-
-    val spikeChannels = channelStreams
-      .map(_.map(_.data)
-             .chunkify
-             .through(spikeDetector))
-
-    roundRobinL(spikeChannels).covary[IO].map(_.toVector)
+    val mazeRunner = Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
+    val gogo = mazeRunner(conf)
+    gogo: Id[Stream[IO,Unit]]
   }
 
 
@@ -167,6 +138,8 @@ object Assemblers {
 
     A thought is, what if the cancellation is lost, then the stream will never
     close until it fails on its own. Not nescessarily a bad thing, just a thought
+
+    TODO: Deliberate on whether this needs to be an InterruptibleAction
     */
   def broadcastDataStream(
     source      : Stream[IO,TaggedSegment],
@@ -194,14 +167,11 @@ object Assemblers {
       in => go(in).stream
     }
 
-
     interrupted.map { interruptSignal =>
       InterruptableAction(
         interruptSignal.set(true),
         source
-          .interruptWhen(interruptSignal
-                           .discrete
-                           .through(logEveryNth(1, z => say(s"topics interrept signal was set to $z"))))
+          .interruptWhen(interruptSignal)
           .observe(rawSink)
           .through(publishSink(topics))
           .compile.drain
@@ -212,52 +182,6 @@ object Assemblers {
 
   def assembleTopics: Stream[IO,Topic[IO,TaggedSegment]] =
     Stream.repeatEval(Topic[IO,TaggedSegment](TaggedSegment(-1,Chunk[Int]())))
-
-
-  /**
-    Assembles a GA run from an input topic and returns a byte stream to MEAME and observes
-    the agent updates via the frontEndAgentObserver
-    */
-  def assembleGA(
-    dataSource            : List[Topic[IO,TaggedSegment]],
-    inputChannels         : List[Channel],
-    frontendAgentObserver : Sink[IO,Agent],
-    feedbackSink          : Sink[IO,List[Double]],
-    eventLogger           : Queue[IO,String],
-    getConf               : IO[FullSettings]) : IO[InterruptableAction[IO]] = {
-
-    getConf flatMap { conf =>
-
-      val filter = spikeDetector.spikeDetectorPipe[IO](getConf)
-      val inputSpikes = filter.flatMap{filter => assembleInputFilter(dataSource, filter, getConf)}
-
-      val gaRunner = new GArunner(conf.gaSettings, conf.filterSettings)
-
-      // val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = gaRunner.gaPipe(eventLogger)
-      val experimentPipe: IO[Pipe[IO, Vector[Double], Agent]] = ???
-
-      SignallingRef[IO,Boolean](false).map { interruptSignal =>
-        val interruptTask = for {
-          _ <- interruptSignal.set(true)
-        } yield ()
-
-        val runTask = experimentPipe flatMap { experimentPipe => inputSpikes flatMap (
-          _.interruptWhen(interruptSignal
-                           .discrete
-                           .through(logEveryNth(1, z => say(s"GA interrept signal was $z"))))
-          .through(experimentPipe)
-          .observe(frontendAgentObserver)
-          .through(_.map((x: Agent) => {x.distances}))
-          .through(feedbackSink)
-          .compile.drain)}
-
-        InterruptableAction(
-          interruptTask,
-          runTask
-        )
-      }
-    }
-  }
 
 
   def assembleConfig: IO[Signal[IO, FullSettings]] =
@@ -271,27 +195,4 @@ object Assemblers {
        _ <- Ssay[IO]("mock server up")
      } yield ()
     ).concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
-
-
-  import Settings._
-
-  // Stream[IO,?] == IOStream[A]
-  // type IOStream = Stream[IO,?]
-  // type IOStream[A] = Stream[IO,A]
-
-  def setupDSPK: Kleisli[Stream[IO,?], FullSettings, Unit] =
-    Kleisli((conf: FullSettings) =>
-      for {
-        _ <- Ssay[IO]("Starting DSP...")
-        _ <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
-        _ <- Ssay[IO]("DSP started")
-      } yield ())
-
-  def setupDSP(conf: FullSettings): Stream[IO, Unit] = {
-    for {
-      _ <- Ssay[IO]("Starting DSP...")
-      _ <- Stream.eval(cyborg.dsp.DSP.setup(false)(conf.experimentSettings))
-      _ <- Ssay[IO]("DSP started")
-    } yield ()
-  }
 }
