@@ -32,67 +32,35 @@ object Assemblers {
     */
   def startSHODAN: Stream[IO, Unit] = {
 
-    val shittyPath = Paths.get(params.StorageParams.toplevelPath + "/eventz")
-    val shittyEventSink = cyborg.io.files.fileIO.timestampedEventWriter[IO]
-    val hurr = shittyEventSink(shittyPath)
-
-    val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
-
-
-    val meameFeedbackSink: Sink[IO,List[Double]] = ???
-    // val meameFeedbackSink: Sink[IO,List[Double]] = PerturbationTransform.toStimReq() andThen cyborg.dsp.DSP.stimuliRequestSink()
-
     for {
-      confServer        <- Stream.eval(assembleConfig)
-      getConf           =  confServer.get
-      staleConf         <- Stream.eval(confServer.get)
+      configServer      <- Stream.eval(assembleConfig)
       waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
       commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
-      agentTopic        <- Stream.eval(Topic[IO, Agent](Agent.init))
-      taggedSeqTopic    <- Stream.eval(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]())))
-      eventQueue        <- Stream.eval(Queue.unbounded[IO,String])
-      topics            <- assembleTopics.chunkN(60,false)
 
-      _                 <- assembleMockServer()
+      frontend          <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
+                                         commandQueue,
+                                         waveformListeners,
+                                         agentListeners,
+                                         state,
+                                         configServer))
 
-      rpcServer         =  Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
-                                     commandQueue,
-                                     agentTopic.subscribe(2000),
-                                     taggedSeqTopic,
-                                     waveformListeners,
-                                     agentListeners,
-                                     state,
-                                     confServer))
-
-
-      frontend          <- rpcServer
       _                 <- Stream.eval(frontend.start)
 
 
       commandPipe       <- Stream.eval(staging.commandPipe(
-                                      topics.toList,
-                                      taggedSeqTopic,
-                                      meameFeedbackSink,
-                                      agentTopic,
-                                      state,
-                                      getConf,
-                                      eventQueue,
-                                      waveformListeners,
-                                      agentListeners))
-
+                                         eventQueue,
+                                         state,
+                                         configServer))
 
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
-
 
       _                 <- commandQueue.dequeue.through(commandPipe)
-                             .concurrently(agentTopic.subscribe(100).through(_.map(_.toString)).through(eventQueue.enqueue))
                              .concurrently(topics(0).subscribe(1000).clogWarn(12.second, "topic 0 has not received any data yet", 2).take(5))
                              .concurrently(topics(1).subscribe(1000).clogWarn(12.second, "topic 1 has not received any data yet", 2).take(5))
-                             .concurrently(eventQueue.dequeue.through(hurr)) // or mock dsp does nothing...
     } yield ()
   }
 

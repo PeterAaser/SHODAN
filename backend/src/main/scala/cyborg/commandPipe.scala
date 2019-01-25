@@ -46,10 +46,6 @@ object staging {
 
 
   def commandPipe(
-    topics             : List[Topic[IO,TaggedSegment]],
-    rawDataTopic       : Topic[IO,TaggedSegment],
-    meameFeedbackSink  : Sink[IO,List[Double]],
-    frontendAgentTopic : Topic[IO,Agent],
     state              : SignallingRef[IO,ProgramState],
     getConf            : IO[FullSettings],
     eventQueue         : Queue[IO,String],

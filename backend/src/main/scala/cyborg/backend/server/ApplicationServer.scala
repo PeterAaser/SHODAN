@@ -78,14 +78,16 @@ object ApplicationServer {
 
 
   case class RPCserver(s: org.eclipse.jetty.server.Server){
-    def start: IO[Unit] = IO { s.start() }
-    def stop: IO[Unit] = IO { s.stop() }
+    def start : IO[Unit] = IO { s.start() }
+    def stop  : IO[Unit] = IO { s.stop()  }
+
+    /**
+      This could be a decent place to add topics, queues etc
+      */
   }
 
   def assembleFrontend(
-    userQ             : Queue[IO,UserCommand],
-    agent             : Stream[IO,Agent],
-    waveForms         : Topic[IO,TaggedSegment],
+    userCommands      : Sink[IO,UserCommand],
     agentListeners    : Ref[IO,List[ClientId]],
     waveformListeners : Ref[IO,List[ClientId]],
     state             : Signal[IO,ProgramState],
@@ -104,7 +106,7 @@ object ApplicationServer {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
-            userQ,
+            userCommands,
             agentListeners,
             waveformListeners)(
             clientId)
