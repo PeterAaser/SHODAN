@@ -79,7 +79,7 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
 
   def onPlayClicked(btn: UdashButton) = {
     say("play record clicked")
-    WfClient.register(wfQueue)
+    say("register commented out")
     Context.serverRpc.startPlayback(selectedRecord.get)
   }
 
@@ -87,13 +87,14 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
   // TODO: Kinda doesnt work
   def onPauseClicked(btn: UdashButton) = {
     say("pause record clicked")
-    WfClient.unregister()
+    say("register commented out")
     wfQueue.clear()
   }
 
 
   def onStopClicked(btn: UdashButton) = {
-    WfClient.unregister()
+    say("stop record clicked")
+    say("register commented out")
     wfQueue.clear()
   }
 

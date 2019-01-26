@@ -16,8 +16,6 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
     case "/idx" => IndexState
     case "/idx/live" => LiveState
     case "/idx/playback" => RecordingState
-    case "/idx/live/dspTests" => DspTestState
-    case "/idx/live/dspTests/mem" => DspMemoryState
     case "/idx/live/MEA" / arg => MEAstate(Try(arg.toInt).toOption)
   }
 
@@ -25,8 +23,6 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
     case IndexState => "/idx"
     case LiveState => "/idx/live"
     case RecordingState => "/idx/playback"
-    case DspTestState => "/idx/live/dspTests"
-    case DspMemoryState => "/idx/live/dspTests/mem"
     case MEAstate(Some(id)) => s"/idx/live/MEA/$id"
     case MEAstate(None) => s"/idx/live/MEA/new"
   }

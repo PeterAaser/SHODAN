@@ -2,6 +2,7 @@ package cyborg.backend.server
 
 import cyborg._
 import cyborg.RPCmessages._
+import fs2.concurrent.SignallingRef
 import utilz._
 
 import fs2._
@@ -20,61 +21,59 @@ import cyborg.Settings._
 object ApplicationServer {
 
 
-  // Is it overkill to use conf effects here?? (yes, it is)
-  def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,Agent]] = {
+  // def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,Agent]] = {
 
-    def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
-      listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
-    }
+  //   def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
+  //     listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
+  //   }
 
-    def go(s: Stream[IO, Agent]): Pull[IO, Unit, Unit] = {
-      s.pull.uncons1 flatMap {
-        case Some((agent, tl)) => Pull.eval(pushAgent(agent, listeners)) >> go(tl)
-        case None => Pull.done
-      }
-    }
+  //   def go(s: Stream[IO, Agent]): Pull[IO, Unit, Unit] = {
+  //     s.pull.uncons1 flatMap {
+  //       case Some((agent, tl)) => Pull.eval(pushAgent(agent, listeners)) >> go(tl)
+  //       case None => Pull.done
+  //     }
+  //   }
 
-    getConf map { _ =>
-      in => go(in).stream
-    }
-  }
-
+  //   getConf map { _ =>
+  //     in => go(in).stream
+  //   }
+  // }
 
 
-  def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,TaggedSegment]] = {
 
-    def sendData: Sink[IO,Array[Int]] = {
-      def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
-        listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
-      }
+  // def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,TaggedSegment]] = {
 
-      def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
-        s.pull.uncons1 flatMap {
-          case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners)) >> go(tl)
-          case None => Pull.done
-        }
-      }
+  //   def sendData: Sink[IO,Array[Int]] = {
+  //     def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
+  //       listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
+  //     }
 
-      in => go(in).stream
-    }
+  //     def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
+  //       s.pull.uncons1 flatMap {
+  //         case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners)) >> go(tl)
+  //         case None => Pull.done
+  //       }
+  //     }
 
-    import params.waveformVisualizer.pointsPerMessage
+  //     in => go(in).stream
+  //   }
 
-    getConf map { conf =>
+  //   import params.waveformVisualizer.pointsPerMessage
 
-      // seg len in = 2000, seg out = (200/10)*2 = 40
-      val targetSegmentLength = hardcode(10)
-      val samplerate = hardcode(20000)
-      val segmentLength = hardcode(2000)
+  //   getConf map { conf =>
 
-      in => in
-        .map(_.downsampleHiLo(segmentLength/targetSegmentLength))
-        .chunkify
-        .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
-        .through(sendData)
+  //     // seg len in = 2000, seg out = (200/10)*2 = 40
+  //     val targetSegmentLength = hardcode(10)
+  //     val samplerate = hardcode(20000)
+  //     val segmentLength = hardcode(2000)
 
-    }
-  }
+  //     in => in
+  //       .map(_.downsampleHiLo(segmentLength/targetSegmentLength))
+  //       .chunkify
+  //       .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
+  //       .through(sendData)
+  //   }
+  // }
 
 
   case class RPCserver(s: org.eclipse.jetty.server.Server){
@@ -88,10 +87,9 @@ object ApplicationServer {
 
   def assembleFrontend(
     userCommands      : Sink[IO,UserCommand],
-    agentListeners    : Ref[IO,List[ClientId]],
-    waveformListeners : Ref[IO,List[ClientId]],
-    state             : Signal[IO,ProgramState],
-    conf              : Signal[IO,FullSettings])
+    listeners         : Ref[IO,List[ClientId]],
+    state             : SignallingRef[IO,ProgramState],
+    conf              : SignallingRef[IO,FullSettings])
       : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
@@ -106,9 +104,10 @@ object ApplicationServer {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
+            listeners,
             userCommands,
-            agentListeners,
-            waveformListeners)(
+            state,
+            conf)(
             clientId)
         )
       )

@@ -89,16 +89,7 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
 
   def onPlayClicked(btn: UdashButton) = {
     say("play canvas clicked")
-    say("registering waveform stuff")
-    WfClient.register(wfQueue)
-    model.subProp(_.isRunning).set(true)
-
-    say("registering agent stuff")
-    AgentClient.register(agentQueue)
-
-    say("play shows all green")
-    Context.serverRpc.startLive
-    Context.serverRpc.startAgent
+    say("*does nothing*")
   }
 
   def onRangeUpClicked(btn: UdashButton) = {
@@ -114,26 +105,18 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
   }
 
   def onRecordClicked(btn: UdashButton) = {
-    model.subProp(_.isRecording).set(true)
-    Context.serverRpc.startRecording
+    say("*does nothing*")
   }
 
 
   // Should stop visualizing as well, but it don't
   def onStopClicked(btn: UdashButton) = {
-    say("stop canvas clicked")
-    WfClient.unregister()
-    model.subProp(_.isRunning).set(false)
-    Context.serverRpc.stopRecording
     wfQueue.clear()
+    say("*does nothing*")
   }
 
   def onStopRecordingClicked(btn: UdashButton) = {
-    say("stop canvas clicked")
-    WfClient.unregister()
-    model.subProp(_.isRecording).set(false)
-    Context.serverRpc.stopRecording
-    wfQueue.clear()
+    say("*does nothing*")
   }
 
   var wf: cyborg.waveformVisualizer.WFVisualizerControl = null

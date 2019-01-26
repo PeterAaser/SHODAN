@@ -24,6 +24,7 @@ import cyborg.utilz._
 import scala.concurrent.duration._
 
 import backendImplicits._
+import RPCmessages._
 
 object Assemblers {
 
@@ -33,51 +34,36 @@ object Assemblers {
   def startSHODAN: Stream[IO, Unit] = {
 
     for {
-      configServer      <- Stream.eval(assembleConfig)
-      waveformListeners <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
-      agentListeners    <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
-      state             <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
+      stateServer       <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
+      configServer      <- Stream.eval(SignallingRef[IO,FullSettings](FullSettings.default))
+      listeners         <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
 
       frontend          <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
-                                         commandQueue,
-                                         waveformListeners,
-                                         agentListeners,
-                                         state,
+                                         commandQueue.enqueue,
+                                         listeners,
+                                         stateServer,
                                          configServer))
 
       _                 <- Stream.eval(frontend.start)
 
 
       commandPipe       <- Stream.eval(staging.commandPipe(
-                                         eventQueue,
-                                         state,
-                                         configServer))
+                                         stateServer,
+                                         configServer,
+                                         commandQueue))
 
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
 
       _                 <- commandQueue.dequeue.through(commandPipe)
-                             .concurrently(topics(0).subscribe(1000).clogWarn(12.second, "topic 0 has not received any data yet", 2).take(5))
-                             .concurrently(topics(1).subscribe(1000).clogWarn(12.second, "topic 1 has not received any data yet", 2).take(5))
     } yield ()
   }
 
 
-  /**
-    XOR is taking a break atm
-    */
-  // def assembleXOR(broadcastSource : List[Topic[IO,TaggedSegment]]): Stream[IO,Unit] = {
-  //   say("XOR experiment is go")
-  //   val perturbationSink = (s: Stream[IO, (Option[FiniteDuration], Option[FiniteDuration], Option[FiniteDuration])]) => {
-  //     s.map{ case(a,b,c) => Chunk.seq(List((0,a),(1,b),(2,c))) }
-  //       .chunkify
-  //       .to(cyborg.dsp.DSP.stimuliRequestSink())
-  //   }
-  //   XOR.runXOR(broadcastSource, perturbationSink)
-  // }
-
+  def assembleDBplayback    : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
+  def assembleLiveNeuroData : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
 
   def assembleMazeRunner(
     broadcastSource : List[Topic[IO,TaggedSegment]],
@@ -150,10 +136,6 @@ object Assemblers {
 
   def assembleTopics: Stream[IO,Topic[IO,TaggedSegment]] =
     Stream.repeatEval(Topic[IO,TaggedSegment](TaggedSegment(-1,Chunk[Int]())))
-
-
-  def assembleConfig: IO[Signal[IO, FullSettings]] =
-    SignallingRef[IO,FullSettings](FullSettings.default)
 
 
   val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain

@@ -56,32 +56,11 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
       ).render,
   ).render
 
-  def renderEquipmentFailure(m: Property[EquipmentState]) = {
-    produce(m){ m =>
-      m match {
-        case Right(_) => p("All systems green").render
-        case Left(errors) => {
-          val online = if(errors.contains(MEAMEoffline)) p("MEAME is offline") else p("MEAME online")
-          val dspAlive = if(errors.contains(DspDisconnected)) p("DSP is offline") else p("DSP online")
-          val dspBreak = if(errors.contains(DspBroken)) p("DsP iS broKeN") else p("DSP working")
-          ul(
-            li(online),
-            li(dspAlive),
-            li(dspBreak)
-          ).render
-        }
-      }
-    }
-  }
-
   override def getTemplate: Modifier = {
     div(
       mainButtons(),
       ul(
         b("MEAME state:"),
-        li(
-          renderEquipmentFailure(model.subProp(_.meameState))
-        ),
       ).render,
 
       ul(
@@ -99,10 +78,10 @@ class IndexViewPresenter(model: ModelProperty[IndexModel]) extends Presenter[Ind
 
   import cyborg.frontend.Context
 
-  Context.serverRpc.getSHODANstate.onComplete{
-    case Success(nextState) => model.subProp(_.meameState).set(nextState)
-    case Failure(ex) => say(s"failed with $ex")
-  }
+  // Context.serverRpc.getSHODANstate.onComplete{
+  //   case Success(nextState) => model.subProp(_.meameState).set(nextState)
+  //   case Failure(ex) => say(s"failed with $ex")
+  // }
 
 
   def onDAQclick(btn: UdashButton) = say("Does nothing")
@@ -123,12 +102,12 @@ case object IndexViewFactory extends ViewFactory[IndexState.type] {
   say("index view factory called")
 
   override def create(): (View, Presenter[IndexState.type]) = {
-    val model = ModelProperty( IndexModel( Settings.FullSettings.default, Right(())) )
+    val model = ModelProperty( IndexModel(Settings.FullSettings.default) )
     val presenter = new IndexViewPresenter(model)
     val view = new IndexView(model, presenter)
     (view, presenter)
   }
 }
 
-case class IndexModel(conf: Settings.FullSettings, meameState: EquipmentState)
+case class IndexModel(conf: Settings.FullSettings)
 object IndexModel extends HasModelPropertyCreator[IndexModel]

@@ -24,17 +24,45 @@ object RPCmessages {
   object RecordingInfo extends HasGenCodec[RecordingInfo]
 
 
-  sealed trait EquipmentFailure
-  object EquipmentFailure {
-    implicit val codec: GenCodec[EquipmentFailure] =
-      GenCodec.materialize
+  sealed trait DataSource
+  case object Live extends DataSource
+  case class Playback(id: Int) extends DataSource
+
+  sealed trait CurrentExperiment
+  case object Maze extends CurrentExperiment
+
+  case class ProgramState(
+    dataSource        : Option[DataSource],
+    currentExperiment : Option[CurrentExperiment],
+    dsp               : DSPstate,
+    meame             : MEAMEstate
+  )
+
+  case class DSPstate(
+    isFlashed   : Boolean = false,
+    dspResponds : Boolean = false
+  )
+
+  case class MEAMEstate(
+    meameResponds : Boolean = false
+ )
+
+  object DSPstate extends HasGenCodec[DSPstate] {
+    def default: DSPstate = DSPstate(false, false)
   }
-  case object DspDisconnected    extends EquipmentFailure
-  case object DspBroken          extends EquipmentFailure
-  case object MEAMEoffline       extends EquipmentFailure
-  case object NoIdeaCheckConsole extends EquipmentFailure
 
+  object MEAMEstate extends HasGenCodec[MEAMEstate] {
+    def default: MEAMEstate = MEAMEstate(false)
+  }
 
-  type EquipmentState = Either[List[EquipmentFailure], Unit]
-
+  object DataSource extends HasGenCodec[DataSource]
+  object CurrentExperiment extends HasGenCodec[CurrentExperiment]
+  object ProgramState extends HasGenCodec[ProgramState] {
+    def apply(): ProgramState = ProgramState(
+      None,
+      None,
+      DSPstate.default,
+      MEAMEstate.default
+    )
+  }
 }

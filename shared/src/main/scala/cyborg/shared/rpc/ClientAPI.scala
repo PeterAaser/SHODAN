@@ -1,19 +1,16 @@
 package cyborg.shared.rpc.client
 
-import cyborg._
 import cyborg.RPCmessages._
+import cyborg.Settings._
 
 import cyborg.wallAvoid.{ Agent, Coord }
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
-
 import io.udash.rpc._
 
-
-// The methods the backend can call on the frontend
-// There may be many frontend with various contexts, thus these methods may not return data
 trait MainClientRPC {
   def wf(): WfClientRPC
   def agent(): AgentClientRPC
+  def state(): ClientStateRPC
 }
 
 trait WfClientRPC {
@@ -26,6 +23,12 @@ trait AgentClientRPC {
   def agentPush(agent: Agent): Unit
 }
 
+trait ClientStateRPC {
+  def pushConfig(c: FullSettings): Unit
+  def pushState(s: ProgramState): Unit
+}
+
 object MainClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[MainClientRPC]
 object WfClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[WfClientRPC]
 object AgentClientRPC extends DefaultClientUdashRPCFramework.RPCCompanion[AgentClientRPC]
+object ClientStateRPC extends DefaultClientUdashRPCFramework.RPCCompanion[ClientStateRPC]

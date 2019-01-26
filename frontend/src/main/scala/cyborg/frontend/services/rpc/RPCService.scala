@@ -1,18 +1,24 @@
 package cyborg.frontend.services.rpc
 
-import cyborg.shared.rpc.client.MainClientRPC
-import cyborg.shared.rpc.client.WfClientRPC
-import cyborg.shared.rpc.client.AgentClientRPC
+import cyborg.shared.rpc.client._
 import cyborg.wallAvoid.Agent
 import scala.collection.mutable
 import cyborg.frontend.Context
 
 import cyborg._
 import frontilz._
+import cyborg.Settings._
+import cyborg.RPCmessages._
 
 class RPCService extends MainClientRPC {
   override def wf(): WfClientRPC = WfClient
   override def agent(): AgentClientRPC = AgentClient
+  override def state(): ClientStateRPC = StateClient
+}
+
+object StateClient extends ClientStateRPC {
+  def pushConfig(c: FullSettings): Unit = ???
+  def pushState(s: ProgramState): Unit  = ???
 }
 
 object WfClient extends WfClientRPC {
@@ -21,22 +27,7 @@ object WfClient extends WfClientRPC {
   var wfRunning = false
   // var num = 0
 
-
   override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
-
-  // Kinda magical on the registering front
-  def register(q: mutable.Queue[Array[Int]]): Unit = {
-    onWfUpdate = (data: Array[Int]) => q.enqueue(data)
-
-    wfRunning = true
-    Context.serverRpc.registerWaveform
-  }
-
-  def unregister(): Unit = {
-    wfRunning = false
-
-    Context.serverRpc.unregisterWaveform
-  }
 }
 
 object AgentClient extends AgentClientRPC {
@@ -45,17 +36,4 @@ object AgentClient extends AgentClientRPC {
   var agentRunning = false
 
   override def agentPush(agent: Agent): Unit = onAgentUpdate(agent)
-
-  def register(agentQueue: mutable.Queue[Agent]): Unit = {
-    onAgentUpdate = (agent: Agent) => agentQueue.enqueue(agent)
-
-    agentRunning = true
-    Context.serverRpc.registerAgent
-  }
-
-  def unregister(): Unit = {
-    agentRunning = false
-
-    Context.serverRpc.unregisterAgent
-  }
 }

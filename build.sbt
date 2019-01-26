@@ -205,4 +205,4 @@ lazy val packager = project
 
 // Ability to interrupt task execution with C-c
 cancelable in Global := true
-fork := true
+// fork := true
