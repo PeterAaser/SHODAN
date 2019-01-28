@@ -138,7 +138,7 @@ object mockServer {
     val recordingId = hardcode(10)
 
     // Already throttled
-    val fromDB = cyborg.io.sIO.DB.streamFromDatabaseThrottled(recordingId).repeat
+    val fromDB = cyborg.io.DB.streamFromDatabaseThrottled(recordingId).repeat
     val broadcast = Stream.eval(SignallingRef[IO,Frame](Chunk.empty)) flatMap { signal =>
       val dataIn = fromDB.vecN(60)
         .map(x => Chunk.concatInts(x.map(_.data)))
@@ -179,7 +179,7 @@ object mockServer {
   def tcpServer(listeners: Queue[IO, Resource[IO,Socket[IO]]]): Stream[IO, Unit] = {
     val ay = implicitly[ConcurrentEffect[IO]]
     val createListener: Stream[IO, Unit] =
-      fs2.io.tcp.server[IO](new InetSocketAddress("0.0.0.0", params.TCP.port)).to(listeners.enqueue)
+      fs2.io.tcp.server[IO](new InetSocketAddress("0.0.0.0", params.Network.tcpPort)).to(listeners.enqueue)
 
     createListener
   }

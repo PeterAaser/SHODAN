@@ -6,6 +6,7 @@ import scala.collection.mutable
 import cyborg.frontend.Context
 
 import cyborg._
+import cyborg.State._
 import frontilz._
 import cyborg.Settings._
 import cyborg.RPCmessages._

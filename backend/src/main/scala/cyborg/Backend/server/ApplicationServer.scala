@@ -4,6 +4,7 @@ import cyborg._
 import cyborg.RPCmessages._
 import fs2.concurrent.SignallingRef
 import utilz._
+import State._
 
 import fs2._
 import cats.effect.concurrent.{ Ref }

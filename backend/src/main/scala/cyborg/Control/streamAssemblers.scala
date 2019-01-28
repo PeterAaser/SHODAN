@@ -1,6 +1,7 @@
 package cyborg
 
-import cats.data.Kleisli
+import cats.arrow.FunctionK
+import cats.data._
 import fs2._
 import fs2.concurrent.{ Queue, Signal, SignallingRef, Topic }
 import cats.effect.implicits._
@@ -20,6 +21,7 @@ import cats.implicits._
 import cyborg.backend.server.ApplicationServer
 import cyborg.Settings._
 import cyborg.utilz._
+import cyborg.State._
 
 import scala.concurrent.duration._
 
@@ -48,7 +50,7 @@ object Assemblers {
       _                 <- Stream.eval(frontend.start)
 
 
-      commandPipe       <- Stream.eval(staging.commandPipe(
+      commandPipe       <- Stream.eval(ControlPipe.controlPipe(
                                          stateServer,
                                          configServer,
                                          commandQueue))
@@ -134,6 +136,30 @@ object Assemblers {
   }
 
 
+
+
+  def startLiveBroadcast(topics: List[Topic[IO,TaggedSegment]], rawSink: Sink[IO,TaggedSegment])
+      : Kleisli[Id, FullSettings, IO[InterruptableAction[IO]]] = for {
+    dataStream <- cyborg.io.Network.streamFromTCP
+  } yield broadcastDataStream(dataStream, topics, rawSink)
+
+
+  /**
+    Since a playback from broadcast alters the config it is encoded using StateT. A StateT can be transformed
+    to a readerT using `StateT.flatMapToKleisli` defined in the streamUtils extension method for StateT
+    */
+  def startPlaybackBroadcast(id: Int, topics: List[Topic[IO,TaggedSegment]], rawSink: Sink[IO,TaggedSegment])
+      : StateT[IO, FullSettings, InterruptableAction[IO]] = StateT[IO, FullSettings, InterruptableAction[IO]] { conf =>
+    val recordingInfoTask: IO[RecordingInfo] = cyborg.io.database.databaseIO.getRecordingInfo(id)
+    recordingInfoTask.flatMap { recordingInfo =>
+      val newConf = conf.copy(daq = recordingInfo.daqSettings)
+      val dataStream = cyborg.io.DB.streamFromDatabase(id)
+      val broadcast = broadcastDataStream(dataStream, topics, rawSink)
+      broadcast.map(bc => (newConf, bc))
+    }
+  }
+
+
   def assembleTopics: Stream[IO,Topic[IO,TaggedSegment]] =
     Stream.repeatEval(Topic[IO,TaggedSegment](TaggedSegment(-1,Chunk[Int]())))
 
@@ -141,8 +167,71 @@ object Assemblers {
   val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
   def assembleMockServer(eventSink: Sink[IO,mockDSP.Event] = dspEventSink): Stream[IO,Unit] =
     (for {
-       _ <- Stream.eval(mockServer.assembleTestHttpServer(params.http.MEAMEclient.port, dspEventSink))
+       _ <- Stream.eval(mockServer.assembleTestHttpServer(params.Network.httpPort, dspEventSink))
        _ <- Ssay[IO]("mock server up")
      } yield ()
-    ).concurrently(mockServer.assembleTestTcpServer(params.TCP.port))
+    ).concurrently(mockServer.assembleTestTcpServer(params.Network.tcpPort))
+
+
+  /**
+    Downsamples a stream into two points per second per pixel
+
+    Kinda silly that we're unable to the time aspect here, but oh well, the frontend
+    can deal with that.
+    */
+  def assembleFrontendDownsampler = Kleisli[Id,FullSettings,Pipe[IO,TaggedSegment,Array[Int]]]{ conf =>
+
+    val targetSegmentLength = (conf.daq.samplerate/conf.daq.segmentLength)
+
+    in => in
+      .map(_.downsampleHiLo(conf.daq.segmentLength/targetSegmentLength))
+      .chunkify
+      .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
+  }
+
+
+  def start(
+    programState: ProgramState,
+    configuration: FullSettings,
+    topics: List[Topic[IO,TaggedSegment]],
+    rawSink: Sink[IO,Array[Int]]): IO[InterruptableTask[IO]] = {
+
+    val configureMeamePlaceholder: Kleisli[IO,FullSettings,Unit] =
+      Kleisli[IO,FullSettings,Unit](_ => IO(say("NYI, fix HTTP dawg")))
+
+    import cats.~>
+    val toIO: Id ~> IO = λ[Id ~> IO](IO.pure(_))
+
+    def broadcastDataStreamK(source: Stream[IO, TaggedSegment], topics: List[Topic[IO, TaggedSegment]], rawSink: Sink[IO, TaggedSegment]):
+        Kleisli[IO,FullSettings,InterruptableAction[IO]] =
+      Kleisli(c => broadcastDataStream(source, topics, rawSink))
+
+
+    /**
+      This must be run first since the kleisli for the DB case is actually a StateT in disguise!
+      In english: The BD call alters the configuration, thus to ensure synchronized configs it
+      must be used first so that downstream configs match the playback
+      */
+    val getAndBroadcastDatastream: Kleisli[IO,FullSettings,InterruptableAction[IO]] = programState.dataSource.get match {
+        case Live => for {
+          wat                 <- configureMeamePlaceholder
+          source              <- cyborg.io.Network.streamFromTCP.mapK(toIO)
+          frontendDownsampler <- assembleFrontendDownsampler.mapK(toIO)
+          broadcast           <- Kleisli.liftF(broadcastDataStream(source,
+                                                      topics,
+                                                      frontendDownsampler andThen rawSink))
+        } yield broadcast
+
+        case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { source =>
+          for {
+            frontendDownsampler <- assembleFrontendDownsampler.mapK(toIO)
+            broadcast           <- Kleisli.liftF(broadcastDataStream(source,
+                                                        topics,
+                                                        frontendDownsampler andThen rawSink))
+          } yield broadcast
+        }
+      }
+
+    getAndBroadcastDatastream
+  }
 }

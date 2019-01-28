@@ -15,6 +15,7 @@ import scala.concurrent.duration._
 
 import cyborg._
 import utilz._
+import State._
 import cyborg.shared.rpc.client.MainClientRPC
 import cyborg.shared.rpc.server.MainServerRPC
 import cyborg.RPCmessages._

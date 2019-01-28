@@ -8,6 +8,7 @@ import cyborg._
 import cyborg.shared.rpc._
 import RPCmessages._
 import Settings._
+import State._
 import sharedImplicits._
 
 // The methods the frontend can call from the backend
@@ -18,15 +19,15 @@ trait MainServerRPC {
   def unregister : Unit
 
   // If we set to running but something explodes
-  def setSHODANstate(s: ProgramState)  : Future[Either[String, Unit]]
-  def setSHODANconfig(c: FullSettings) : Future[Unit]
+  def setSHODANstate(s: ProgramState)   : Future[Either[String, Unit]]
+  def setSHODANconfig(c: FullSettings)  : Future[Unit]
+  def startPlayback(rec: RecordingInfo) : Unit
 
-  def getRecordings  : Future[List[RecordingInfo]]
+  def getRecordings(): Future[List[RecordingInfo]]
 
-  def startPlayback(rec: RecordingInfo): Unit
 
-  def startRecording : Unit
-  def stopRecording  : Unit
+  def startRecording() : Unit
+  def stopRecording()  : Unit
 
   def startAgent: Unit
 }

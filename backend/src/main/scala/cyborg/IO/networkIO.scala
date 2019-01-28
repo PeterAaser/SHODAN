@@ -1,7 +1,9 @@
 package cyborg.io.network
 import cats._
+import cats.data.Kleisli
 import cats.implicits._
 import cats.effect._
+import cyborg.Settings.FullSettings
 import cyborg._
 
 import fs2._
@@ -16,7 +18,6 @@ import scala.language.higherKinds
 
 import utilz._
 import backendImplicits._
-import params.TCP._
 
 object networkIO {
 
@@ -25,58 +26,22 @@ object networkIO {
   val keepAlive = true
   val noDelay = true
 
-  val ip = params.TCP.ip
-  val port = params.TCP.port
-  val hosePort = 12350
-
-  val maxQueued = 3
-
-  def socketStream[F[_]: ConcurrentEffect : ContextShift](port: Int): Resource[F, Socket[F]] =
-    client(
-      new InetSocketAddress(ip, port),
-      reuseAddress,
-      sendBufSize,
-      recvBufSize,
-      keepAlive,
-      noDelay)
 
 
+  def streamAllChannels[F[_]: ConcurrentEffect : ContextShift]
+    = Kleisli[Id, FullSettings, Stream[F,Int]]{ conf =>
 
-  def streamAllChannels[F[_]: ConcurrentEffect : ContextShift]: Stream[F, Int] = {
-    Stream.resource(socketStream[F](port)) flatMap { socket =>
-      socket.reads(1024*1024).through(utilz.bytesToInts(params.TCP.format))
-    }
-  }
+      def socketStream: Resource[F, Socket[F]] =
+        client(
+          new InetSocketAddress(conf.source.meameIP, conf.source.dataPort),
+          reuseAddress,
+          conf.source.sendBufSize,
+          conf.source.recvBufSize,
+          keepAlive,
+          noDelay)
 
-
-  /**
-    Untested crashy ghetto shit
-    */
-  def channelServer[F[_]: ConcurrentEffect : ContextShift](topics: List[Topic[F,TaggedSegment]]): Stream[F,F[Unit]] = {
-    def hoseData(socket: Socket[F]): F[Unit] = {
-      socket.reads(16, None)
-        .through(_.map(_.toInt)).flatMap { channel =>
-          topics(channel).subscribe(100)
-            .map{ d =>
-              val bb = java.nio.ByteBuffer.allocate(d.data.size*4)
-              for(ii <- 0 until d.data.size){
-                bb.putInt(d.data(ii))
-              }
-              Chunk.seq(bb.array())
-            }
-            .through(chunkify)
-            .through(socket.writes(None))
-        }.compile.drain
-    }
-
-    server(new InetSocketAddress("0.0.0.0", hosePort)).flatMap {
-      say("opening server")
-      sockets => {
-        Stream.resource(sockets).map{ socket =>
-          say(s"got a socket")
-          hoseData(socket)
-        }
+      Stream.resource(socketStream) flatMap { socket =>
+        socket.reads(conf.source.readBufSize).through(utilz.bytesToInts(conf.source.format))
       }
     }
-  }
 }

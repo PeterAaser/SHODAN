@@ -27,7 +27,7 @@ import backendImplicits._
 object HttpClient {
 
   def buildUri(path: String): Uri = {
-    val ip = params.http.MEAMEclient.ip
+    val ip = params.Network.meameIP
     Uri.fromString(s"http://$ip:8888/$path").toOption.get
   }
 
@@ -46,10 +46,6 @@ object HttpClient {
 
 
   def getMEAMEhealthCheck: IO[MEAMEstatus] = {
-    // say("pretend MEAME health check inc")
-    // say("hello?")
-    // say("hello?")
-    // IO { MEAMEstatus(true, true, true) }
     val req = GET(buildUri("status"))
     val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)

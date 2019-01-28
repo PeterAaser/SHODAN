@@ -1,6 +1,6 @@
 package cyborg
 
-import cats.data.Kleisli
+import cats.data._
 import cats.effect.{ Async, Concurrent, Effect, Sync, Timer }
 import cats.implicits._
 import cats._
@@ -131,6 +131,19 @@ object utilz {
 
   implicit class ChunkedStreamBonusOps[F[_],O](s: Stream[F,Chunk[O]]) {
     def chunkify: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
+  }
+
+
+  /**
+    I don't know if this is very sound tbh
+    */
+  implicit class StateTops[F[_]: FlatMap,S,A](self: StateT[F,S,A]){
+    def flatMapToKleisli[B](f: A => Kleisli[F,S,B]): Kleisli[F,S,B] = Kleisli{ (conf: S) =>
+      val fsa = self.run(conf)
+      fsa.flatMap { case(s2, a) =>
+        f(a)(s2)
+      }
+    }
   }
 
 

@@ -82,14 +82,12 @@ object FFANN {
 
   def randomNet(configuration: Settings.ReadoutSettings): FeedForward = {
 
-    import configuration._
-
     /**
       Prepend the amount of inputs to the network, and append the two outputs.
       This means that the empty list is a valid network as it ends up being a perceptron
       (well, two perceptrons, whatever)
       */
-    val layout = configuration.layout
+    val layout = configuration.getLayout
     say(layout)
     val neededBias = layout.tail.sum
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
