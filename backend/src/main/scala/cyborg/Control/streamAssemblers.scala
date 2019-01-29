@@ -68,6 +68,8 @@ object Assemblers {
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
 
+
+      // This is it right?
       _                 <- commandQueue.dequeue.through(commandPipe)
     } yield ()
   }

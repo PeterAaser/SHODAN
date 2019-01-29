@@ -54,8 +54,7 @@ object ControlPipe {
     eventQueue         : Queue[IO,UserCommand],
     frontend           : RPCserver,
     httpClient         : MEAMEHttpClient[IO]
-  )
-      : IO[Sink[IO,UserCommand]] = {
+  ) : IO[Sink[IO,UserCommand]] = {
 
     SignallingRef[IO,ProgramActions](ProgramActions()) flatMap { actionRef =>
       List.fill(60)(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))).sequence.map { topics =>
@@ -97,9 +96,8 @@ object ControlPipe {
             }
           }
         }
+        inStream => go(inStream).stream.map(Stream.eval).parJoinUnbounded
       }
-
-      ???
     }
   }
 }
