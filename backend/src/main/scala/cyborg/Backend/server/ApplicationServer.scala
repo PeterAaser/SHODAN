@@ -21,69 +21,19 @@ import cyborg.Settings._
 
 object ApplicationServer {
 
-
-  // def agentSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,Agent]] = {
-
-  //   def pushAgent(agent: Agent, listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
-  //     listeners.get.map(_.foreach( ClientRPChandle(_).agent().agentPush(agent) ))
-  //   }
-
-  //   def go(s: Stream[IO, Agent]): Pull[IO, Unit, Unit] = {
-  //     s.pull.uncons1 flatMap {
-  //       case Some((agent, tl)) => Pull.eval(pushAgent(agent, listeners)) >> go(tl)
-  //       case None => Pull.done
-  //     }
-  //   }
-
-  //   getConf map { _ =>
-  //     in => go(in).stream
-  //   }
-  // }
-
-
-
-  // def waveformSink(listeners: Ref[IO, List[ClientId]], getConf: IO[FullSettings]): IO[Sink[IO,TaggedSegment]] = {
-
-  //   def sendData: Sink[IO,Array[Int]] = {
-  //     def pushWaveforms(wf: Array[Int], listeners: Ref[IO, List[ClientId]]): IO[Unit] = {
-  //       listeners.get.map(_.foreach( ClientRPChandle(_).wf().wfPush(wf) ))
-  //     }
-
-  //     def go(s: Stream[IO,Array[Int]]): Pull[IO,Unit,Unit] = {
-  //       s.pull.uncons1 flatMap {
-  //         case Some((ts, tl)) => Pull.eval(pushWaveforms(ts, listeners)) >> go(tl)
-  //         case None => Pull.done
-  //       }
-  //     }
-
-  //     in => go(in).stream
-  //   }
-
-  //   import params.waveformVisualizer.pointsPerMessage
-
-  //   getConf map { conf =>
-
-  //     // seg len in = 2000, seg out = (200/10)*2 = 40
-  //     val targetSegmentLength = hardcode(10)
-  //     val samplerate = hardcode(20000)
-  //     val segmentLength = hardcode(2000)
-
-  //     in => in
-  //       .map(_.downsampleHiLo(segmentLength/targetSegmentLength))
-  //       .chunkify
-  //       .through(mapN(targetSegmentLength*60*2, _.toArray)) // multiply by 2 since we're dealing with max/min
-  //       .through(sendData)
-  //   }
-  // }
-
-
-  case class RPCserver(s: org.eclipse.jetty.server.Server){
+  case class RPCserver(s: org.eclipse.jetty.server.Server, listeners: Ref[IO, List[ClientId]]){
     def start : IO[Unit] = IO { s.start() }
     def stop  : IO[Unit] = IO { s.stop()  }
 
-    /**
-      This could be a decent place to add topics, queues etc
-      */
+    def pushAgent(a: Agent, ci: List[ClientId]) : IO[Unit] =
+      IO { ci.foreach(ClientRPChandle(_).agent().agentPush(a)) }
+    def agentTap(a: Agent): IO[Unit] =
+      listeners.get.flatMap(ci => pushAgent(a, ci))
+
+    def pushWaveform(data: Array[Int], ci: List[ClientId]): IO[Unit] =
+      IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
+    def waveformTap(data: Array[Int]): IO[Unit] =
+      listeners.get.flatMap(ci => pushWaveform(data, ci))
   }
 
   def assembleFrontend(
@@ -127,24 +77,25 @@ object ApplicationServer {
       appHolder
     }
 
+    cats.effect.concurrent.Ref.of[IO, List[ClientId]](Nil).flatMap { ci =>
+      IO {
+        say(s"Making a server with port: $port")
+        val server = new Server(port)
+        val contextHandler = new ServletContextHandler
+        val appHolder = createAppHolder()
+        val atmosphereHolder = createAtmosphereHolder()
 
-    IO {
-      say(s"Making a server with port: $port")
-      val server = new Server(port)
-      val contextHandler = new ServletContextHandler
-      val appHolder = createAppHolder()
-      val atmosphereHolder = createAtmosphereHolder()
+        contextHandler.setSessionHandler(new SessionHandler)
+        contextHandler.getSessionHandler.addEventListener(
+          new org.atmosphere.cpr.SessionSupport()
+        )
 
-      contextHandler.setSessionHandler(new SessionHandler)
-      contextHandler.getSessionHandler.addEventListener(
-        new org.atmosphere.cpr.SessionSupport()
-      )
+        contextHandler.addServlet(atmosphereHolder, "/atm/*")
+        contextHandler.addServlet(appHolder, "/*")
+        server.setHandler(contextHandler)
 
-      contextHandler.addServlet(atmosphereHolder, "/atm/*")
-      contextHandler.addServlet(appHolder, "/*")
-      server.setHandler(contextHandler)
-
-      RPCserver(server)
+        RPCserver(server, ci)
+      }
     }
   }
 }

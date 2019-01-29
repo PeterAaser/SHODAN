@@ -26,6 +26,10 @@ import utilz._
 
 import backendImplicits._
 
+
+/**
+  TODO: The constructor should ideally be a kleisli for the config (test vs MEAME ips)
+  */
 class MEAMEHttpClient[F[_]](c: Client[F]) {
 
   def buildUri(path: String): Uri = {
@@ -33,14 +37,10 @@ class MEAMEHttpClient[F[_]](c: Client[F]) {
     Uri.fromString(s"http://$ip:8888/$path").toOption.get
   }
 
-  ////////////////////////////////////////
-  ////////////////////////////////////////
-  ////////////////////////////////////////
-  // General
-  def startMEAMEserver(settingServer: IO[FullSettings]): IO[Unit] = {
+
+  def startMEAMEserver = Kleisli[IO,FullSettings,Unit]{ conf =>
+    val params = DAQparams(conf.daq.samplerate, conf.daq.segmentLength)
     for {
-      conf <- settingServer
-      params = DAQparams(conf.daq.samplerate, conf.daq.segmentLength)
       _ <- connectDAQrequest(params)
       _ <- startDAQrequest
     } yield ()
@@ -67,31 +67,27 @@ class MEAMEHttpClient[F[_]](c: Client[F]) {
   ////////////////////////////////////////
   ////////////////////////////////////////
   // DSP
-
   object DSP {
     def flashDsp: IO[Unit] = {
       val req = GET(buildUri("DSP/flash"))
       httpClient.expect[String](req).void
     }
 
-    def setRegistersRequest(regs: RegisterSetList): IO[Unit] =
-    {
+    def setRegistersRequest(regs: RegisterSetList): IO[Unit] = {
       val what = regs.asJson
       val req = POST(regs.asJson, buildUri("DSP/write"))
       httpClient.expect[String](req).void
     }
 
 
-    def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] =
-    {
+    def readRegistersRequest(regs: RegisterReadList): IO[RegisterReadResponse] = {
       val huh = implicitly[EntityDecoder[IO, RegisterReadResponse]]
       val req = POST(regs.asJson, buildUri("DSP/read"))
       httpClient.expect[RegisterReadResponse](req)
     }
 
 
-    def dspCall(call: Int, args: (Int,Int)*): IO[Unit] =
-    {
+    def dspCall(call: Int, args: (Int,Int)*): IO[Unit] = {
       val funcCall = DspFuncCall(call, args.toList)
       val req = POST(funcCall.asJson, buildUri("DSP/call"))
       httpClient.expect[String](req).void
@@ -103,8 +99,7 @@ class MEAMEHttpClient[F[_]](c: Client[F]) {
   ////////////////////////////////////////
   ////////////////////////////////////////
   // DAQ
-  def connectDAQrequest(params: DAQparams): IO[Unit] =
-  {
+  def connectDAQrequest(params: DAQparams): IO[Unit] = {
     val req = POST(params.asJson, buildUri("DAQ/connect"))
     httpClient.expect[String](req).void
   }

@@ -60,7 +60,9 @@ object Assemblers {
                                          stateServer,
                                          configServer,
                                          commandQueue,
-                                         frontend))
+                                         frontend,
+                                         httpClient
+                                         ))
 
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
@@ -74,14 +76,10 @@ object Assemblers {
   val httpInStreamStream = Stream.eval(BlazeClientBuilder[IO](ec).resource)
 
 
-  def assembleDBplayback    : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
-  def assembleLiveNeuroData : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
-
-  def assembleMazeRunner(
-    broadcastSource : List[Topic[IO,TaggedSegment]],
-    agentTopic: Topic[IO,Agent],
-    dsp: cyborg.dsp.DSP[IO])
-      : ConfF[Id,Stream[IO,Unit]] = Kleisli{ conf =>
+  def assembleMazeRunner(broadcastSource : List[Topic[IO,TaggedSegment]],
+                         agentTopic      : Topic[IO,Agent],
+                         dsp             : cyborg.dsp.DSP[IO])
+      : Kleisli[Id,FullSettings,Stream[IO,Unit]] = Kleisli{ conf =>
 
     val perturbationSink: Sink[IO,List[Double]] =
       _.through(PerturbationTransform.toStimReq())
@@ -205,11 +203,9 @@ object Assemblers {
     configuration: FullSettings,
     programState: ProgramState,
     topics: List[Topic[IO,TaggedSegment]],
-    rawSink: Sink[IO,Array[Int]]): IO[InterruptableAction[IO]] = {
-
-    val configureMeamePlaceholder: Kleisli[IO,FullSettings,Unit] =
-      Kleisli[IO,FullSettings,Unit](_ => IO(say("NYI, fix HTTP dawg")))
-
+    rawSink: Sink[IO,Array[Int]],
+    client: MEAMEHttpClient[IO],
+  ): IO[InterruptableAction[IO]] = {
 
     /**
       This must be run first since the kleisli for the DB case is actually a StateT in disguise!
@@ -220,7 +216,6 @@ object Assemblers {
       */
     val getAndBroadcastDatastream: Kleisli[IO,FullSettings,InterruptableAction[IO]] = programState.dataSource.get match {
         case Live => for {
-          wat                 <- configureMeamePlaceholder
           source              <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
           frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
           broadcast           <- Kleisli.liftF(broadcastDataStream(source,
@@ -238,6 +233,8 @@ object Assemblers {
         }
       }
 
-    getAndBroadcastDatastream(configuration)
+    // Won't inferr if not broken up. Fun fact: It inferrs correctly with *>
+    val startAndBroadcastK = client.startMEAMEserver >> getAndBroadcastDatastream
+    startAndBroadcastK(configuration)
   }
 }

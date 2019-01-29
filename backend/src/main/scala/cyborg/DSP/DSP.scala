@@ -1,11 +1,14 @@
 package cyborg.dsp
-import cats.data.Kleisli
+import cats.data._
+import cats.implicits._
+import cats._
 import cyborg._
 
 import fs2._
 import cats.effect._
 import scala.concurrent.duration._
 import cyborg.utilz._
+import cyborg.Settings._
 
 import stimulus.WaveformGenerator
 
@@ -22,7 +25,7 @@ class DSP[F[_]](client: MEAMEHttpClient[F]) {
     Setup flashes the DSP, resets state, uploads a test wave, configures the electrodes
     specified by the settings, applies blanking and starts the stim queue.
     */
-  def setup: ConfF[IO,Unit] = dspSetup.setup
+  def setup: Kleisli[IO,FullSettings,Unit] = dspSetup.setup
 
 
   val stopStimQueue : IO[Unit] = dspCalls.stopStimQueue
@@ -51,7 +54,7 @@ class DSP[F[_]](client: MEAMEHttpClient[F]) {
     Creates stimulus requests for the supplied period, or toggles the group off when the period is None.
     For debugging convenience the three electrode groups can be toggled in the config
     */
-  def stimuliRequestSink: ConfId[ Sink[IO,(Int,Option[FiniteDuration])] ] =
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[IO,(Int,Option[FiniteDuration])] ] =
     dspSetup.stimuliRequestSink
 
 

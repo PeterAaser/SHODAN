@@ -14,6 +14,7 @@ import scala.concurrent.duration._
 import utilz._
 import bonus._
 import BitDrawing._
+import Settings._
 
 import cyborg.dsp.calls.DspCalls._
 
@@ -22,7 +23,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
   import client.DSP._
   import calls._
 
-  def stimuliRequestSink: ConfId[Sink[IO,(Int,Option[FiniteDuration])]] = Kleisli(
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[IO,(Int,Option[FiniteDuration])]] = Kleisli(
     conf => {
       def sink: Sink[IO, (Int,Option[FiniteDuration])] = {
         def go(s: Stream[IO, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[IO, Unit, Unit] = {
@@ -71,7 +72,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
 
     And yes, the difference between blanking and blanking protection escapes me
     */
-  def configureElectrodes: ConfF[IO,Unit] = Kleisli(
+  def configureElectrodes: Kleisli[IO,FullSettings,Unit] = Kleisli(
     conf => {
 
       /**
@@ -157,7 +158,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     ////////////////////////////////////////////////////////////////////////////////
 
 
-  def setup: ConfF[IO,Unit] = Kleisli(
+  def setup: Kleisli[IO,FullSettings,Unit] = Kleisli(
     conf => {
       val flashAndResetDsp = for {
         _ <- client.DSP.flashDsp

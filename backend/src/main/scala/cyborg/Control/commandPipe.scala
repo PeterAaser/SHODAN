@@ -30,6 +30,7 @@ import State._
 
 import backendImplicits._
 import Assemblers._
+import cyborg.backend.server.ApplicationServer.RPCserver
 
 object ControlPipe {
 
@@ -50,23 +51,55 @@ object ControlPipe {
   def controlPipe(
     stateServer        : SignallingRef[IO,ProgramState],
     confServer         : Signal[IO,FullSettings],
-    eventQueue         : Queue[IO,UserCommand])
+    eventQueue         : Queue[IO,UserCommand],
+    frontend           : RPCserver,
+    httpClient         : MEAMEHttpClient[IO]
+  )
       : IO[Sink[IO,UserCommand]] = {
 
-    def go(s: Stream[IO,UserCommand]): Pull[IO,Stream[IO,Unit],Unit] = {
-      s.pull.uncons1.flatMap{
-        case None => Pull.done
-        case Some((token, tl)) => token match {
-          case ShoutAtOla => Pull.output1(Stream.eval( IO { say("thE fUCiNg dSp iS BroKeN agAiN") } )) >> go(tl)
-          case Start => ???
-          case Stop => ???
-          case StartRecord => ???
-          case StopRecord => ???
+    SignallingRef[IO,ProgramActions](ProgramActions()) flatMap { actionRef =>
+      List.fill(60)(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))).sequence.map { topics =>
+
+        def startMEAME: IO[Unit] = {
+
+          val interruptableAction = for {
+            programState <- stateServer.get
+            conf         <- confServer.get
+            actions      <- startBroadcast(conf,
+                                 programState,
+                                 topics,
+                                 _.evalMap(frontend.waveformTap(_)),
+                                 httpClient)
+          } yield actions
+
+          val updateAndRun = for {
+            action <- interruptableAction
+            _      <- actionRef.update(state => (state.copy(stopData = action.interrupt)))
+            _      <- action.start
+          } yield ()
+
+          updateAndRun
+        }
+
+
+        def go(s: Stream[IO,UserCommand]): Pull[IO,IO[Unit],Unit] = {
+          s.pull.uncons1.flatMap{
+            case None => Pull.done
+            case Some((token, tl)) => token match {
+
+              case Start => Pull.output1(startMEAME) >> go(tl)
+
+              case Stop => ???
+              case StartRecord => ???
+              case StopRecord => ???
+
+              case _ => ???
+            }
+          }
         }
       }
+
+      ???
     }
-
-
-    ???
   }
 }

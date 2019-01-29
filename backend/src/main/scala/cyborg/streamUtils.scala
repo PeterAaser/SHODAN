@@ -23,18 +23,6 @@ object utilz {
   type EC = ExecutionContext
   type Channel = Int
 
-  // Streams and IOs that need Settings to run
-  type ConfStream[F[_], A] = Kleisli[Stream[F,?], Settings.FullSettings, A]
-  type StreamKleisli[F[_],A] = Kleisli[Stream[F,?], Settings.FullSettings, A]
-  type ConfF[F[_], A] = Kleisli[F, Settings.FullSettings, A]
-
-  /**
-    In order for ConfId to infer it is necessary to annotate the return
-    expression as Id, like so:
-
-    val a: ConfId[Int] = Kleisli(s => 1: Id)
-   */
-  type ConfId[A] = Kleisli[Id,Settings.FullSettings, A]
 
   case class TaggedSegment(channel: Channel, data: Chunk[Int]){
 
@@ -86,8 +74,13 @@ object utilz {
 
   /**
     Apparently it's spelled interrupt*i*ble, not inturrupt*a*ble
+
+    Also, interrupt and action rather than start and stop, what was I thinking???
     */
-  case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit])
+  case class InterruptableAction[F[_]](interrupt: F[Unit], action: F[Unit]){
+    def start = action
+    def stop = interrupt
+  }
   object InterruptableAction {
     def apply[F[_]: Concurrent](a: Stream[F,Unit]): F[InterruptableAction[F]] = {
       val interrupted = SignallingRef[F,Boolean](false)
@@ -929,6 +922,7 @@ object utilz {
     def go(s: Stream[F,O]): Pull[F,O,Unit] =
       s.pull.uncons.flatMap {
         case Some((o, tl)) => Pull.output(o) >> go(tl)
+        case None => Pull.done
       }
 
     s => init(s).stream.concurrently(warnSource)
