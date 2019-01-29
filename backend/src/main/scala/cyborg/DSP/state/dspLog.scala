@@ -1,172 +1,172 @@
-package cyborg
+// package cyborg
 
-import utilz._
-import HttpClient._
-import fs2._
-import cats._
-import cats.effect._
-import DspRegisters._
-
-
-object DspLog {
-  import HttpClient.DSP._
-
-  def parseStimulus(logEntry: List[Int]): String =
-    s"stimulus entry:\n 0x${logEntry(0).toHexString.toUpperCase()} <- 0x${logEntry(1).toHexString.toUpperCase()} - 0b${BitDrawing.as32BinarySpaced(logEntry(1))}\tstimulus.c: ${logEntry(2)}\n-------\n\n"
-
-  def parseSQbooking(logEntry: List[Int]): String =
-    s"stim queue BOOKING:\n" +
-      s"at timestep ${logEntry(2)} stim group ${logEntry(0)} booked DAC pair ${logEntry(1)}"
-
-  def parseSQstateChange(logEntry: List[Int]): String = {
-    val stateDescription =
-      if(logEntry(0) == 0) "IDLE"
-      else if(logEntry(0) == 1) "PRIMED"
-      else "FIRING"
-
-    s"stim queue STATE CHANGE:\n" +
-      s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} changed state to ${stateDescription}"
-  }
-
-  def parseSQconfReset(logEntry: List[Int]): String =
-    s"stim queue CONF RESET:\n" +
-      s"at timestep ${logEntry(1)} DAC pair ${logEntry(0)} got a conf reset"
-
-  def parseSQconfStart(logEntry: List[Int]): String =
-    s"stim queue CONF START:\n" +
-      s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} was configured to stim group ${logEntry(1)}"
+// import utilz._
+// import HttpClient._
+// import fs2._
+// import cats._
+// import cats.effect._
+// import DspRegisters._
 
 
-  def parseInstructionReceived(logEntry: List[Int]): String =
-    s"comms received instruction\n" +
-      s"instruction type was ${logEntry(0)}, top instruction id was ${logEntry(1)}"
+// object DspLog {
+//   import HttpClient.DSP._
+
+//   def parseStimulus(logEntry: List[Int]): String =
+//     s"stimulus entry:\n 0x${logEntry(0).toHexString.toUpperCase()} <- 0x${logEntry(1).toHexString.toUpperCase()} - 0b${BitDrawing.as32BinarySpaced(logEntry(1))}\tstimulus.c: ${logEntry(2)}\n-------\n\n"
+
+//   def parseSQbooking(logEntry: List[Int]): String =
+//     s"stim queue BOOKING:\n" +
+//       s"at timestep ${logEntry(2)} stim group ${logEntry(0)} booked DAC pair ${logEntry(1)}"
+
+//   def parseSQstateChange(logEntry: List[Int]): String = {
+//     val stateDescription =
+//       if(logEntry(0) == 0) "IDLE"
+//       else if(logEntry(0) == 1) "PRIMED"
+//       else "FIRING"
+
+//     s"stim queue STATE CHANGE:\n" +
+//       s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} changed state to ${stateDescription}"
+//   }
+
+//   def parseSQconfReset(logEntry: List[Int]): String =
+//     s"stim queue CONF RESET:\n" +
+//       s"at timestep ${logEntry(1)} DAC pair ${logEntry(0)} got a conf reset"
+
+//   def parseSQconfStart(logEntry: List[Int]): String =
+//     s"stim queue CONF START:\n" +
+//       s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} was configured to stim group ${logEntry(1)}"
 
 
-  def parseSQstates(logEntry: List[Int]): String = {
-
-    val electrodes = logEntry.take(2).zipWithIndex.map{ case(entry,idx) =>
-      s"electrodes $idx state ${BitDrawing.as32BinarySpaced(entry)}"}
-
-    def parseDACstate(word: Int): String = BitDrawing.as32BinarySpaced(word: Int)
-
-    val DACs = logEntry.drop(2).take(4).zipWithIndex.map{ case(entry,idx) =>
-      s"DAC $idx state: ${parseDACstate(entry)}"}
-
-    def parseElectrodeMode(word: Int): String = BitDrawing.as32BinarySpaced(word)
-
-    val modes = logEntry.drop(6).take(4).zipWithIndex.map{ case(entry,idx) =>
-      s"DAC $idx mode: ${parseElectrodeMode(entry)}"}
-
-    s"stim queue STATE DUMP:\n" +
-      s"at timestep ${logEntry.last} the state of stim related registers looks like\n\n" +
-      "electrodes:\n" +
-      electrodes.mkString("","\n","\n\n") +
-      "DACs:\n" +
-      DACs.mkString("","\n","\n\n") +
-      "DAC modes:\n" +
-      modes.mkString("","\n","\n")
-  }
-
-  def parseSQtriggerFired(logEntry: List[Int]): String =
-    s"stim queue TRIGGER FIRED\n" +
-      s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} triggered trigger ${logEntry(1)}"
-
-  def parseSQcanary(logEntry: List[Int]): String =
-    s"stim queue CANARY\n" +
-      s"confirming sq liveness at ${logEntry(0)} timesteps"
-
-  def unnamed(logEntry: List[Int]): String =
-    s"unnamed call with value ${logEntry(0)}"
+//   def parseInstructionReceived(logEntry: List[Int]): String =
+//     s"comms received instruction\n" +
+//       s"instruction type was ${logEntry(0)}, top instruction id was ${logEntry(1)}"
 
 
-  def parseSGstate(logEntry: List[Int]): String = {
+//   def parseSQstates(logEntry: List[Int]): String = {
 
-    s"stim queue STIM REQUEST ${logEntry(0)} STATE:\n" +
-      s"stim request is ${if(logEntry(5) == 0) "INACTIVE" else "ACTIVE"}\n" +
-      s"elec 0: ${BitDrawing.as32BinarySpaced(logEntry(1))}\n" +
-      s"elec 1: ${BitDrawing.as32BinarySpaced(logEntry(2))}\n" +
-      s"period: ${logEntry(3)}\n" +
-      s"next firing: ${logEntry(4)}\n" +
-      s"at timestep: ${logEntry(6)}\n"
-  }
+//     val electrodes = logEntry.take(2).zipWithIndex.map{ case(entry,idx) =>
+//       s"electrodes $idx state ${BitDrawing.as32BinarySpaced(entry)}"}
 
-  def parseDACstate(logEntry: List[Int]): String = {
+//     def parseDACstate(word: Int): String = BitDrawing.as32BinarySpaced(word: Int)
 
-    s"stim queue DAC PAIR ${logEntry(0)} STATE:\n" +
-      s"elec 0: ${BitDrawing.as32BinarySpaced(logEntry(1))}\n" +
-      s"elec 1: ${BitDrawing.as32BinarySpaced(logEntry(2))}\n" +
-      s"state: ${logEntry(3)}\n" +
-      s"next state change: ${logEntry(4)}\n" +
-      s"at timestep: ${logEntry(5)}\n"
-  }
+//     val DACs = logEntry.drop(2).take(4).zipWithIndex.map{ case(entry,idx) =>
+//       s"DAC $idx state: ${parseDACstate(entry)}"}
 
-  def parseMODE_SET(logEntry: List[Int]): String = {
-    s"after mode select ${logEntry(0)}\n" +
-      s"0 : ${logEntry(1)}\n" +
-      s"0 : ${logEntry(2)}\n" +
-      s"0 : ${logEntry(3)}\n" +
-      s"0 : ${logEntry(4)}\n"
-  }
+//     def parseElectrodeMode(word: Int): String = BitDrawing.as32BinarySpaced(word)
 
-  val logHandlers = Map[Int, (List[Int] => String)](
+//     val modes = logEntry.drop(6).take(4).zipWithIndex.map{ case(entry,idx) =>
+//       s"DAC $idx mode: ${parseElectrodeMode(entry)}"}
 
-    1  -> parseMODE_SET,
-    10 -> parseInstructionReceived,
-  )
+//     s"stim queue STATE DUMP:\n" +
+//       s"at timestep ${logEntry.last} the state of stim related registers looks like\n\n" +
+//       "electrodes:\n" +
+//       electrodes.mkString("","\n","\n\n") +
+//       "DACs:\n" +
+//       DACs.mkString("","\n","\n\n") +
+//       "DAC modes:\n" +
+//       modes.mkString("","\n","\n")
+//   }
 
+//   def parseSQtriggerFired(logEntry: List[Int]): String =
+//     s"stim queue TRIGGER FIRED\n" +
+//       s"at timestep ${logEntry(2)} DAC pair ${logEntry(0)} triggered trigger ${logEntry(1)}"
 
-  var entries = 0
-  def getDspLog: IO[RegisterReadResponse] = {
-    for {
-      items           <- readRegistersRequest(RegisterReadList( List(LOG_ENTRIES)) )
-      _               =  say(s"old entries value: $entries")
-      entryStartPoint =  items.values.head - entries
-      nextEntries     =  items.values.head
-      _               =  say(s"reading log with entry startpoint: $entryStartPoint, entries: $entries")
-      resp            <- readRegistersRequest(RegisterReadList( (entryStartPoint until nextEntries).map(z => (z*4 + LOG_START)).toList ))
-    } yield {
-      entries = nextEntries
-      resp
-    }
-  }
+//   def parseSQcanary(logEntry: List[Int]): String =
+//     s"stim queue CANARY\n" +
+//       s"confirming sq liveness at ${logEntry(0)} timesteps"
+
+//   def unnamed(logEntry: List[Int]): String =
+//     s"unnamed call with value ${logEntry(0)}"
 
 
-  def readLogEntry(log: List[Int]): (List[Int], String) = {
+//   def parseSGstate(logEntry: List[Int]): String = {
 
-    // Reads the head of the log and peels away one log entry based on it.
-    def chomp(log: List[Int]): (List[Int], List[Int]) =
-      (log.tail.take(log.head), log.tail.drop(log.head))
+//     s"stim queue STIM REQUEST ${logEntry(0)} STATE:\n" +
+//       s"stim request is ${if(logEntry(5) == 0) "INACTIVE" else "ACTIVE"}\n" +
+//       s"elec 0: ${BitDrawing.as32BinarySpaced(logEntry(1))}\n" +
+//       s"elec 1: ${BitDrawing.as32BinarySpaced(logEntry(2))}\n" +
+//       s"period: ${logEntry(3)}\n" +
+//       s"next firing: ${logEntry(4)}\n" +
+//       s"at timestep: ${logEntry(6)}\n"
+//   }
 
-    def parseEntry(entry: List[Int]): String = {
-      logHandlers(entry.head)(entry.tail)
-    }
+//   def parseDACstate(logEntry: List[Int]): String = {
 
-    val (head, remainder) = chomp(log)
-    (remainder, parseEntry(head))
-  }
+//     s"stim queue DAC PAIR ${logEntry(0)} STATE:\n" +
+//       s"elec 0: ${BitDrawing.as32BinarySpaced(logEntry(1))}\n" +
+//       s"elec 1: ${BitDrawing.as32BinarySpaced(logEntry(2))}\n" +
+//       s"state: ${logEntry(3)}\n" +
+//       s"next state change: ${logEntry(4)}\n" +
+//       s"at timestep: ${logEntry(5)}\n"
+//   }
 
+//   def parseMODE_SET(logEntry: List[Int]): String = {
+//     s"after mode select ${logEntry(0)}\n" +
+//       s"0 : ${logEntry(1)}\n" +
+//       s"0 : ${logEntry(2)}\n" +
+//       s"0 : ${logEntry(3)}\n" +
+//       s"0 : ${logEntry(4)}\n"
+//   }
 
-  def readLog(log: List[Int]): List[String] = {
-    def helper(log: List[Int], descriptions: List[String]): List[String] = log match {
-      case h::t => {
-        val (remainder, description) = readLogEntry(log)
-        helper(remainder, description :: descriptions)
-      }
-      case _ => descriptions
-    }
+//   val logHandlers = Map[Int, (List[Int] => String)](
 
-    helper(log, List[String]()).reverse
-  }
-
-
-  def printLog(log: List[Int]): String = {
-    val entries = readLog(log)
-    s"DSP log with ${entries.size} entries:" + entries.mkString("\n", "\n------\n\n\n", "\n")
-  }
+//     1  -> parseMODE_SET,
+//     10 -> parseInstructionReceived,
+//   )
 
 
-  def printDspLog: IO[Unit] = for {
-    entries <- getDspLog
-    _       <- IO { say(printLog(entries.values)) }
-  } yield ()
-}
+//   var entries = 0
+//   def getDspLog: IO[RegisterReadResponse] = {
+//     for {
+//       items           <- readRegistersRequest(RegisterReadList( List(LOG_ENTRIES)) )
+//       _               =  say(s"old entries value: $entries")
+//       entryStartPoint =  items.values.head - entries
+//       nextEntries     =  items.values.head
+//       _               =  say(s"reading log with entry startpoint: $entryStartPoint, entries: $entries")
+//       resp            <- readRegistersRequest(RegisterReadList( (entryStartPoint until nextEntries).map(z => (z*4 + LOG_START)).toList ))
+//     } yield {
+//       entries = nextEntries
+//       resp
+//     }
+//   }
+
+
+//   def readLogEntry(log: List[Int]): (List[Int], String) = {
+
+//     // Reads the head of the log and peels away one log entry based on it.
+//     def chomp(log: List[Int]): (List[Int], List[Int]) =
+//       (log.tail.take(log.head), log.tail.drop(log.head))
+
+//     def parseEntry(entry: List[Int]): String = {
+//       logHandlers(entry.head)(entry.tail)
+//     }
+
+//     val (head, remainder) = chomp(log)
+//     (remainder, parseEntry(head))
+//   }
+
+
+//   def readLog(log: List[Int]): List[String] = {
+//     def helper(log: List[Int], descriptions: List[String]): List[String] = log match {
+//       case h::t => {
+//         val (remainder, description) = readLogEntry(log)
+//         helper(remainder, description :: descriptions)
+//       }
+//       case _ => descriptions
+//     }
+
+//     helper(log, List[String]()).reverse
+//   }
+
+
+//   def printLog(log: List[Int]): String = {
+//     val entries = readLog(log)
+//     s"DSP log with ${entries.size} entries:" + entries.mkString("\n", "\n------\n\n\n", "\n")
+//   }
+
+
+//   def printDspLog: IO[Unit] = for {
+//     entries <- getDspLog
+//     _       <- IO { say(printLog(entries.values)) }
+//   } yield ()
+// }

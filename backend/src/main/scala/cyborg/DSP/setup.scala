@@ -2,7 +2,6 @@ package cyborg.dsp.calls
 import cats.data.Kleisli
 import cyborg._
 
-import HttpClient._
 import cyborg.twiddle.Reg
 import fs2._
 import cats._
@@ -16,11 +15,12 @@ import utilz._
 import bonus._
 import BitDrawing._
 
-import dsp.stimulus.WaveformGenerator
-import HttpClient.DSP._
-import DspCalls._
+import cyborg.dsp.calls.DspCalls._
 
-object DspSetup {
+class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
+
+  import client.DSP._
+  import calls._
 
   def stimuliRequestSink: ConfId[Sink[IO,(Int,Option[FiniteDuration])]] = Kleisli(
     conf => {
@@ -142,7 +142,7 @@ object DspSetup {
 
 
       for {
-        _ <- DspCalls.resetStimQueue
+        _ <- calls.resetStimQueue
         _ <- configureBlanking(
           conf.dsp.stimulusElectrodes.flatten,
           conf.dsp.blanking,
@@ -160,7 +160,7 @@ object DspSetup {
   def setup: ConfF[IO,Unit] = Kleisli(
     conf => {
       val flashAndResetDsp = for {
-        _ <- cyborg.dsp.DSP.flashDSP
+        _ <- client.DSP.flashDsp
         _ <- stopStimQueue
         _ <- resetStimQueue
       } yield ()

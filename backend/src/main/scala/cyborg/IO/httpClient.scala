@@ -1,11 +1,13 @@
 package cyborg
 
+import cats.data.Kleisli
 import cyborg.dsp.calls.DspCalls
 
 import cats.effect.IO
 import cats.effect._
 import cats.implicits._
 import org.http4s._
+import org.http4s.client.Client
 import org.http4s.dsl.io._
 import org.http4s.client.dsl.io._
 import org.http4s.client.blaze._
@@ -24,7 +26,7 @@ import utilz._
 
 import backendImplicits._
 
-object HttpClient {
+class MEAMEHttpClient[F[_]](c: Client[F]) {
 
   def buildUri(path: String): Uri = {
     val ip = params.Network.meameIP
@@ -45,11 +47,12 @@ object HttpClient {
   }
 
 
+  // TODO slated for removal
   def getMEAMEhealthCheck: IO[MEAMEstatus] = {
     val req = GET(buildUri("status"))
     val gogo = httpClient.expect[MEAMEhealth](req).flatMap { status =>
       if(status.dspAlive)
-        DspCalls.readElectrodeConfig.map(_ => MEAMEstatus(true, true, true))
+        IO(MEAMEstatus(true, true, true))
       else
         IO(MEAMEstatus(true, false, false))
     }
@@ -123,7 +126,7 @@ object HttpClient {
 
 
   // #YOLO
-  // TODO: This is janktastic.
+  // TODO: This is janktastic, but idc
   import org.http4s.client._
   import scala.concurrent.ExecutionContext
   import java.util.concurrent._

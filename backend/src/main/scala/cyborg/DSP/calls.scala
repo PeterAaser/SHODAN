@@ -2,7 +2,6 @@ package cyborg.dsp.calls
 import cats.data.Kleisli
 import cyborg._
 
-import HttpClient._
 import cyborg.twiddle.Reg
 import fs2._
 import cats._
@@ -17,10 +16,8 @@ import bonus._
 import BitDrawing._
 
 import dsp.stimulus.WaveformGenerator
-import HttpClient.DSP._
 
 object DspCalls {
-
 
   val DUMP                                 = 1
   val RESET                                = 2
@@ -43,6 +40,13 @@ object DspCalls {
     */
   implicit class FiniteDurationDSPext(t: FiniteDuration) { def toDSPticks = (t.toMicros/20).toInt }
   implicit class DSPIntOps(i: Int) { def fromDSPticks: FiniteDuration = (i*20).micros }
+}
+
+class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGenerator[F]) {
+
+  import DspCalls._
+  import client.DSP._
+
 
   val commitConfig = for {
     _ <- Fsay[IO](s"commiting config (dsp call $COMMIT_CONFIG)")
@@ -87,14 +91,14 @@ object DspCalls {
 
   def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
     _ <- Fsay[IO](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(0, period, amplitude))
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(1, period, amplitude))
-    _ <- uploadWave( WaveformGenerator.balancedSquareWave(2, period, amplitude))
+    _ <- uploadWave( waveformGenerator.balancedSquareWave(0, period, amplitude))
+    _ <- uploadWave( waveformGenerator.balancedSquareWave(1, period, amplitude))
+    _ <- uploadWave( waveformGenerator.balancedSquareWave(2, period, amplitude))
   } yield ()
 
   def uploadSineTest(period: FiniteDuration, amplitude: Int): IO[Unit] = for {
     _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
-    _ <- uploadWave( WaveformGenerator.sineWave(0, period, amplitude) )
+    _ <- uploadWave( waveformGenerator.sineWave(0, period, amplitude) )
   } yield ()
 
   val readElectrodeConfig: IO[String] = for {

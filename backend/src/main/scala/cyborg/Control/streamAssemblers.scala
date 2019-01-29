@@ -28,12 +28,18 @@ import scala.concurrent.duration._
 import backendImplicits._
 import RPCmessages._
 
+import org.http4s.client.blaze._
+import org.http4s.client._
+
+
 object Assemblers {
 
   /**
     Assembles the necessary components to start SHODAN
     */
-  def startSHODAN: Stream[IO, Unit] = {
+  def startSHODAN(httpClient: MEAMEHttpClient[IO]): Stream[IO, Unit] = {
+
+    val dsp = new cyborg.dsp.DSP(httpClient)
 
     for {
       stateServer       <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
@@ -53,7 +59,8 @@ object Assemblers {
       commandPipe       <- Stream.eval(ControlPipe.controlPipe(
                                          stateServer,
                                          configServer,
-                                         commandQueue))
+                                         commandQueue,
+                                         frontend))
 
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
       _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
@@ -63,18 +70,22 @@ object Assemblers {
     } yield ()
   }
 
+  val httpClient = BlazeClientBuilder[IO](ec).resource
+  val httpInStreamStream = Stream.eval(BlazeClientBuilder[IO](ec).resource)
+
 
   def assembleDBplayback    : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
   def assembleLiveNeuroData : Kleisli[IO,FullSettings,List[Topic[IO,TaggedSegment]]] = ???
 
   def assembleMazeRunner(
     broadcastSource : List[Topic[IO,TaggedSegment]],
-    agentTopic: Topic[IO,Agent])
+    agentTopic: Topic[IO,Agent],
+    dsp: cyborg.dsp.DSP[IO])
       : ConfF[Id,Stream[IO,Unit]] = Kleisli{ conf =>
 
     val perturbationSink: Sink[IO,List[Double]] =
       _.through(PerturbationTransform.toStimReq())
-        .to(cyborg.dsp.DSP.stimuliRequestSink(conf))
+        .to(dsp.stimuliRequestSink(conf))
 
     val mazeRunner = Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
     val gogo = mazeRunner(conf)
@@ -190,33 +201,28 @@ object Assemblers {
   }
 
 
-  def start(
-    programState: ProgramState,
+  def startBroadcast(
     configuration: FullSettings,
+    programState: ProgramState,
     topics: List[Topic[IO,TaggedSegment]],
-    rawSink: Sink[IO,Array[Int]]): IO[InterruptableTask[IO]] = {
+    rawSink: Sink[IO,Array[Int]]): IO[InterruptableAction[IO]] = {
 
     val configureMeamePlaceholder: Kleisli[IO,FullSettings,Unit] =
       Kleisli[IO,FullSettings,Unit](_ => IO(say("NYI, fix HTTP dawg")))
-
-    import cats.~>
-    val toIO: Id ~> IO = λ[Id ~> IO](IO.pure(_))
-
-    def broadcastDataStreamK(source: Stream[IO, TaggedSegment], topics: List[Topic[IO, TaggedSegment]], rawSink: Sink[IO, TaggedSegment]):
-        Kleisli[IO,FullSettings,InterruptableAction[IO]] =
-      Kleisli(c => broadcastDataStream(source, topics, rawSink))
 
 
     /**
       This must be run first since the kleisli for the DB case is actually a StateT in disguise!
       In english: The BD call alters the configuration, thus to ensure synchronized configs it
-      must be used first so that downstream configs match the playback
+      must be used first so that downstream configs match the playback.
+
+      Would be nice to change this I suppose, but it is what it is
       */
     val getAndBroadcastDatastream: Kleisli[IO,FullSettings,InterruptableAction[IO]] = programState.dataSource.get match {
         case Live => for {
           wat                 <- configureMeamePlaceholder
-          source              <- cyborg.io.Network.streamFromTCP.mapK(toIO)
-          frontendDownsampler <- assembleFrontendDownsampler.mapK(toIO)
+          source              <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
+          frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
           broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                       topics,
                                                       frontendDownsampler andThen rawSink))
@@ -224,7 +230,7 @@ object Assemblers {
 
         case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { source =>
           for {
-            frontendDownsampler <- assembleFrontendDownsampler.mapK(toIO)
+            frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
             broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                         topics,
                                                         frontendDownsampler andThen rawSink))
@@ -232,6 +238,6 @@ object Assemblers {
         }
       }
 
-    getAndBroadcastDatastream
+    getAndBroadcastDatastream(configuration)
   }
 }

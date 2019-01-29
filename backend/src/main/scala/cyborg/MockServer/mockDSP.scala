@@ -19,11 +19,12 @@ import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
 import scala.concurrent.duration._
 
-import cyborg.dsp.calls.DspCalls._
 import cyborg.DspRegisters._
 import cyborg.MEAMEmessages._
 
-import cyborg.HttpClient._
+import cyborg.dsp.calls.DspCalls._
+
+// import cyborg.HttpClient._
 import cyborg.utilz._
 
 object mockDSP {

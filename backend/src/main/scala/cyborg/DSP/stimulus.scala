@@ -6,12 +6,10 @@ import utilz._
 import cats.effect.IO
 
 import DspRegisters._
-import HttpClient.DSP._
 import bonus._
 
 
-object WaveformGenerator {
-
+class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
 
   /**
     A stimpoint represents a given voltage which should be driven for n ticks.
@@ -203,12 +201,7 @@ object WaveformGenerator {
                              }
     ).sequence.isDefined
 
-    import HttpClient._
-
-    // say(stimReset)
-    // say(stimUploads)
-    // say(SBSReset)
-    // say(SBSUploads)
+    import client.DSP._
 
     if(isValid)
       for {

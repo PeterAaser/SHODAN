@@ -22,7 +22,6 @@ import scala.concurrent.duration.FiniteDuration
 import cyborg.bonus._
 import scala.concurrent.duration._
 
-import cyborg.HttpClient._
 import cyborg.utilz._
 import cyborg.MEAMEmessages._
 import cyborg.bonus._

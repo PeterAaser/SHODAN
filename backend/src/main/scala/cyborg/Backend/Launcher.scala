@@ -1,23 +1,28 @@
 package cyborg.backend
 
-import fs2.concurrent.Broadcast
+import fs2._
+import org.http4s.client.blaze.BlazeClientBuilder
+import org.http4s.client.Client
 import scala.concurrent.duration._
 
 import cyborg._
 import scala.util.Random
 import utilz._
+
+import cats._
 import cats.effect._
-import fs2._
-import backendImplicits._
+import cats.implicits._
 
-import cyborg.dsp.calls.DspCalls._
+import scala.concurrent.ExecutionContext
 
+object Launcher extends IOApp {
 
-object Launcher {
-  def main(args: Array[String]): Unit = {                                                                                                       say("wello")
+  val client = BlazeClientBuilder[IO](ExecutionContext.global).resource
 
-    // Assemblers.startSHODAN.compile.drain.unsafeRunSync()
-    MemeFactory.doIt
+  def run(args: List[String]): IO[ExitCode] = {                                                                                                       say("wello")
 
+    client.use{ c =>
+      Assemblers.startSHODAN(new MEAMEHttpClient[IO](c)).compile.drain.as(ExitCode.Success)
+    }
   }
 }
