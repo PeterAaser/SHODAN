@@ -18,15 +18,15 @@ import Settings._
 
 import cyborg.dsp.calls.DspCalls._
 
-class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
+class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
 
   import client.DSP._
   import calls._
 
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[IO,(Int,Option[FiniteDuration])]] = Kleisli(
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[F,(Int,Option[FiniteDuration])]] = Kleisli(
     conf => {
-      def sink: Sink[IO, (Int,Option[FiniteDuration])] = {
-        def go(s: Stream[IO, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[IO, Unit, Unit] = {
+      def sink: Sink[F, (Int,Option[FiniteDuration])] = {
+        def go(s: Stream[F, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
           s.pull.uncons1.flatMap {
             case Some(((idx, Some(period)), tl)) if !state(idx) =>
               Pull.eval(stimGroupChangePeriod(idx, period)) >>
@@ -53,7 +53,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
         ).stream
       }
 
-      sink: Id[Sink[IO,(Int,Option[FiniteDuration])]]
+      sink: Id[Sink[F,(Int,Option[FiniteDuration])]]
     })
 
 
@@ -72,7 +72,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
 
     And yes, the difference between blanking and blanking protection escapes me
     */
-  def configureElectrodes: Kleisli[IO,FullSettings,Unit] = Kleisli(
+  def configureElectrodes: Kleisli[F,FullSettings,Unit] = Kleisli(
     conf => {
 
       /**
@@ -108,7 +108,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
         Toggles blanking on supplied electrodes. If an empty list is passed
         this is equivalent to untoggling blanking for all electrodes.
         */
-      def configureBlanking(electrodes: List[Int], blanking: Boolean, blankingProtection: Boolean): IO[Unit] = {
+      def configureBlanking(electrodes: List[Int], blanking: Boolean, blankingProtection: Boolean): F[Unit] = {
         val elec0 = electrodes
           .filter(_ < 30).foldLeft(0){ case(acc, channel) => acc + (1 << channel) }
 
@@ -158,7 +158,7 @@ class DspSetup[F[_]](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     ////////////////////////////////////////////////////////////////////////////////
 
 
-  def setup: Kleisli[IO,FullSettings,Unit] = Kleisli(
+  def setup: Kleisli[F,FullSettings,Unit] = Kleisli(
     conf => {
       val flashAndResetDsp = for {
         _ <- client.DSP.flashDsp

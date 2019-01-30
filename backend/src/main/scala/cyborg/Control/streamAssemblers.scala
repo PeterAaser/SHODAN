@@ -239,4 +239,12 @@ object Assemblers {
     val startAndBroadcastK = client.startMEAMEserver >> getAndBroadcastDatastream
     startAndBroadcastK(configuration)
   }
+
+
+  def initProgramState(client: MEAMEHttpClient[IO]): IO[ProgramState] = {
+    val init = ProgramState()
+
+    ???
+  }
+
 }

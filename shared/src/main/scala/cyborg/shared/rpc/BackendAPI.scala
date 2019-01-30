@@ -25,7 +25,6 @@ trait MainServerRPC {
 
   def getRecordings(): Future[List[RecordingInfo]]
 
-
   def startRecording() : Unit
   def stopRecording()  : Unit
 

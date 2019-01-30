@@ -1,5 +1,7 @@
 package cyborg
 
+import io.udash.properties.model.ModelProperty
+import io.udash.properties.single.Property
 import org.scalajs.dom.raw.Console
 import scala.language.higherKinds
 import scala.reflect.ClassTag
@@ -18,4 +20,10 @@ object frontilz {
     g.console.log("%c[%s]%c%s", "color: #fff600; background: #333333", s"${fname}: ${sourcecode.Line()}", "color: #e0e0e0; background: #333333", s" ## $word" + " "*rightPad)
   }
 
+  implicit class PropertyOps[A](p: Property[A]){
+    def modify(f: A => A): Unit = {
+      val a = p.get
+      p.set(f(a))
+    }
+  }
 }

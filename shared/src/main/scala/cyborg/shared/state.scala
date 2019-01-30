@@ -4,20 +4,30 @@ import cyborg._
 
 import com.avsystem.commons.serialization.HasGenCodec
 import com.avsystem.commons.serialization.GenCodec
+import io.udash.properties.HasModelPropertyCreator
+import io.udash.rpc.HasGenCodecAndModelPropertyCreator
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext
-
+import cats.kernel.Eq
 object State {
 
   import Settings._
-
 
   case class ProgramState(
     dataSource        : Option[DataSource],
     currentExperiment : Option[CurrentExperiment],
     dsp               : DSPstate,
     meame             : MEAMEstate,
-    isRunning         : Boolean)
+    isRecording       : Boolean,
+    isRunning         : Boolean){
+
+    val canStart         = (meame.alive && dsp.isFlashed && dsp.dspResponds && !isRunning)
+    val canStop          = isRunning
+    val canRecord        = dataSource.map{ case Live => isRunning }.getOrElse(false) && !isRecording
+    val canStopRecording = isRecording
+    val canFlash         = !dsp.isFlashed
+
+  }
 
   case class DSPstate(
     isFlashed   : Boolean = false,
@@ -37,12 +47,13 @@ object State {
 
   object DataSource extends HasGenCodec[DataSource]
   object CurrentExperiment extends HasGenCodec[CurrentExperiment]
-  object ProgramState extends HasGenCodec[ProgramState] {
+  object ProgramState extends HasGenCodecAndModelPropertyCreator[ProgramState] {
     def apply(): ProgramState = ProgramState(
       None,
       None,
       DSPstate.default,
       MEAMEstate.default,
+      false,
       false
     )
   }
@@ -53,6 +64,8 @@ object State {
 
   sealed trait CurrentExperiment
   case object Maze extends CurrentExperiment
+
+  implicit val eqPS: Eq[ProgramState] = Eq.fromUniversalEquals
 }
 
 object Settings {
@@ -183,7 +196,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
   }
 
 
-  object FullSettings extends HasGenCodec[FullSettings] {
+  object FullSettings extends HasGenCodecAndModelPropertyCreator[FullSettings] {
     val default = FullSettings(
       DAQSettings.default,
       ReadoutSettings.default,
@@ -193,4 +206,6 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       SourceSettings.mock
     )
   }
+
+  implicit val eqFS: Eq[FullSettings] = Eq.fromUniversalEquals
 }

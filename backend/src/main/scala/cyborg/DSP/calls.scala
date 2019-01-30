@@ -42,67 +42,67 @@ object DspCalls {
   implicit class DSPIntOps(i: Int) { def fromDSPticks: FiniteDuration = (i*20).micros }
 }
 
-class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGenerator[F]) {
+class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: WaveformGenerator[F]) {
 
   import DspCalls._
   import client.DSP._
 
 
   val commitConfig = for {
-    _ <- Fsay[IO](s"commiting config (dsp call $COMMIT_CONFIG)")
+    _ <- Fsay[F](s"commiting config (dsp call $COMMIT_CONFIG)")
     _ <- dspCall( COMMIT_CONFIG ).void
   } yield ()
 
-  val startStimQueue: IO[Unit] = for {
-    _ <- Fsay[IO](s"start stim queue (dsp call $START_STIM_QUEUE)\nSTIM QUEUE IS NOW LIVE! #YOLO")
+  val startStimQueue: F[Unit] = for {
+    _ <- Fsay[F](s"start stim queue (dsp call $START_STIM_QUEUE)\nSTIM QUEUE IS NOW LIVE! #YOLO")
     _ <- dspCall(START_STIM_QUEUE).void
   } yield ()
 
-  val stopStimQueue: IO[Unit] = for {
-    _ <- Fsay[IO](s"Stop stim queue (dsp call $STOP_STIM_QUEUE)")
+  val stopStimQueue: F[Unit] = for {
+    _ <- Fsay[F](s"Stop stim queue (dsp call $STOP_STIM_QUEUE)")
     _ <- dspCall(STOP_STIM_QUEUE).void
   } yield ()
 
-  val resetStimQueue: IO[Unit] = for {
-    _ <- Fsay[IO](s"reset stim queue (dsp call $RESET")
+  val resetStimQueue: F[Unit] = for {
+    _ <- Fsay[F](s"reset stim queue (dsp call $RESET")
     _ <- dspCall(RESET).void
   } yield ()
 
-  def stimGroupChangePeriod(group: Int, period: FiniteDuration): IO[Unit] = for {
+  def stimGroupChangePeriod(group: Int, period: FiniteDuration): F[Unit] = for {
     _ <- dspCall(SET_ELECTRODE_GROUP_PERIOD,
                  group -> STIM_QUEUE_GROUP,
                  period.toDSPticks -> STIM_QUEUE_PERIOD ).void
   } yield ()
 
-  def enableStimReqGroup(group: Int): IO[Unit] = for {
+  def enableStimReqGroup(group: Int): F[Unit] = for {
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
 
-  def disableStimReqGroup(group: Int): IO[Unit] = for {
+  def disableStimReqGroup(group: Int): F[Unit] = for {
     _ <- dspCall(DISABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
 
-  def uploadWave(upload: IO[Unit]): IO[Unit] = for {
+  def uploadWave(upload: F[Unit]): F[Unit] = for {
     _ <- stopStimQueue
     _ <- upload
   } yield ()
 
-  def uploadSquareTest(period: FiniteDuration, amplitude: mV): IO[Unit] = for {
-    _ <- Fsay[IO](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
+  def uploadSquareTest(period: FiniteDuration, amplitude: mV): F[Unit] = for {
+    _ <- Fsay[F](s"Uploading balanced square wave. period: $period, amplitude: ${amplitude}mV")
     _ <- uploadWave( waveformGenerator.balancedSquareWave(0, period, amplitude))
     _ <- uploadWave( waveformGenerator.balancedSquareWave(1, period, amplitude))
     _ <- uploadWave( waveformGenerator.balancedSquareWave(2, period, amplitude))
   } yield ()
 
-  def uploadSineTest(period: FiniteDuration, amplitude: Int): IO[Unit] = for {
-    _ <- Fsay[IO](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
+  def uploadSineTest(period: FiniteDuration, amplitude: Int): F[Unit] = for {
+    _ <- Fsay[F](s"Uploading square wave. period: $period, amplitude: ${amplitude}mV")
     _ <- uploadWave( waveformGenerator.sineWave(0, period, amplitude) )
   } yield ()
 
-  val readElectrodeConfig: IO[String] = for {
-    _ <- Fsay[IO](s"reading electrode config")
+  val readElectrodeConfig: F[String] = for {
+    _ <- Fsay[F](s"reading electrode config")
     _ <- dspCall(COMMIT_CONFIG_DEBUG)
     config <- readRegistersRequest(
       RegisterReadList(List(
@@ -132,7 +132,7 @@ class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGene
       ).mkString("\n","\n","\n")
     }
 
-  val readDebug: IO[Unit] = for {
+  val readDebug: F[Unit] = for {
     dbg <- readRegistersRequest(
       RegisterReadList(
         List(
@@ -141,10 +141,10 @@ class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGene
           DEBUG3,
           DEBUG4
         )))
-    _ <- Fsay[IO](s"\nhere's some debug:\n$dbg")
+    _ <- Fsay[F](s"\nhere's some debug:\n$dbg")
   } yield ()
 
-  val readStimQueueState: IO[Unit] = for {
+  val readStimQueueState: F[Unit] = for {
     _ <- dspCall(WRITE_SQ_DEBUG)
     electrodes <- readRegistersRequest(
       RegisterReadList(
@@ -161,7 +161,7 @@ class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGene
           STIM_REQ3_PERIOD,
           STIM_REQ3_NEXT_FIRING_TIMESTEP
         )))
-    _ <- Fsay[IO]{
+    _ <- Fsay[F]{
       List(
         "STIM QUEUE CFG IS:",
         s"SQ 1: Active:\t\t${electrodes.asMap(Reg(STIM_REQ1_ACTIVE)).w}",
@@ -177,26 +177,26 @@ class DspCalls[F[_]](client: MEAMEHttpClient[F], waveformGenerator: WaveformGene
     }
   } yield ()
 
-  val sayElectrodeConfig: IO[Unit] = for {
+  val sayElectrodeConfig: F[Unit] = for {
     cfg <- readElectrodeConfig
-    _ <- Fsay[IO](cfg)
+    _ <- Fsay[F](cfg)
   } yield ()
 
-  val checkShotsFired: IO[Unit] = for {
+  val checkShotsFired: F[Unit] = for {
     s <- readRegistersRequest(RegisterReadList(List(SHOTS_FIRED)))
-    _ <- Fsay[IO](s"shots fired: $s")
+    _ <- Fsay[F](s"shots fired: $s")
   } yield ()
 
-  val checkForErrors: IO[Option[String]] = for {
+  val checkForErrors: F[Option[String]] = for {
     error <- readRegistersRequest(RegisterReadList(List(ERROR_FLAG)))
   } yield {
       if(error.values.head == 0) None
       else Some(lookupErrorName(error.values.head))
   }
 
-  val checkSteps: IO[Unit] = for {
+  val checkSteps: F[Unit] = for {
     steps <- readRegistersRequest(RegisterReadList(List(STEP_COUNTER)))
-    _ <- Fsay[IO](s"steps taken $steps")
+    _ <- Fsay[F](s"steps taken $steps")
   } yield ()
 
 

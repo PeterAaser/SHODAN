@@ -1,5 +1,7 @@
 package cyborg.frontend.views
 
+import cyborg.State._
+import cyborg.Settings._
 import cyborg.wallAvoid.Agent
 import io.udash.bootstrap.form.UdashInputGroup
 import org.scalajs.dom.html.Input
@@ -25,6 +27,10 @@ import org.scalajs.dom.document
 import org.scalajs.dom.html
 import scalatags.generic.TypedTag
 
+
+/**
+  The visual elements such as buttons and shit go here
+  */
 class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanvas: html.Canvas, agentCanvas: html.Canvas) extends ContainerView with CssView {
 
   val rangeUp = UdashButton()(Icons.FontAwesome.plus)
@@ -35,8 +41,6 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
   val stopRecordButton = UdashButton()(Icons.FontAwesome.timesCircle)
   val stopButton = UdashButton()(Icons.FontAwesome.square)
 
-  val hurr = ButtonStyle
-
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
   recordButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRecordClicked(btn) }
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onStopClicked(btn) }
@@ -45,14 +49,13 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
   rangeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRangeUpClicked(btn) }
   rangeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onRangeDownClicked(btn) }
 
-  model.streamTo( playButton.disabled, initUpdate = true)(m => !m.canPlay)
-  model.streamTo( recordButton.disabled, initUpdate = true)(m => !m.canRecord)
-  model.streamTo( stopRecordButton.disabled, initUpdate = true)(m => m.canRecord)
-  model.streamTo( stopButton.disabled, initUpdate = true)(m => !m.canStop)
+  model.streamTo( playButton.disabled, initUpdate = true)(m => !m.state.canStart)
+  model.streamTo( recordButton.disabled, initUpdate = true)(m => !m.state.canRecord)
+  model.streamTo( stopRecordButton.disabled, initUpdate = true)(m => m.state.canStopRecording)
+  model.streamTo( stopButton.disabled, initUpdate = true)(m => !m.state.canStop)
 
   val uploadButton = UdashButton()("flash DSP")
   val stopTestButton = UdashButton()("stop test")
-
 
   override def getTemplate: Modifier = {
     div(
@@ -62,15 +65,15 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
       wfCanvas.render,
       agentCanvas.render,
       playButton.render,
-      showIf(model.subProp(_.isRecording).transform(!_))(recordButton.render),
-      showIf(model.subProp(_.isRecording))(stopRecordButton.render),
+      showIf(model.subProp(_.state.isRecording).transform(!_))(recordButton.render),
+      showIf(model.subProp(_.state.isRecording))(stopRecordButton.render),
       stopButton.render,
       ul(
-        li(p("is running"), bind(model.subProp(_.isRunning))).render,
-        li(p("is recording"), bind(model.subProp(_.isRecording))).render,
-        li(p("can play"), bind(model.transform(_.canPlay))).render,
-        li(p("can stop"), bind(model.transform(_.canStop))).render,
-        li(p("can record"), bind(model.transform(_.canRecord))).render,
+        li(p("is running"), bind(model.subProp(_.state.isRunning))).render,
+        li(p("is recording"), bind(model.subProp(_.state.isRecording))).render,
+        li(p("can play"), bind(model.transform(_.state.canStart))).render,
+        li(p("can stop"), bind(model.transform(_.state.canStop))).render,
+        li(p("can record"), bind(model.transform(_.state.canRecord))).render,
         ),
       childViewContainer
     ),
@@ -78,6 +81,11 @@ class LiveView(model: ModelProperty[LiveModel], presenter: LivePresenter, wfCanv
 }
 
 
+/**
+  The logic for handling what happens when buttons are pressed and stuff
+  A middle man between the passive view and the model.
+  Also handles the canvases because of reasons
+  */
 class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agentCanvas: html.Canvas) extends Presenter[LiveState.type] {
 
   import cyborg.frontend.services.rpc._
@@ -87,10 +95,23 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   agentQueue.enqueue(Agent.init)
 
-  def onPlayClicked(btn: UdashButton) = {
-    say("play canvas clicked")
-    say("*does nothing*")
+
+  def onPlayClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
+    s.copy(isRunning = true)
   }
+
+  def onRecordClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
+    s.copy(isRecording = true)
+  }
+
+  def onStopClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
+    s.copy(isRunning = false, isRecording = false)
+  }
+
+  def onStopRecordingClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
+    s.copy(isRecording = false)
+  }
+
 
   def onRangeUpClicked(btn: UdashButton) = {
     val current = wf.getMaxVal
@@ -104,27 +125,29 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
       wf.setMaxVal(current*2)
   }
 
-  def onRecordClicked(btn: UdashButton) = {
-    say("*does nothing*")
+
+  val stateListener = model.subProp(_.state).listen{ s =>
+    Context.serverRpc.setSHODANstate(s)
   }
 
 
-  // Should stop visualizing as well, but it don't
-  def onStopClicked(btn: UdashButton) = {
-    wfQueue.clear()
-    say("*does nothing*")
-  }
 
-  def onStopRecordingClicked(btn: UdashButton) = {
-    say("*does nothing*")
-  }
-
+  /**
+    grep null hello
+    */
   var wf: cyborg.waveformVisualizer.WFVisualizerControl = null
   var ag: cyborg.Visualizer.VisualizerControl = null
 
+  /**
+    This handles URL state, not model state. Think
+    /users/
+    /users/dave
+    /users/john
+    */
   override def handleState(state: LiveState.type): Unit = {
     wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
     ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+    Context.serverRpc.register
   }
 }
 
@@ -136,7 +159,7 @@ case object LiveViewFactory extends ViewFactory[LiveState.type] {
     val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
     val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
-    val model = ModelProperty( LiveModel(false, false, RecordingForm()) )
+    val model = ModelProperty( LiveModel(ProgramState(), FullSettings.default) )
     val presenter = new LivePresenter(model, wfCanvas, agentCanvas)
     val view = new LiveView(model, presenter, wfCanvas, agentCanvas)
     (view, presenter)
@@ -144,12 +167,5 @@ case object LiveViewFactory extends ViewFactory[LiveState.type] {
 }
 
 
-case class LiveModel(isRunning: Boolean, isRecording: Boolean, recFormInfo: RecordingForm){
-  def canPlay = !isRunning
-  def canRecord = isRunning && !isRecording
-  def canStop = isRunning
-}
+case class LiveModel(state: ProgramState, conf: FullSettings)
 object LiveModel extends HasModelPropertyCreator[LiveModel]
-
-case class RecordingForm(comment: String = "No description provided", cultureId: Option[Int] = None)
-object RecordingForm extends HasModelPropertyCreator[RecordingForm]

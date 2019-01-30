@@ -1,15 +1,16 @@
 package cyborg.dsp.stimulus
+import cats.MonadError
+import cats.effect.{ ContextShift, Sync }
 import cyborg._
 
 import scala.concurrent.duration._
 import utilz._
-import cats.effect.IO
 
 import DspRegisters._
 import bonus._
 
 
-class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
+class WaveformGenerator[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
   /**
     A stimpoint represents a given voltage which should be driven for n ticks.
@@ -140,7 +141,7 @@ class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
     duration: FiniteDuration,
     channel: Int,
     generator: FiniteDuration => mV,
-    repeats: Int = 1): IO[Unit] =
+    repeats: Int = 1): F[Unit] =
   {
 
     val mcsChannel = channel*2
@@ -212,14 +213,14 @@ class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
       } yield ()
     else
       for {
-        _ <- Fsay[IO]("!!!! STIMULUS IS OUT OF RANGE")
-        _ <- Fsay[IO]("Here's a mike pence error asshole")
-        _ <- IO.raiseError(new Exception("Mike Pence error"))
+        _         <- Fsay[F]("!!!! STIMULUS IS OUT OF RANGE")
+        _         <- Fsay[F]("Here's a mike pence error asshole")
+        _:F[Unit] <- Sync[F].raiseError(new Exception("Mike Pence error"))
       } yield ()
   }
 
 
-  def sineWave(channel: Int, period: FiniteDuration, amplitude: mV): IO[Unit] = {
+  def sineWave(channel: Int, period: FiniteDuration, amplitude: mV): F[Unit] = {
 
     val w = 2.0*math.Pi/(period/1.second)
     val a = amplitude/mVperUnit
@@ -234,7 +235,7 @@ class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
     lowDuration: FiniteDuration,
     period: FiniteDuration,
     offset: mV,
-    amplitude: mV): IO[Unit] = {
+    amplitude: mV): F[Unit] = {
 
     val z: mV = 0
 
@@ -250,7 +251,7 @@ class WaveformGenerator[F[_]](client: MEAMEHttpClient[F]) {
   def balancedSquareWave(
     channel: Int,
     period: FiniteDuration,
-    amplitude: mV): IO[Unit] = {
+    amplitude: mV): F[Unit] = {
 
     val lowDuration: FiniteDuration = period/2
     def generator(t: FiniteDuration) = if (t > lowDuration) amplitude/2 else -(amplitude/2)

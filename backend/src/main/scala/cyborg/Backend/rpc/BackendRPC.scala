@@ -40,15 +40,26 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
                         conf: SignallingRef[IO,FullSettings])
                        (implicit ci: ClientId) extends MainServerRPC {
 
+  override def register : Unit = {
+    listeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
+  }
 
-  override def register   : Unit = listeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
   override def unregister : Unit = listeners.update(_.filter(_ == ci)).unsafeRunSync()
 
-  override def setSHODANstate(s: ProgramState)  : Future[Either[String, Unit]] = ???
-  override def setSHODANconfig(c: FullSettings) : Future[Unit] = ???
+  override def setSHODANstate(s: ProgramState) : Future[Either[String, Unit]] = {
+    state.set(s).unsafeRunSync()
+    if(s.isRunning == true)
+      Stream.emit(Start).through(userQ).compile.drain.unsafeRunSync()
 
-  override def getRecordings: Future[List[RecordingInfo]] = ???
+    Future.successful(Right(()))
+  }
 
+  override def setSHODANconfig(c: FullSettings) : Future[Unit] = {
+    conf.set(c).unsafeRunSync()
+    Future.successful(())
+  }
+
+  override def getRecordings : Future[List[RecordingInfo]] = ???
   override def startPlayback(recording: RecordingInfo): Unit = ???
 
   override def startRecording : Unit = ???
@@ -56,4 +67,17 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
 
   override def startAgent     : Unit = ???
 
+
+
+  val pushConfs = conf.discrete.changes.map{ c =>
+    val cis = listeners.get.unsafeRunSync()
+    cis.foreach(ci => ClientRPChandle(ci).state().pushConfig(c) )
+  }
+
+  val pushState = state.discrete.changes.map{ s =>
+    val cis = listeners.get.unsafeRunSync()
+    cis.foreach(ci => ClientRPChandle(ci).state().pushState(s) )
+  }
+
+  (pushConfs merge pushState).compile.drain.unsafeRunAsyncAndForget()
 }

@@ -12,7 +12,7 @@ import cyborg.Settings._
 
 import stimulus.WaveformGenerator
 
-class DSP[F[_]](client: MEAMEHttpClient[F]) {
+class DSP[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
   val waveformGenerator = new cyborg.dsp.stimulus.WaveformGenerator(client)
   val dspCalls = new cyborg.dsp.calls.DspCalls(client, waveformGenerator)
@@ -25,16 +25,16 @@ class DSP[F[_]](client: MEAMEHttpClient[F]) {
     Setup flashes the DSP, resets state, uploads a test wave, configures the electrodes
     specified by the settings, applies blanking and starts the stim queue.
     */
-  def setup: Kleisli[IO,FullSettings,Unit] = dspSetup.setup
+  def setup: Kleisli[F,FullSettings,Unit] = dspSetup.setup
 
 
-  val stopStimQueue : IO[Unit] = dspCalls.stopStimQueue
-  val resetStimQueue : IO[Unit] = dspCalls.resetStimQueue
-  def setStimgroupPeriod(group: Int, period: FiniteDuration): IO[Unit] =
+  val stopStimQueue : F[Unit] = dspCalls.stopStimQueue
+  val resetStimQueue : F[Unit] = dspCalls.resetStimQueue
+  def setStimgroupPeriod(group: Int, period: FiniteDuration): F[Unit] =
     dspCalls.stimGroupChangePeriod(group, period)
-  def enableStimGroup(group: Int): IO[Unit] =
+  def enableStimGroup(group: Int): F[Unit] =
     dspCalls.enableStimReqGroup(group)
-  def disableStimGroup(group: Int): IO[Unit] =
+  def disableStimGroup(group: Int): F[Unit] =
     dspCalls.disableStimReqGroup(group)
 
 
@@ -44,7 +44,7 @@ class DSP[F[_]](client: MEAMEHttpClient[F]) {
     setup handles this, so you do not need to manually call this function.
     Not sure if it deserves to be in the top level API...
     */
-  def uploadSquareWaveform(duration: FiniteDuration, channel: Int): IO[Unit] = for {
+  def uploadSquareWaveform(duration: FiniteDuration, channel: Int): F[Unit] = for {
     _ <- dspCalls.stopStimQueue
     _ <- waveformGenerator.squareWave(channel, 0.milli, duration, 0.0, 400.0)
   } yield ()
@@ -54,12 +54,12 @@ class DSP[F[_]](client: MEAMEHttpClient[F]) {
     Creates stimulus requests for the supplied period, or toggles the group off when the period is None.
     For debugging convenience the three electrode groups can be toggled in the config
     */
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[IO,(Int,Option[FiniteDuration])] ] =
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[F,(Int,Option[FiniteDuration])] ] =
     dspSetup.stimuliRequestSink
 
 
   /**
     Should be called during setup, but important enough to be top level API
     */
-  def flashDSP: IO[Unit] = client.DSP.flashDsp
+  def flashDSP: F[Unit] = client.DSP.flashDsp
 }
