@@ -89,3 +89,12 @@ object RBNGraph {
     initViewer(graph, rbn)
   }
 }
+
+
+object RBNGraphExamples {
+  import RBNGen._
+
+  def RBNGraphExample: Unit = {
+    val graph = RBNGraph.run(ActiveRBNs.randomRBN)
+  }
+}
