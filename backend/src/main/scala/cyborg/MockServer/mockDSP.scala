@@ -142,6 +142,7 @@ object mockDSP {
       case  RESET                           => state => DSPstate.init
       case  CONFIGURE_ELECTRODE_GROUP       => state => state
       case  SET_ELECTRODE_GROUP_MODE        => state => state
+      case  HEALTH_CHECK                    => state => state
       case  COMMIT_CONFIG                   => state => state
       case  START_STIM_QUEUE                => state => state
       case  STOP_STIM_QUEUE                 => state => state

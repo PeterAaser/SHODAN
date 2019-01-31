@@ -158,6 +158,16 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     ////////////////////////////////////////////////////////////////////////////////
 
 
+  def flash: F[(Boolean, Boolean)] = {
+    val h = for {
+      isFlashed <- client.DSP.flashDsp.map(_ => true).handleError(_ => false)
+      isHealthy <- calls.getDspHealth.handleError(_ => false)
+    } yield (isFlashed, isHealthy)
+
+    h.handleError{_ => say("Warning, DSP flash failed", Console.RED); (false, false)}
+  }
+
+
   def setup: Kleisli[F,FullSettings,Unit] = Kleisli(
     conf => {
       val flashAndResetDsp = for {

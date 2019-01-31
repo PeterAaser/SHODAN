@@ -59,7 +59,16 @@ class DSP[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
 
   /**
-    Should be called during setup, but important enough to be top level API
+    Should be called during setup, but important enough to be top level API.
+    Underscored variation does no error checking and returns F[Unit]
     */
-  def flashDSP: F[Unit] = client.DSP.flashDsp
+  def flashDSP_ = client.DSP.flashDsp
+  def flashDSP: F[(Boolean, Boolean)] = dspSetup.flash
+
+
+  /**
+    Test if DSP works
+    The placeholder is rather unlikely.
+    */
+  def getDspHealth: F[Boolean] = dspCalls.getDspHealth
 }

@@ -41,20 +41,24 @@ object Assemblers {
 
     val dsp = new cyborg.dsp.DSP(httpClient)
 
+    val t = implicitly[Timer[IO]]
+
     for {
-      stateServer       <- Stream.eval(SignallingRef[IO,ProgramState](ProgramState()))
+
+      _ <- Stream.eval(mockServer.assembleTestHttpServer(8888))
+      _ <- Stream.eval(t.sleep(3.second))
+
+      initState         <- Stream.eval(initProgramState(httpClient, dsp))
+      stateServer       <- Stream.eval(SignallingRef[IO,ProgramState](initState))
       configServer      <- Stream.eval(SignallingRef[IO,FullSettings](FullSettings.default))
-      listeners         <- Stream.eval(Ref.of[IO,List[ClientId]](List[ClientId]()))
       commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
 
       frontend          <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                          commandQueue.enqueue,
-                                         listeners,
                                          stateServer,
                                          configServer))
 
       _                 <- Stream.eval(frontend.start)
-
 
       commandPipe       <- Stream.eval(ControlPipe.controlPipe(
                                          stateServer,
@@ -64,13 +68,14 @@ object Assemblers {
                                          httpClient
                                          ))
 
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B)
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
+      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
 
 
       // This is it right?
       _                 <- commandQueue.dequeue.through(commandPipe)
+                             .concurrently(mockServer.assembleTestTcpServer(12340))
     } yield ()
   }
 
@@ -241,10 +246,15 @@ object Assemblers {
   }
 
 
-  def initProgramState(client: MEAMEHttpClient[IO]): IO[ProgramState] = {
-    val init = ProgramState()
+  def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {
+    for {
+      meameAlive             <- client.pingMEAME
+      (dspFlashed, dspAlive) <- dsp.flashDSP
+    } yield {
+      val setter = meameL.set(MEAMEstate(meameAlive)).andThen(
+                   dspL.set(DSPstate(dspFlashed, dspAlive)))
 
-    ???
+      setter(ProgramState.init)
+    }
   }
-
 }

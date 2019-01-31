@@ -36,8 +36,6 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
 
   implicit def jsonDecoder[A <: Product: Decoder]: EntityDecoder[F, A] = jsonOf[F, A]
   implicit def jsonEncoder[A <: Product: Encoder]: EntityEncoder[F, A] = jsonEncoderOf[F, A]
-  // implicit def stringDecoder: EntityDecoder[F,String] = implicitly[EntityDecoder[F,String]]
-  implicit def wewEncoder[A]: EntityDecoder[F,A] = implicitly[EntityDecoder[F,A]]
 
   val clientDSL = new org.http4s.client.dsl.Http4sClientDsl[F]{}
   val http4sDSL = org.http4s.dsl.Http4sDsl[F]
@@ -52,9 +50,9 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
 
   def pingMEAME(implicit ev: MonadError[F,Throwable]): F[Boolean] = {
     val req = GET(buildUri("status"))
-    // val ret = httpClient.expect[F,String](req).map(_ => true)
-
-    ???
+    httpClient.expect[String](req)
+      .map(_ => true)
+      .handleError{e => say(s"Warning: MEAME is unreachable or not responding\n$e", Console.RED); false}
   }
 
 
@@ -122,5 +120,4 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
   // Auxillary
   def meameConsoleLog(s: String): F[Unit] =
     httpClient.expect[String](POST(s, buildUri("aux/logmsg"))).void
-
 }

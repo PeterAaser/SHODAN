@@ -23,7 +23,7 @@ object DspCalls {
   val RESET                                = 2
   val CONFIGURE_ELECTRODE_GROUP            = 3
   val SET_ELECTRODE_GROUP_MODE             = 4
-  /// mystery!
+  val HEALTH_CHECK                         = 5
   val COMMIT_CONFIG                        = 6
   val START_STIM_QUEUE                     = 7
   val STOP_STIM_QUEUE                      = 8
@@ -211,5 +211,10 @@ class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: Wavefo
     )
 
     errorCodes.lift(errorCode).map(x => s"$errorCode -> $x")getOrElse(s"Error code $errorCode is not recognized.")
+  }
+
+  // We all know this is a lie.
+  val getDspHealth: F[Boolean] = dspCall(HEALTH_CHECK).map(_ => true).handleErrorWith { e =>
+    Fsay[F](s"Warning, get DSP health failed with\n$e", Console.RED).as(false)
   }
 }

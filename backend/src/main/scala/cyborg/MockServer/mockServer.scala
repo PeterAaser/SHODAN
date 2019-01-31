@@ -58,15 +58,20 @@ object mockServer {
 
   def hello(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
     case GET -> Root => s.get flatMap { serverState =>
-      if(!serverState.alive) InternalServerError()
+      say("hurr")
+      if(!serverState.alive) {
+        say("Mock internal server error")
+        InternalServerError()
+      }
       else Ok("")
     }
     case GET -> Root / "status" => {
+      say("durr")
       import org.http4s.circe._
       import _root_.io.circe.generic.auto._
       import _root_.io.circe.syntax._
       implicit val MEAMEstatusCodec = jsonOf[IO, MEAMEstatus]
-      Ok(MEAMEhealth(true,true).asJson)
+      Ok("")
     }
   }
 
@@ -91,6 +96,7 @@ object mockServer {
     }
 
     case req @ POST -> Root / "call" => {
+      say("mock call")
       req.decode[DspFuncCall] { data =>
         s.get.flatMap{ state =>
           if (!state.dspFlashed) say("Possible error: DSP is not flashed")
@@ -184,7 +190,8 @@ object mockServer {
   }
 
 
-  def assembleTestHttpServer(port: Int, dspMessageSink: Sink[IO,mockDSP.Event]): IO[Unit] = {
+  val dspEventSink = (s: Stream[IO,mockDSP.Event]) => s.drain
+  def assembleTestHttpServer(port: Int, dspMessageSink: Sink[IO,mockDSP.Event] = dspEventSink): IO[Unit] = {
 
     def mountServer(
       s: SignallingRef[IO,ServerState],

@@ -18,8 +18,12 @@ class RPCService extends MainClientRPC {
 }
 
 object StateClient extends ClientStateRPC {
-  def pushConfig(c: FullSettings): Unit = ???
-  def pushState(s: ProgramState): Unit  = ???
+
+  var onStatePush: ProgramState => Unit = (_: ProgramState) => ()
+  var onConfPush: FullSettings => Unit = (_: FullSettings) => ()
+
+  def pushConfig(c: FullSettings): Unit = onConfPush(c)
+  def pushState(s: ProgramState): Unit  = onStatePush(s)
 }
 
 object WfClient extends WfClientRPC {
@@ -37,4 +41,20 @@ object AgentClient extends AgentClientRPC {
   var agentRunning = false
 
   override def agentPush(agent: Agent): Unit = onAgentUpdate(agent)
+}
+
+object Hurr {
+  def register(agent: scala.collection.mutable.Queue[Agent],
+               wf: scala.collection.mutable.Queue[Array[Int]],
+               conf: scala.collection.mutable.Queue[FullSettings],
+               state: scala.collection.mutable.Queue[ProgramState]): Unit = {
+
+    // HURR HURR HURR
+    StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
+    StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
+    AgentClient.onAgentUpdate = (a => {say(""); agent.enqueue(a)})
+    WfClient.onWfUpdate       = (a => {say("got wf"); wf.enqueue(a)})
+
+    Context.serverRpc.register
+  }
 }

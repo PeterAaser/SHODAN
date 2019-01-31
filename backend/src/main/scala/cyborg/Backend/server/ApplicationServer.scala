@@ -21,7 +21,9 @@ import cyborg.Settings._
 
 object ApplicationServer {
 
+
   case class RPCserver(s: org.eclipse.jetty.server.Server, listeners: Ref[IO, List[ClientId]]){
+
     def start : IO[Unit] = IO { s.start() }
     def stop  : IO[Unit] = IO { s.stop()  }
 
@@ -30,15 +32,21 @@ object ApplicationServer {
     def agentTap(a: Agent): IO[Unit] =
       listeners.get.flatMap(ci => pushAgent(a, ci))
 
-    def pushWaveform(data: Array[Int], ci: List[ClientId]): IO[Unit] =
-      IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
-    def waveformTap(data: Array[Int]): IO[Unit] =
-      listeners.get.flatMap(ci => pushWaveform(data, ci))
+
+    /**
+      Yep, we cheat using IO.unit here
+      */
+    def waveformTap(data: Array[Int]): IO[Unit] = {
+      listeners.get.flatMap{ci =>
+        ci.foreach(ClientRPChandle(_).wf().wfPush(data))
+        IO.unit
+      }
+    }
   }
+
 
   def assembleFrontend(
     userCommands      : Sink[IO,UserCommand],
-    listeners         : Ref[IO,List[ClientId]],
     state             : SignallingRef[IO,ProgramState],
     conf              : SignallingRef[IO,FullSettings])
       : IO[RPCserver] = {
@@ -51,7 +59,7 @@ object ApplicationServer {
     val port = 8080
     val resourceBase = "frontend/target/UdashStatics/WebContent"
 
-    def createAtmosphereHolder(): ServletHolder = {
+    def createAtmosphereHolder(listeners: Ref[IO, List[ClientId]]): ServletHolder = {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
@@ -83,7 +91,7 @@ object ApplicationServer {
         val server = new Server(port)
         val contextHandler = new ServletContextHandler
         val appHolder = createAppHolder()
-        val atmosphereHolder = createAtmosphereHolder()
+        val atmosphereHolder = createAtmosphereHolder(ci)
 
         contextHandler.setSessionHandler(new SessionHandler)
         contextHandler.getSessionHandler.addEventListener(

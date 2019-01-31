@@ -848,13 +848,13 @@ object utilz {
     import cyborg.io.files._, cats.effect.IO
     val fname = filename.value.split("/").last
     val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
-    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + color + s" $word")
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + color + s" $word" + Console.RESET)
   }
 
-  def Fsay[F[_]](word: Any)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {
+  def Fsay[F[_]](word: Any, color: String = Console.RESET)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {
     ev.delay{
       val fname = filename.value.split("/").last
-      println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RESET + s" - $word")
+      println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s" - $word" + Console.RESET)
     }
   }
 
@@ -862,7 +862,7 @@ object utilz {
   def Ssay[F[_]](word: Any, color: String = Console.RESET)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): Stream[F,Unit] = {
     Stream.eval(ev.delay{
                   val fname = filename.value.split("/").last
-                  println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s" - $word")
+                  println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s" - $word" + Console.RESET)
                 })
   }
 

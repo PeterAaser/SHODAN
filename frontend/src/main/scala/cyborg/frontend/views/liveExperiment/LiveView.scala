@@ -93,11 +93,32 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
 
   val wfQueue = new scala.collection.mutable.Queue[Array[Int]]()
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
+  val confQueue = new scala.collection.mutable.Queue[FullSettings]()
+  val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
   agentQueue.enqueue(Agent.init)
 
 
-  def onPlayClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
-    s.copy(isRunning = true)
+  // terribly sorry
+  say("hello?")
+  scalajs.js.timers.setInterval(1000){
+    say("checking for updates")
+    if(confQueue.size > 0){
+      val newest: FullSettings = confQueue.dequeueAll(_ => true).last
+      model.subProp(_.conf).set(newest)
+      say(s"Updated settings to $newest yo")
+    }
+
+    if(stateQueue.size > 0){
+      val newest: ProgramState = stateQueue.dequeueAll(_ => true).last
+      model.subProp(_.state).set(newest)
+      say(s"Updated conf to $newest yo")
+    }
+  }
+
+
+  def onPlayClicked(btn: UdashButton) = {
+    model.subProp(_.state).modify{ s => s.copy(dataSource = Some(Live))}
+    model.subProp(_.state).modify{ s => s.copy(isRunning = true) }
   }
 
   def onRecordClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
@@ -119,6 +140,7 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
       wf.setMaxVal(current/2)
   }
 
+
   def onRangeDownClicked(btn: UdashButton) = {
     val current = wf.getMaxVal
     if(current <= 64000)
@@ -131,12 +153,12 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
   }
 
 
-
   /**
     grep null hello
     */
   var wf: cyborg.waveformVisualizer.WFVisualizerControl = null
   var ag: cyborg.Visualizer.VisualizerControl = null
+
 
   /**
     This handles URL state, not model state. Think
@@ -147,7 +169,13 @@ class LivePresenter(model: ModelProperty[LiveModel], wfCanvas: html.Canvas, agen
   override def handleState(state: LiveState.type): Unit = {
     wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
     ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
-    Context.serverRpc.register
+    cyborg.frontend.services.rpc.Hurr.register(
+      agentQueue,
+      wfQueue,
+      confQueue,
+      stateQueue
+    )
+
   }
 }
 
@@ -165,7 +193,6 @@ case object LiveViewFactory extends ViewFactory[LiveState.type] {
     (view, presenter)
   }
 }
-
 
 case class LiveModel(state: ProgramState, conf: FullSettings)
 object LiveModel extends HasModelPropertyCreator[LiveModel]

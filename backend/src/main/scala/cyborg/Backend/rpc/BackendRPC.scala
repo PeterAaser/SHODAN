@@ -40,8 +40,19 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
                         conf: SignallingRef[IO,FullSettings])
                        (implicit ci: ClientId) extends MainServerRPC {
 
-  override def register : Unit = {
-    listeners.update(listeners => (ci :: listeners).toSet.toList).unsafeRunSync()
+  override def register : Future[Unit] = {
+    say(s"got new listener: $ci")
+    val t = for {
+      _ <- listeners.update(listeners => (ci :: listeners).toSet.toList)
+      l <- listeners.get
+      s <- state.get
+      c <- conf.get
+    } yield {
+      ClientRPChandle(ci).state().pushState(s)
+      ClientRPChandle(ci).state().pushConfig(c)
+    }
+
+    t.unsafeToFuture()
   }
 
   override def unregister : Unit = listeners.update(_.filter(_ == ci)).unsafeRunSync()
@@ -55,8 +66,7 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
   }
 
   override def setSHODANconfig(c: FullSettings) : Future[Unit] = {
-    conf.set(c).unsafeRunSync()
-    Future.successful(())
+    conf.set(c).unsafeToFuture()
   }
 
   override def getRecordings : Future[List[RecordingInfo]] = ???

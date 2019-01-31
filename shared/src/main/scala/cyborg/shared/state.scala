@@ -2,6 +2,9 @@ package cyborg
 
 import cyborg._
 
+import monocle.Lens
+import monocle.macros.GenLens
+
 import com.avsystem.commons.serialization.HasGenCodec
 import com.avsystem.commons.serialization.GenCodec
 import io.udash.properties.HasModelPropertyCreator
@@ -36,6 +39,8 @@ object State {
   case class MEAMEstate(
     alive : Boolean = false)
 
+  val meameL : Lens[ProgramState, MEAMEstate] = GenLens[ProgramState](_.meame)
+  val dspL   : Lens[ProgramState, DSPstate]   = GenLens[ProgramState](_.dsp)
 
   object DSPstate extends HasGenCodec[DSPstate] {
     def default: DSPstate = DSPstate(false, false)
@@ -56,6 +61,7 @@ object State {
       false,
       false
     )
+    def init = apply
   }
 
   sealed trait DataSource
@@ -180,7 +186,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       dataPort    = 12340,
       sendBufSize = 4096,
       recvBufSize = 262144,
-      format      = "Csharp",
+      format      = "JVM",
       readBufSize = 1024*1024
     )
 
@@ -190,7 +196,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       dataPort    = 12340,
       sendBufSize = 4096,
       recvBufSize = 262144,
-      format      = "JVM",
+      format      = "Csharp",
       readBufSize = 1024*1024
       )
   }

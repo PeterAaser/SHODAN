@@ -86,7 +86,7 @@ object ControlPipe {
       def go(s: Stream[IO,UserCommand]): Pull[IO,IO[Unit],Unit] = {
         s.pull.uncons1.flatMap{
           case None => Pull.done
-          case Some((token, tl)) => token match {
+          case Some((token, tl)) => {say(s"got token $token"); token match {
 
             case Start => Pull.output1(startMEAME) >> go(tl)
 
@@ -96,6 +96,7 @@ object ControlPipe {
 
             case _ => ???
           }
+        }
         }
       }
       inStream => go(inStream).stream.map(Stream.eval).parJoinUnbounded

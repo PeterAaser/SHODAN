@@ -13,6 +13,9 @@ object Dependencies {
   val catsVersion       = "1.5.0"
   val catsEffectVersion = "1.1.0"
   val spireVersion      = "0.16.0"
+  val monocleVersion    = "1.5.0"
+
+
 
   // webshit ??
   val ScalaTagsVersion = "0.6.2"
@@ -51,7 +54,10 @@ object Dependencies {
     "org.typelevel" %%% "cats-core" % catsVersion,                 // abstract category dork stuff
     "org.typelevel" %%% "spire" % spireVersion,
     "com.lihaoyi" %%% "sourcecode" % "0.1.4",                      // expert println debugging
-    "com.lihaoyi" %%% "pprint" % "0.5.3"                           // pretty print for types and case classes
+    "com.lihaoyi" %%% "pprint" % "0.5.3",                          // pretty print for types and case classes
+
+    "com.github.julien-truffaut" %%%  "monocle-core"  % monocleVersion,
+    "com.github.julien-truffaut" %%%  "monocle-macro" % monocleVersion,
   ))
 
 

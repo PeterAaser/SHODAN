@@ -15,7 +15,7 @@ import sharedImplicits._
 trait MainServerRPC {
 
   // We only really want to register once.
-  def register   : Unit
+  def register   : Future[Unit]
   def unregister : Unit
 
   // If we set to running but something explodes
