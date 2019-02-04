@@ -37,10 +37,9 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
 
   def menuButton(title: String) = UdashButton(buttonStyle = io.udash.bootstrap.button.ButtonStyle.Primary)(title)
 
-  val DAQbutton = menuButton("Live experiment")
+  val DAQbutton        = menuButton("Live experiment")
   val DBplaybackButton = menuButton("Recorded experiment")
-  val UploadButton = menuButton("Upload recording")
-  val DspTestButton = menuButton("Test DSP")
+  val UploadButton     = menuButton("Upload recording")
 
   DAQbutton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onDAQclick(btn) }
   DBplaybackButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlaybackClick(btn) }
@@ -52,7 +51,6 @@ class IndexView(model: ModelProperty[IndexModel], presenter: IndexViewPresenter)
       DAQbutton.render,
       DBplaybackButton.render,
       UploadButton.render,
-      DspTestButton.render,
       ).render,
   ).render
 
@@ -78,18 +76,11 @@ class IndexViewPresenter(model: ModelProperty[IndexModel]) extends Presenter[Ind
 
   import cyborg.frontend.Context
 
-  // Context.serverRpc.getSHODANstate.onComplete{
-  //   case Success(nextState) => model.subProp(_.meameState).set(nextState)
-  //   case Failure(ex) => say(s"failed with $ex")
-  // }
-
-
-  def onDAQclick(btn: UdashButton) = say("Does nothing")
-  def onPlaybackClick(btn: UdashButton) = say("going to demo view")
-  def onUploadClick(btn: UdashButton) = say("aa")
+  def onDAQclick(btn: UdashButton)      = Context.applicationInstance.goTo(LiveState)
+  def onPlaybackClick(btn: UdashButton) = Context.applicationInstance.goTo(RecordingState)
+  def onUploadClick(btn: UdashButton)   = Context.applicationInstance.goTo(LiveState)
 
   override def handleState(state: IndexState.type): Unit = {}
-
 }
 
 

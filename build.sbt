@@ -1,8 +1,3 @@
-import org.scalajs.jsenv.selenium.SeleniumJSEnv
-import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.remote.DesiredCapabilities
-
-
 // resolvers += "Sonatype Public" at "https://oss.sonatype.org/content/groups/public/"
 
 name := "shodan"
@@ -70,17 +65,6 @@ val compileAndOptimizeStatics = taskKey[File](
   "Compiles and optimizes JavaScript files and copies all assets to the target directory."
 )
 
-// Settings for JS tests run in browser
-val browserCapabilities: DesiredCapabilities = {
-  // requires ChromeDriver: https://sites.google.com/a/chromium.org/chromedriver/
-  val capabilities = DesiredCapabilities.chrome()
-  capabilities.setCapability(ChromeOptions.CAPABILITY, {
-    val options = new ChromeOptions()
-    options.addArguments("--headless", "--disable-gpu")
-    options
-  })
-  capabilities
-}
 
 // Reusable settings for all modules
 val commonSettings = Seq(
@@ -90,8 +74,6 @@ val commonSettings = Seq(
 // Reusable settings for modules compiled to JS
 val commonJSSettings = Seq(
   emitSourceMaps in Compile := true,
-  // enables scalajs-env-selenium plugin
-  Test / jsEnv := new SeleniumJSEnv(browserCapabilities),
 )
 
 lazy val root = project.in(file("."))

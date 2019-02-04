@@ -45,22 +45,22 @@ object Assemblers {
 
     for {
 
-      _ <- Stream.eval(mockServer.assembleTestHttpServer(8888))
-      _ <- Stream.eval(t.sleep(3.second))
+      _            <- Stream.eval(mockServer.assembleTestHttpServer(8888))
+      _            <- Stream.eval(t.sleep(3.second))
 
-      initState         <- Stream.eval(initProgramState(httpClient, dsp))
-      stateServer       <- Stream.eval(SignallingRef[IO,ProgramState](initState))
-      configServer      <- Stream.eval(SignallingRef[IO,FullSettings](FullSettings.default))
-      commandQueue      <- Stream.eval(Queue.unbounded[IO,UserCommand])
+      initState    <- Stream.eval(initProgramState(httpClient, dsp))
+      stateServer  <- Stream.eval(SignallingRef[IO,ProgramState](initState))
+      configServer <- Stream.eval(SignallingRef[IO,FullSettings](FullSettings.default))
+      commandQueue <- Stream.eval(Queue.unbounded[IO,UserCommand])
 
-      frontend          <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
+      frontend     <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
                                          commandQueue.enqueue,
                                          stateServer,
                                          configServer))
 
-      _                 <- Stream.eval(frontend.start)
+      _            <- Stream.eval(frontend.start)
 
-      commandPipe       <- Stream.eval(ControlPipe.controlPipe(
+      commandPipe  <- Stream.eval(ControlPipe.controlPipe(
                                          stateServer,
                                          configServer,
                                          commandQueue,
@@ -68,14 +68,14 @@ object Assemblers {
                                          httpClient
                                          ))
 
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
-      _                 <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
+      _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
+      _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
+      _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
 
 
       // This is it right?
-      _                 <- commandQueue.dequeue.through(commandPipe)
-                             .concurrently(mockServer.assembleTestTcpServer(12340))
+      _            <- commandQueue.dequeue.through(commandPipe)
+                        .concurrently(mockServer.assembleTestTcpServer(12340))
     } yield ()
   }
 
@@ -207,11 +207,11 @@ object Assemblers {
 
 
   def startBroadcast(
-    configuration: FullSettings,
-    programState: ProgramState,
-    topics: List[Topic[IO,TaggedSegment]],
-    rawSink: Sink[IO,Array[Int]],
-    client: MEAMEHttpClient[IO],
+    configuration : FullSettings,
+    programState  : ProgramState,
+    topics        : List[Topic[IO,TaggedSegment]],
+    rawSink       : Sink[IO,Array[Int]],
+    client        : MEAMEHttpClient[IO],
   ): IO[InterruptableAction[IO]] = {
 
     /**

@@ -14,41 +14,43 @@
   
 * Getting started
 ** Installing
-   WARNING! THIS BRANCH RELIES ON JAWN 11.0, WHICH NECESSESITATES A LOCAL BUILD OF UDASH. MORE INFO SOON
-
    SHODAN is developed and tested on ubuntu 16.04, but should work on most GNU/Linux distros
    To build SHODAN only sbt (scala build tool) is required. Since the main compilation target
    of scala is java bytecode you must have a jvm installed in order to run sbt, but apart
    from that sbt will pull all necessary dependencies, including the scala language itself.
    
-   The only caveat is that you need to add the following to your home directory:
-   ~/.sbt/0.13/global.sbt
-   ~/.sbt/0.13/plugins/build.sbt
-   ~/.sbt/0.13/plugins/plugins.sbt
+   In short you need a jvm and some recent version of postgres
    
-   ~/.sbt/0.13/global.sbt contains:
-   resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases"
+   To install first get sbt. Version doesn't really matter as it is set in 
+   $SHODAN_ROOT/project/build.properties and will be downloaded on first compile
    
-   ~/.sbt/0.13/plugins/build.sbt contains:
-   addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.1")
-
-   and
-   ~/.sbt/0.13/plugins/plugins.sbt contains:
-   addSbtPlugin("org.ensime" % "sbt-ensime" % "1.12.15")
-   addSbtPlugin("com.scalapenos" % "sbt-prompt" % "1.0.0")
+   $: sbt compile
    
-  
-   After installing sbt and a jvm simply clone SHODAN and go to the top level directory.
-   pulling all the dependencies will take a long while, just let it run to completion. After
-   pulling dependencies you can compile or run in the sbt console, which will pull even more
-   dependencies.
+   After getting the correct version you should, for your own convenience, add coursier and
+   ensime to your ~/.sbt/1.0/plugins/plugins.sbt file like so:
+   
+   addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.1.0-M9")
+   addSbtPlugin("org.ensime" % "sbt-ensime" % "2.6.1")
+   
+   Or you can just run 
+   $: make sbtconf
+   
+   In order to set up postgres you can run 
+   $: make scaffold
   
    The frontend written is scala.js (scala transpiling to js) can be hosted from sbt. By starting
-   sbt with the argument ~fastOptJS::webpack the frontend will be accessible from your browser.
+   sbt with the argument ~fastOptJS the frontend will be recompiled as you write code.
    Typically I have two sbt sessions, one for the frontend and one for the backend.
-   The default port is 12345, just go to
-   http://localhost:12345/frontend/index.dev.html in your browser (only tested on chrome)
    
+   The first time you run SHODAN you must compile the frontend with 
+   $: sbt compileStatics
+   $: sbt compileCss
+   
+   Then, upon starting the backend with 
+   $: sbt run
+   
+   You can access http://127.0.0.1:8080/#/idx/live in your browser.
+
    Running an editor supporting ensime is highly encouraged, such as emacs, spacemacs or vim.
    All documentation is expected to be in the .org format, so your editor must be org capable 
    if you intend to write and read documentation in your editor.
@@ -61,128 +63,13 @@
    documentation is a good start.
    https://github.com/functional-streams-for-scala/fs2/blob/series/0.10/docs/guide.md
    
-   The 'main' method is located in Launcher.scala, but it contains only one method which
-   starts the server.
-   startShodan is defined in streamAssemblers.scala which collects the necessary components
-   to run the main command loop (actually a 'pipe', but it boils down to the same thing).
-   
-   startSHODAN creates queues, topics, the http server for the frontend, and the rest of the lowlevel infrastructure. After
-   getting the necessary buffers, queues etc ready startSHODAN creates the the main command 
-   loop found in entrypoint.scala.
-   commandPipe in entrypoint.scala is the first place you should look at when you want to
-   get used to SHODAN! commandPipe reads tokens produced by the http server (and by extension
-   the user) and performs actions based on that. Looking at the signature of commandPipe you
-   see it's a pipe transforming UserCommand => IO[Unit]. IO[Unit] is a datastructure capturing 
-   intent, and evaluating these IO actions happen in the startSHODAN function, and by extension
-   from the unsafeRynSync call in the launcher.
-   
-   To recap: In Launcher.scala Assemblers.startSHODAN is called, which instantiates the necessary
-   infrastructure to create the commandPipe and then executes the IO[Unit] actions it produces.
-   commandPipe is where you should start looking.
+   In order to read the code you should start in streamAssemblers.scala, which is called by 
+   the entry point in Launcher.scala.
 
-*** commandPipe
-    The commandpipe is assembled using multiple assembler methods located in streamAssemblers,
-    but luckily looking at the argument list is sufficient for understanding what it does.
-    These arguments are:
-    + topics: 
-      A list of 60 topics. These topics serve as conduits for neuro-data, but they are
-      neither subscribed or published to by default.
-    + frontendAgentSink:
-      A 'sink' which acts as an endpoint for the agent runner. When neuro-data is used to run
-      a simple virtual agent, this is where the state of the agent is sent. Currently this
-      sink can be connected to a websocket to visualize the current state of the agent to the
-      frontend, but it can also for instance be stored to file.
-    + meameFeedbackSink:
-      This is where neuro-stim data going back to MEAME is sent. When the virtual agents sees
-      a wall, this data is sent to the meameFeedbackSink, which in turn is hooked up to the
-      SHODAN http client which requests stimuli via HTTP calls.
-    + rawDataQueue:
-      Like topics, but not demultiplexed. Useful for when we just want the raw data.
-
-    So what exactly IS the command pipe? The command pipe takes in commands and performs actions 
-    on the arguments commandPipe was instantiated with. As an example, look at what happens when
-    a runFromDB token is pulled: First the RunFromDB method is pattern matched with the token.
-    Next, a stream is opened reading from file using sIO.streamFromDatabase(1) where 1 is a
-    hardcoded parameter. Suffice to say this method simply looks up a database recording that is 
-    currently hardcoded. Next, the method returns the call Assemblers.broadcastDataStream.
-    broadcastDataStream takes in both the topics and raw data queue, and returns an IO[Unit].
-    Technically it returns a Stream[IO,Unit], but these are interchangeable.
-    This IO[Unit] represent connecting the data from a database recording into the datatopics and 
-    the raw data. Similarily, when a startSHODAN token is received SHODAN is started, and tcp data
-    is hosed into the topics/raw data queue rather than file data.
-    
-** StreamAssemblers
-   This leads us to where you probably want to go, the streamAssemblers. In both previous examples
-   the result is that we get neuro-data on both the topics and the raw data queue. Now that the 
-   data is flowing, various data-processing can now utilize that data. When an AgentStart token
-   is received by the commandPipe, the genetic algorithm agent runner is attached to the topics,
-   and will start running the agent with whatever data is coming from the topics. The order in
-   which tokens arrive does not matter (yay!), if agentStart comes before runFromDB the result 
-   will be the same.
-
-   All the stream assemblers assemble pipes that rely on the already existing infrastructure of 
-   the commandPipe. They get data from one of the datasources (raw data or topics) and they output 
-   data to one of the endpoints commandPipe has at its disposal. (Or acts as an endpoint/source).
+   Here you can see how the various resources, buffers etc are set up
    
-   As an example, let's say we want to filter the data and store that to a database.
-   First we would like to create the filter itself:
-   #+BEGIN_SRC scala
-def myDataFilter[F[_],O]: Pipe[F,Int,O] = ???
-   #+END_SRC
-   myDataFilter is a pipe that takes in integers and returns some output O. In this case O is a
-   type parameter, in your case that's probably not necessary, only use type parameters when the
-   pipe should work for generic data!
-  
-   Next, you need a sink to send the data you've generated in your filter:
-   #+BEGIN_SRC scala
-def myDataStoreSink[F[_],O]: Sink[F,O] = _.through(_.map{ o => println(s"std.out is a database right?, $o") })
-   #+END_SRC
+   TODO: Write documentation when needed.
    
-   Now we have our filter and our storage, so how do we actually get it to run? What generally happens
-   is we pipe data from the topics into the datafilter, and then pipe the output to myDataStoreSink.
-   This operation is represented as a Stream[IO,Unit], which is interchangeable with IO[Unit] in our case.
-   
-   As an example, consider the assembleInputFilter method. One of its arguments is a pipe[IO,Int,Double] which
-   detects spikes.
-   
-* Testing
-  In order to get a feel for how SHODAN works streaming data from file is recommended. Currently no MEA 
-  data is available to stream, only triangle waves, but you can perform your own recordings, or convert 
-  older data to CSV (there is a script in the tools-for-fools folder that does this, but it has a bug
-  causing it to create bad recordings that I have not bothered to fix). It also generates metadata based
-  on the folder structure of the recorded data.
-  
-  This necessitates that you actually have a database on your machine. Install postgres on your computer,
-  preferably version 9.6. The base install is sufficient. Once you have installed postgres you can set up
-  the SHODAN database as follows:
-  $: sudo su postgres 
-  $: psql -c 'create database memestorage;' -U postgres
-  $: psql -c '\i datateknikk/SHODAN/memescheme.sql' -d memestorage -U postgres ;;(or wherever you cloned SHODAN to)
-  
-  You can then take a looksie at the database
-  $: psql -d memestorage -U postgres
-  
-  memestorage=# \dt
-                 List of relations
-   Schema |         Name          | Type  |  Owner   
-  --------+-----------------------+-------+----------
-   public | datarecording         | table | postgres
-   public | experimentinfo        | table | postgres
-   public | experimentparams      | table | postgres
-   public | experimentperformedby | table | postgres
-   public | experimentsubject     | table | postgres
-   public | mea                   | table | postgres
-   public | person                | table | postgres
-  (7 rows)
-  
-  #: select * from experimentinfo;
-  memestorage=# select * from experimentinfo;
-   id |    experimenttimestamp     | comment 
-  ----+----------------------------+---------
-    1 | 2017-12-18 14:08:22.958299 | TESTRUN
-
-  et cetera.
-
 * MEAME2, MEAME-DSP 
   SHODAN interacts with the MEAME-DSP through MEAME2. Some documentation on the DSP is presented in the
   dsp.org file, but keep in mind the documentation from mcs is a nigh incomprehensible ultra-clusterfuck.
