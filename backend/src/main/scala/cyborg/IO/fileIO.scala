@@ -139,4 +139,23 @@ object fileIO {
   def stringToFile[F[_]: Concurrent : ContextShift](s: String, path: Path): Stream[F,Unit] = {
     Stream.emit(s).covary[F].through(text.utf8Encode).through(fs2.io.file.writeAll(path, backendImplicits.ec))
   }
+
+
+  def convertMcsCsv[F[_]: Concurrent : ContextShift](path: Path): Stream[F,Unit] = {
+
+    val processedPath = Paths.get(path.toString() + "_resegmented")
+
+    fs2.io.file.readAll(path, backendImplicits.ec, 4096*16)
+      .through(text.utf8Decode)
+      .through(text.lines)
+      .drop(7)
+      .map(x => Chunk.seq(x.split(",").map(_.toInt).tail))
+      .chunkify
+      .through(modifySegmentLengthGCD(1, 1000, 60))
+      .chunkN(1000, true)
+      .map(_.toList.mkString("",", ", "\n"))
+      .through(text.utf8Encode)
+      .through(fs2.io.file.writeAll(processedPath, backendImplicits.ec))
+
+  }
 }

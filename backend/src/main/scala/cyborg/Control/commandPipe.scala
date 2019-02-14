@@ -61,7 +61,10 @@ object ControlPipe {
       topics    <- List.fill(60)(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))).sequence
     } yield {
 
-      def startMEAME: IO[Unit] = {
+      /**
+        May start a playback or live recording based on datasource
+        */
+      def start: IO[Unit] = {
 
         val interruptableAction = for {
           programState <- stateServer.get
@@ -88,7 +91,7 @@ object ControlPipe {
           case None => Pull.done
           case Some((token, tl)) => {say(s"got token $token"); token match {
 
-            case Start => Pull.output1(startMEAME) >> go(tl)
+            case Start => Pull.output1(start) >> go(tl)
 
             case Stop => ???
             case StartRecord => ???

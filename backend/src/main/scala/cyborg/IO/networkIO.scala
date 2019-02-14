@@ -31,6 +31,8 @@ object networkIO {
   def streamAllChannels[F[_]: ConcurrentEffect : ContextShift]
     = Kleisli[Id, FullSettings, Stream[F,Int]]{ conf =>
 
+      say(s"stream all channels tcp with args: $conf")
+
       def socketStream: Resource[F, Socket[F]] =
         client(
           new InetSocketAddress(conf.source.meameIP, conf.source.dataPort),

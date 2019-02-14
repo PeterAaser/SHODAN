@@ -1,10 +1,5 @@
 package cyborg.backend.rpc
 
-////////////////////////////////////////
-////////////////////////////////////////
-////  BACKEND
-////////////////////////////////////////
-
 import cyborg.wallAvoid.Coord
 import cats.effect.concurrent.{ Ref, Deferred }
 import fs2.concurrent.{ Queue, Signal, SignallingRef, Topic }
@@ -21,6 +16,7 @@ import cyborg.shared.rpc.server.MainServerRPC
 import cyborg.RPCmessages._
 
 import cats.effect._
+import cats.implicits._
 import fs2._
 import cyborg.wallAvoid.Agent
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
@@ -57,19 +53,29 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
 
   override def unregister : Unit = listeners.update(_.filter(_ == ci)).unsafeRunSync()
 
+
   override def setSHODANstate(s: ProgramState) : Future[Either[String, Unit]] = {
+    say(s"SHODAN state was set to $s")
     state.set(s).unsafeRunSync()
-    if(s.isRunning == true)
+    if(s.isRunning == true) {
       Stream.emit(Start).through(userQ).compile.drain.unsafeRunSync()
+    }
 
     Future.successful(Right(()))
   }
 
-  override def setSHODANconfig(c: FullSettings) : Future[Unit] = {
-    conf.set(c).unsafeToFuture()
+  override def setSHODANconfig(c: FullSettings) : Future[Unit] = conf.set(c).unsafeToFuture()
+
+  override def getRecordings : Future[List[RecordingInfo]] = {
+    cyborg.io.database.databaseIO.getAllExperimentIds
+      .flatMap{ids =>
+        ids.map(id => cyborg.io.database.databaseIO.getRecordingInfo(id)).sequence
+      }
+    .unsafeToFuture()
   }
 
-  override def getRecordings : Future[List[RecordingInfo]] = ???
+
+
   override def startPlayback(recording: RecordingInfo): Unit = ???
 
   override def startRecording : Unit = ???

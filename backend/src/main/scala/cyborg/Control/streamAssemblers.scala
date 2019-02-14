@@ -73,7 +73,6 @@ object Assemblers {
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
 
 
-      // This is it right?
       _            <- commandQueue.dequeue.through(commandPipe)
                         .concurrently(mockServer.assembleTestTcpServer(12340))
     } yield ()
@@ -152,8 +151,7 @@ object Assemblers {
   }
 
 
-
-
+  // not used?
   def startLiveBroadcast(topics: List[Topic[IO,TaggedSegment]], rawSink: Sink[IO,TaggedSegment])
       : Kleisli[Id, FullSettings, IO[InterruptableAction[IO]]] = for {
     dataStream <- cyborg.io.Network.streamFromTCP
@@ -214,6 +212,8 @@ object Assemblers {
     client        : MEAMEHttpClient[IO],
   ): IO[InterruptableAction[IO]] = {
 
+    say("starting broadcast")
+
     /**
       This must be run first since the kleisli for the DB case is actually a StateT in disguise!
       In english: The BD call alters the configuration, thus to ensure synchronized configs it
@@ -240,6 +240,10 @@ object Assemblers {
         }
       }
 
+
+    /**
+      I don't think this should be here, for instance when playback
+      */
     // Won't inferr if not broken up. Fun fact: It inferrs correctly with *>
     val startAndBroadcastK = client.startMEAMEserver >> getAndBroadcastDatastream
     startAndBroadcastK(configuration)

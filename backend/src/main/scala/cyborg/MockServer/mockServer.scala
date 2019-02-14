@@ -121,14 +121,13 @@ object mockServer {
   }
 
 
-  // a frame is 60 segments, aka what MEAME2 deals with
-  type Frame = Chunk[Int]
+  type Frame = Chunk[Int] // a frame is 60 segments, aka what MEAME2 deals with
 
   /**
     Loops through a database recording repeatedly.
     Whenever a socket is connected, the listeners ref should be updated
     */
-  def broadcastDataStream(listeners: Queue[IO, Resource[IO, Socket[IO]]]): Stream[IO, Unit] = {
+  def broadcastMockDataStream(listeners: Queue[IO, Resource[IO, Socket[IO]]]): Stream[IO, Unit] = {
 
     // TODO take some recordings at different samplerates...
     def getStream(params: DAQparams): Stream[IO,Int] = params.samplerate match {
@@ -186,6 +185,7 @@ object mockServer {
     val createListener: Stream[IO, Unit] =
       fs2.io.tcp.server[IO](new InetSocketAddress("0.0.0.0", params.Network.tcpPort)).to(listeners.enqueue)
 
+    say("tcp listener alive")
     createListener
   }
 
@@ -204,12 +204,12 @@ object mockServer {
           "/DSP" -> DSP(s, dspMessages)
         ).orNotFound
 
-      val huh: Stream[IO, ExitCode] = BlazeServerBuilder[IO]
+      val serverTask: Stream[IO, ExitCode] = BlazeServerBuilder[IO]
         .bindHttp(port, "0.0.0.0")
         .withHttpApp(myApp)
         .serve
 
-      huh
+      serverTask
     }
 
     // #sledgang
@@ -227,7 +227,7 @@ object mockServer {
     for {
       listeners <- Stream.eval(Queue.bounded[IO,Resource[IO,Socket[IO]]](10))
       _ = say("TCP serverino starterino", Console.CYAN)
-      _ <- Stream(tcpServer(listeners), broadcastDataStream(listeners)).parJoinUnbounded
+      _ <- Stream(tcpServer(listeners), broadcastMockDataStream(listeners)).parJoinUnbounded
     } yield ()
   }
 }

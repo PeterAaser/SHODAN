@@ -65,10 +65,10 @@ object databaseIO {
     data
   }
 
-  def newestRecordingId(implicit ec: EC): IO[Int] =
-    getNewestExperimentId.transact(xa)
+  def newestRecordingId: IO[Int] = getNewestExperimentId.transact(xa)
 
-  def newestRecording(implicit ec: EC): Stream[IO, Int] = {
+  def newestRecording: Stream[IO, Int] = {
+
     say(s"making stream for newest experiment")
 
     val newest = getNewestExperimentId.transact(xa)

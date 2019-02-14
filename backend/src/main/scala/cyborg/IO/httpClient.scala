@@ -34,6 +34,8 @@ import backendImplicits._
   */
 class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError[F,Throwable]){
 
+  say(s"Using ${params.Network.meameIP}")
+
   implicit def jsonDecoder[A <: Product: Decoder]: EntityDecoder[F, A] = jsonOf[F, A]
   implicit def jsonEncoder[A <: Product: Encoder]: EntityEncoder[F, A] = jsonEncoderOf[F, A]
 

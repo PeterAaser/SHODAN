@@ -38,6 +38,7 @@ object ApplicationServer {
       */
     def waveformTap(data: Array[Int]): IO[Unit] = {
       listeners.get.flatMap{ci =>
+
         ci.foreach(ClientRPChandle(_).wf().wfPush(data))
         IO.unit
       }
