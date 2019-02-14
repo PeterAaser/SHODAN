@@ -1,6 +1,7 @@
 package cyborg.frontend.routing
 
 
+
 import io.udash._
 sealed abstract class RoutingState(
   val parentState: Option[ContainerRoutingState]
@@ -25,4 +26,4 @@ case object IndexState       extends ContainerRoutingState(Some(RootState))
 case object LiveState        extends ContainerRoutingState(Some(IndexState))
 case object RecordingState   extends FinalRoutingState(Some(IndexState))
 
-case class MEAstate(MEAid: Option[Int] = None) extends FinalRoutingState(Some(LiveState))
+// case class MEAstate(MEAid: Option[Int] = None) extends FinalRoutingState(Some(LiveState))

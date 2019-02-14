@@ -1,5 +1,8 @@
 package cyborg.frontend.views
 
+import cyborg.State._
+import cyborg.Settings._
+import cyborg.wallAvoid.Agent
 import cyborg.frontend._
 import cyborg.frontend.Context
 import cyborg.frontend.routing._
@@ -15,6 +18,8 @@ import frontilz._
 
 import io.udash.css._
 
+import cyborg.frontend.services.rpc._
+import cyborg.frontend.Context
 
 import org.scalajs.dom.document
 import scalatags.JsDom.all._
@@ -28,10 +33,14 @@ import org.scalajs.dom.html
 
 class RecordingView(model: ModelProperty[RecordingModel],
                     presenter: RecordingPresenter,
-                    wfCanvas: html.Canvas,
                     recordings: SeqProperty[RecordingInfo],
-                    selectedRecord: Property[RecordingInfo],
-                    conf: Property[Settings.FullSettings]) extends FinalView with CssView {
+                    canvasController: WaveformComp) extends FinalView with CssView {
+
+  val rangeUp = UdashButton()(Icons.FontAwesome.plus)
+  val rangeDown = UdashButton()(Icons.FontAwesome.minus)
+
+  rangeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeUpClicked(btn) }
+  rangeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeDownClicked(btn) }
 
   val playButton = UdashButton()(Icons.FontAwesome.play)
   val pauseButton = UdashButton()(Icons.FontAwesome.pause)
@@ -44,68 +53,73 @@ class RecordingView(model: ModelProperty[RecordingModel],
   }
 
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
-  pauseButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPauseClicked(btn) }
-  stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onStopClicked(btn) }
+  stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onStopClicked(btn) }
+
+  model.streamTo( playButton.disabled, initUpdate = true)(m => !m.state.canStartPlayback)
+  model.streamTo( stopButton.disabled, initUpdate = true)(m => !m.state.canStop)
+
+  val huh: org.scalajs.dom.Element = listThingy.render
 
   override def getTemplate: Modifier = {
     div(
       UdashBootstrap.loadFontAwesome(),
       listThingy.render,
-      compz.renderDBrecord(selectedRecord),
-      showIf(model.subProp(_.recordingSelected))(
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined)){
         div(
+          compz.renderDBrecord(model.subProp(_.recordingSelected))
+        ).render
+      },
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined)){
+        val huhh = div(
           playButton.render,
           pauseButton.render,
           stopButton.render,
-        ).render
-      ),
-      showIf(model.subProp(_.recordingSelected))(wfCanvas.render)
+        )
+        huhh.render
+      },
+      rangeUp.render,
+      rangeDown.render,
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.wfCanvas.render)
     )
   }
 }
 
 
 class RecordingPresenter(model: ModelProperty[RecordingModel],
-                         wfCanvas: html.Canvas,
                          recordings: SeqProperty[RecordingInfo],
-                         selectedRecord: Property[RecordingInfo],
-                         conf: Property[Settings.FullSettings]) extends Presenter[RecordingState.type] {
+                         canvasController: WaveformComp) extends Presenter[RecordingState.type] {
 
-
-  import cyborg.frontend.services.rpc._
-  import cyborg.frontend.Context
-
-  val wfQueue = new scala.collection.mutable.Queue[Array[Int]]()
 
   def onPlayClicked(btn: UdashButton) = {
-    say("play record clicked")
-    say("register commented out")
-    Context.serverRpc.startPlayback(selectedRecord.get)
+    // fugly
+    // >.get.get
+    val id = model.subProp(_.recordingSelected).get.get.id
+    model.subProp(_.state).modify{ s => s.copy(dataSource = Some(Playback(id)))}
+    model.subProp(_.state).modify{ s => s.copy(isRunning = true) }
   }
 
 
   // TODO: Kinda doesnt work
   def onPauseClicked(btn: UdashButton) = {
-    say("pause record clicked")
-    say("register commented out")
-    wfQueue.clear()
+    say("Does nothing")
   }
 
 
   def onStopClicked(btn: UdashButton) = {
-    say("stop record clicked")
-    say("register commented out")
-    wfQueue.clear()
+    say("Does nothing")
   }
 
 
   def recordingClicked(rec: RecordingInfo) = {
-    selectedRecord.set(rec)
-    model.set(model.get.copy(recordingSelected = true))
-    conf.set( conf.get.copy( daq = conf.get.daq.copy( samplerate = rec.daqSettings.samplerate, segmentLength = rec.daqSettings.segmentLength )))
-    new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
+    model.subProp(_.recordingSelected).set(Some(rec))
+    model.subProp(_.conf).modify( (c: FullSettings) => c.copy(
+      daq = c.daq.copy(
+        samplerate = rec.daqSettings.samplerate, segmentLength = rec.daqSettings.segmentLength
+      )
+    ))
+    // model.subProp(_.conf).set( model.subProp(_.conf).get.copy( daq = conf.get.daq.copy( samplerate = rec.daqSettings.samplerate, segmentLength = rec.daqSettings.segmentLength )))
+    say(s"set rec selected to ${model.subProp(_.recordingSelected).get}")
   }
-
 
   override def handleState(state: RecordingState.type): Unit = {
     Context.serverRpc.getRecordings.onComplete {
@@ -115,22 +129,20 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
   }
 }
 
-case class RecordingModel(isRunning: Boolean, isRecording: Boolean, recordingSelected: Boolean)
-object RecordingModel extends HasModelPropertyCreator[RecordingModel]
 
 case object RecordingViewFactory extends ViewFactory[RecordingState.type] {
 
   override def create(): (View, Presenter[RecordingState.type]) = {
 
-    val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-
     val recordings = SeqProperty[RecordingInfo]
-    val selectedRecord = Property.empty[RecordingInfo]
-    val model = ModelProperty( RecordingModel(false, false, false) )
-    val conf = Property[Settings.FullSettings](Settings.FullSettings.default)
+    val model = ModelProperty( RecordingModel(ProgramState(), FullSettings.default, None) )
+    val canvasController = new WaveformComp(model.subProp(_.state), model.subProp(_.conf))
 
-    val presenter = new RecordingPresenter(model, wfCanvas, recordings, selectedRecord, conf)
-    val view = new RecordingView(model, presenter, wfCanvas, recordings, selectedRecord, conf)
+    val presenter = new RecordingPresenter(model, recordings, canvasController)
+    val view = new RecordingView(model, presenter, recordings, canvasController)
     (view, presenter)
   }
 }
+
+case class RecordingModel(state: ProgramState, conf: FullSettings, recordingSelected: Option[RecordingInfo])
+object RecordingModel extends HasModelPropertyCreator[RecordingModel]

@@ -6,6 +6,8 @@ import com.avsystem.commons.serialization.HasGenCodec
 import com.avsystem.commons.serialization.GenCodec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext
+import io.udash.rpc.HasGenCodecAndModelPropertyCreator
+
 
 /**
   This thing might not need to exist
@@ -27,6 +29,6 @@ object RPCmessages {
     MEA                : Option[Int],
     comment            : String,
     )
-  object RecordingInfo extends HasGenCodec[RecordingInfo]
+  object RecordingInfo extends HasGenCodecAndModelPropertyCreator[RecordingInfo]
 
 }

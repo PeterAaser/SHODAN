@@ -16,14 +16,11 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
     case "/idx" => IndexState
     case "/idx/live" => LiveState
     case "/idx/playback" => RecordingState
-    case "/idx/live/MEA" / arg => MEAstate(Try(arg.toInt).toOption)
   }
 
   private val state2Url: PartialFunction[RoutingState, String] = {
     case IndexState => "/idx"
     case LiveState => "/idx/live"
     case RecordingState => "/idx/playback"
-    case MEAstate(Some(id)) => s"/idx/live/MEA/$id"
-    case MEAstate(None) => s"/idx/live/MEA/new"
   }
 }

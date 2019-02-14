@@ -184,9 +184,6 @@ object waveformVisualizer {
       windows.foreach(window => drawPixelArray( mcsChannelMap.getMCSdataChannel(window._2), window._1._1, window._1._2))
     }
 
-    println(canvas.width)
-    println(canvas.height)
-
     clear()
     drawGrid()
     drawChannelInfo()

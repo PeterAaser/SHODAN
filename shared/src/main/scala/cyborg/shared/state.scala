@@ -24,13 +24,18 @@ object State {
     isRecording       : Boolean,
     isRunning         : Boolean){
 
-    // val canStart         = (meame.alive && dsp.isFlashed && dsp.dspResponds && !isRunning)
-    val canStart         = meame.alive
+    val canStartPlayback = !isRunning
+    val canStartLive = meame.alive && !isRunning
+
     val canStop          = isRunning
-    val canRecord        = dataSource.map{ case Live => isRunning }.getOrElse(false) && !isRecording
+
     val canStopRecording = isRecording
     val canFlash         = !dsp.isFlashed
 
+    val canRecord = dataSource.map{
+      case Live => isRunning
+      case _    => false
+    }.getOrElse(false) && !isRecording
   }
 
   case class DSPstate(
@@ -210,7 +215,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       GAsettings.default,
       DSPsettings.default,
       FilterSettings.default,
-      SourceSettings.live
+      SourceSettings.mock
     )
   }
 

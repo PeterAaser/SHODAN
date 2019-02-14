@@ -1,4 +1,6 @@
 .ensime*
+.metals*
+.bloop*
 .projectile
 target/
 scratchpad.scala

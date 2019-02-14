@@ -13,8 +13,6 @@ class StatesToViewFactoryDef extends ViewFactoryRegistry[RoutingState] {
       case LiveState => LiveViewFactory
       case RecordingState => RecordingViewFactory
 
-      case MEAstate(meaID) => MEAviewFactory(meaID)
-
       case _ => ErrorViewFactory
     }
 }
