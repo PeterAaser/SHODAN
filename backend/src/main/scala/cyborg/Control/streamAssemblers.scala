@@ -1,4 +1,5 @@
 package cyborg
+	  
 
 import cats.arrow.FunctionK
 import cats.data._
@@ -41,12 +42,12 @@ object Assemblers {
 
     val dsp = new cyborg.dsp.DSP(httpClient)
 
-    val t = implicitly[Timer[IO]]
+    // val t = implicitly[Timer[IO]]
 
     for {
 
-      _            <- Stream.eval(mockServer.assembleTestHttpServer(8888))
-      _            <- Stream.eval(t.sleep(3.second))
+      // _            <- Stream.eval(mockServer.assembleTestHttpServer(8888))
+      // _            <- Stream.eval(t.sleep(3.second))
 
       initState    <- Stream.eval(initProgramState(httpClient, dsp))
       stateServer  <- Stream.eval(SignallingRef[IO,ProgramState](initState))
@@ -54,7 +55,7 @@ object Assemblers {
       commandQueue <- Stream.eval(Queue.unbounded[IO,UserCommand])
 
       frontend     <- Stream.eval(cyborg.backend.server.ApplicationServer.assembleFrontend(
-                                         commandQueue.enqueue,
+                                         commandQueue,
                                          stateServer,
                                          configServer))
 
@@ -74,7 +75,7 @@ object Assemblers {
 
 
       _            <- commandQueue.dequeue.through(commandPipe)
-                        .concurrently(mockServer.assembleTestTcpServer(12340))
+                        // .concurrently(mockServer.assembleTestTcpServer(12340))
     } yield ()
   }
 
@@ -204,11 +205,17 @@ object Assemblers {
   }
 
 
+  /**
+    The raw sink stuff is a little bolted on due to some design mistakes.
+    The problem was a wish to separate recording and data, but I lacked a reference 
+    to the stream in the ctrl pipe
+    */
   def startBroadcast(
     configuration : FullSettings,
     programState  : ProgramState,
     topics        : List[Topic[IO,TaggedSegment]],
-    rawSink       : Sink[IO,Array[Int]],
+    rawSink       : Sink[IO,TaggedSegment],
+    frontendSink  : Sink[IO,Array[Int]],
     client        : MEAMEHttpClient[IO],
   ): IO[InterruptableAction[IO]] = {
 
@@ -221,13 +228,18 @@ object Assemblers {
 
       Would be nice to change this I suppose, but it is what it is
       */
+    import backendImplicits._
+
     val getAndBroadcastDatastream: Kleisli[IO,FullSettings,InterruptableAction[IO]] = programState.dataSource.get match {
         case Live => for {
           source              <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
           frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
           broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                       topics,
-                                                      frontendDownsampler andThen rawSink))
+                                                      (s: Stream[IO,TaggedSegment]) => s
+                                                        .observe(rawSink)
+                                                        .through(frontendDownsampler)
+                                                        .through(frontendSink)))
         } yield broadcast
 
         case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { source =>
@@ -235,7 +247,11 @@ object Assemblers {
             frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
             broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                         topics,
-                                                        frontendDownsampler andThen rawSink))
+                                                        (s: Stream[IO,TaggedSegment]) => s
+                                                          .observe(rawSink)
+                                                          .map(x => x.copy(data = x.data.map(x => (x.toDouble * 5.9605e-5).toInt)))
+                                                          .through(frontendDownsampler)
+                                                          .through(frontendSink)))
           } yield broadcast
         }
       }

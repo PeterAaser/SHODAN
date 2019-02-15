@@ -226,8 +226,22 @@ object mockServer {
   def assembleTestTcpServer(port: Int): Stream[IO, Unit] = {
     for {
       listeners <- Stream.eval(Queue.bounded[IO,Resource[IO,Socket[IO]]](10))
-      _ = say("TCP serverino starterino", Console.CYAN)
-      _ <- Stream(tcpServer(listeners), broadcastMockDataStream(listeners)).parJoinUnbounded
+      _         <- Ssay[IO]("TCP serverino starterino", Console.CYAN)
+      _         <- Stream(tcpServer(listeners), broadcastMockDataStream(listeners)).parJoinUnbounded
+      // _         <- Ssay[IO]("wut, Console.RED")
     } yield ()
+  }
+
+
+  def unsafeStartTestServer: Unit = {
+    import backendImplicits._
+    val a: Stream[IO,Unit] = Stream.eval(assembleTestHttpServer(8888))
+    val b: Stream[IO,Unit] = mockServer.assembleTestTcpServer(12340)
+    val c = for {
+      _ <- a
+      _ <- b
+    } yield ()
+    c.compile.drain.unsafeRunAsyncAndForget()
+    Thread.sleep(2000)
   }
 }

@@ -189,7 +189,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
     val mock = SourceSettings(
       meameIP     = "0.0.0.0",
       apiPort     = 8888,
-      dataPort    = 12340,
+      dataPort    = params.Network.tcpPort,
       sendBufSize = 4096,
       recvBufSize = 262144,
       format      = "JVM",
@@ -199,7 +199,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
     val live = SourceSettings(
       meameIP     = "10.20.92.130",
       apiPort     = 8888,
-      dataPort    = 12340,
+      dataPort    = params.Network.tcpPort,
       sendBufSize = 4096,
       recvBufSize = 262144,
       format      = "Csharp",
@@ -215,7 +215,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       GAsettings.default,
       DSPsettings.default,
       FilterSettings.default,
-      SourceSettings.mock
+      if(params.Network.mock) SourceSettings.mock else SourceSettings.live
     )
   }
 

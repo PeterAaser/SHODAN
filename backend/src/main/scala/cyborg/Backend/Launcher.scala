@@ -22,6 +22,9 @@ object Launcher extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 
+    if(params.Network.mock)
+      cyborg.mockServer.unsafeStartTestServer
+
     client.use{ c =>
       Assemblers.startSHODAN(new MEAMEHttpClient[IO](c)).compile.drain.as(ExitCode.Success)
     }
