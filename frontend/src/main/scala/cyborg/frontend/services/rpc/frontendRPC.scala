@@ -52,8 +52,8 @@ object Hurr {
     // HURR HURR HURR
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
-    AgentClient.onAgentUpdate = (a => {say(""); agent.enqueue(a)})
-    WfClient.onWfUpdate       = (a => {say("got wf"); wf.enqueue(a)})
+    AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
+    WfClient.onWfUpdate       = (a => {wf.enqueue(a)})
 
     Context.serverRpc.register
   }

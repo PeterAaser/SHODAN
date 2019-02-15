@@ -72,7 +72,7 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
 
   /**
-    This is kinda bad...
+    This is kinda very bad...
     */
   scalajs.js.timers.setInterval(1000){
     say("checking for updates")
@@ -116,17 +116,15 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     s.copy(isRecording = false)
   )
 
-
   def onRangeUpClicked(btn: UdashButton) = {
     val current = wf.getMaxVal
     if(current > 128)
       wf.setMaxVal(current/2)
   }
 
-
   def onRangeDownClicked(btn: UdashButton) = {
     val current = wf.getMaxVal
-    if(current <= 64000)
+    // if(current <= 6400000)
       wf.setMaxVal(current*2)
   }
 }

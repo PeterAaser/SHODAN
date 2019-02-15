@@ -89,6 +89,9 @@ object databaseIO {
   }
 
 
+  /**
+    TODO kinda not a conf reader
+    */
   def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment], comment: String)
     : Kleisli[IO,FullSettings,InterruptableAction[IO]] = {
 
@@ -165,6 +168,7 @@ object databaseIO {
     SignallingRef[IO,IO[Unit]](IO.unit) map { finalizer =>
 
       val onFirstElement = for {
+        _            <- Fsay[IO]("First element received, creating DB record")
         pathAndSink  <- fileIO.writeCSV[IO]
         experimentId <- insertNewExperiment(pathAndSink._1, comment, conf.daq).transact(xa)
         _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)

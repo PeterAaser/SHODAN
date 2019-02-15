@@ -128,4 +128,4 @@ case object LiveViewFactory extends ViewFactory[LiveState.type] {
 }
 
 case class LiveModel(state: ProgramState, conf: FullSettings)
-object LiveModel extends HasModelPropertyCreator[LiveModel]
+object LiveModel extends HasModelPropertyCreator[LiveModel] 

@@ -104,6 +104,7 @@ object waveformVisualizer {
       drawPixelArrays()
       drawGrid()
       drawChannelInfo()
+      drawMax()
     }
 
 
@@ -227,6 +228,10 @@ object waveformVisualizer {
         renderer.font = "24px Arial"
         renderer.fillText(channelString, x*vizLength + 26, y*vizHeight + 20)
       }
+    }
+
+    def drawMax(): Unit = {
+      renderer.fillText(s"max: $maxVal", 50, 50)
     }
   }
 }

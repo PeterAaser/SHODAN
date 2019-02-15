@@ -31,10 +31,11 @@ object ClientRPChandle {
 }
 
 class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
-                        userQ: Sink[IO,UserCommand],
+                        userQ: Queue[IO,UserCommand],
                         state: SignallingRef[IO,ProgramState],
                         conf: SignallingRef[IO,FullSettings])
                        (implicit ci: ClientId) extends MainServerRPC {
+
 
   override def register : Future[Unit] = {
     say(s"got new listener: $ci")
@@ -47,23 +48,12 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
       ClientRPChandle(ci).state().pushState(s)
       ClientRPChandle(ci).state().pushConfig(c)
     }
-
     t.unsafeToFuture()
   }
 
-  override def unregister : Unit = listeners.update(_.filter(_ == ci)).unsafeRunSync()
+  override def unregister : Unit = listeners.update(_.filter(_ != ci)).unsafeRunSync()
 
-
-  override def setSHODANstate(s: ProgramState) : Future[Either[String, Unit]] = {
-    say(s"SHODAN state was set to $s")
-    state.set(s).unsafeRunSync()
-    if(s.isRunning == true) {
-      Stream.emit(Start).through(userQ).compile.drain.unsafeRunSync()
-    }
-
-    Future.successful(Right(()))
-  }
-
+  override def setSHODANstate(s: ProgramState) : Future[Unit] = state.set(s).unsafeToFuture()
   override def setSHODANconfig(c: FullSettings) : Future[Unit] = conf.set(c).unsafeToFuture()
 
   override def getRecordings : Future[List[RecordingInfo]] = {
@@ -76,12 +66,23 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
 
 
 
+  // if(s.isRunning == true) {
+  //   Stream.emit(Start).through(userQ).compile.drain.unsafeRunSync()
+  // }
+
+
   override def startPlayback(recording: RecordingInfo): Unit = ???
 
   override def startRecording : Unit = ???
   override def stopRecording  : Unit = ???
 
   override def startAgent     : Unit = ???
+
+  val startStop = state.discrete.map(_.isRunning).changes.evalTap(x =>
+    if(x) userQ.enqueue1(Start) else userQ.enqueue1(Stop))
+
+  val recordStartStop = state.discrete.map(_.isRecording).changes.evalTap(x =>
+    if(x) userQ.enqueue1(StartRecord) else userQ.enqueue1(StopRecord))
 
 
 
@@ -95,5 +96,5 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
     cis.foreach(ci => ClientRPChandle(ci).state().pushState(s) )
   }
 
-  (pushConfs merge pushState).compile.drain.unsafeRunAsyncAndForget()
+  (startStop merge recordStartStop merge pushConfs merge pushState).compile.drain.unsafeRunAsyncAndForget()
 }

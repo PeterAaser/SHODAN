@@ -47,7 +47,7 @@ object ApplicationServer {
 
 
   def assembleFrontend(
-    userCommands      : Sink[IO,UserCommand],
+    userCommands      : Queue[IO,UserCommand],
     state             : SignallingRef[IO,ProgramState],
     conf              : SignallingRef[IO,FullSettings])
       : IO[RPCserver] = {
