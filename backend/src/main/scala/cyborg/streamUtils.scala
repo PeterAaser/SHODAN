@@ -59,6 +59,7 @@ object utilz {
         count += 1
       }
 
+      // hehe hurr durr
       if(count == dropEvery) {
         buf.append(lowest)
         buf.append(highest)
@@ -67,6 +68,43 @@ object utilz {
       Chunk.buffer(buf)
     }
   }
+
+
+  def downsampleHiLoWith[F[_],A](dropEvery: Int, f: (Int, Int) => A): Pipe[F,Int,A] = {
+
+    def go(s: Stream[F,Int], hi: Int, lo: Int, count: Int): Pull[F, A, Unit] = {
+      s.pull.uncons.flatMap {
+        case Some((data, tl)) => {
+          import scala.collection.mutable.ArrayBuffer
+          val buf = ArrayBuffer[A]()
+
+          var countRef = count
+          var hiRef = hi
+          var loRef = lo
+
+          for(ii <- 0 until data.size){
+            if(data(ii) > hiRef) hiRef = data(ii)
+            if(data(ii) < loRef) loRef = data(ii)
+
+            if(countRef == dropEvery) {
+              buf.append(f(loRef, hiRef))
+              loRef = Int.MaxValue
+              hiRef = Int.MinValue
+              countRef = 0
+            }
+            countRef += 1
+          }
+
+
+          Pull.output(Chunk.seq(buf)) >> go(tl, hiRef, loRef, countRef)
+        }
+        case None => say("pull ded"); Pull.done
+      }
+    }
+
+    inStream => go(inStream, Int.MaxValue, Int.MinValue, dropEvery).stream
+  }
+
 
 
   type ChannelTopic[F[_]] = Topic[F,TaggedSegment]
@@ -849,6 +887,14 @@ object utilz {
     val fname = filename.value.split("/").last
     val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + color + s" $word" + Console.RESET)
+  }
+
+  def exSay[A](word: A, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): A = {
+    import cyborg.io.files._, cats.effect.IO
+    val fname = filename.value.split("/").last
+    val timeString = if (timestamp) ", " + fileIO.getTimeStringUnsafe else ""
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}${timeString}]" + color + s" $word" + Console.RESET)
+    word
   }
 
   def Fsay[F[_]](word: Any, color: String = Console.RESET)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): F[Unit] = {

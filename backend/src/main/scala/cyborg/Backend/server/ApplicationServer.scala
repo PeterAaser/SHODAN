@@ -38,9 +38,13 @@ object ApplicationServer {
       */
     def waveformTap(data: Array[Int]): IO[Unit] = {
       listeners.get.flatMap{ci =>
+        IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
+      }
+    }
 
-        ci.foreach(ClientRPChandle(_).wf().wfPush(data))
-        IO.unit
+    def drawCommandTap(data: Array[Array[DrawCommand]]): IO[Unit] = {
+      listeners.get.flatMap{ci =>
+        IO { ci.foreach(ClientRPChandle(_).wf().dcPush(data)) }
       }
     }
   }

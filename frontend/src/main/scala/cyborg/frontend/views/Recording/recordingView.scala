@@ -79,7 +79,8 @@ class RecordingView(model: ModelProperty[RecordingModel],
       },
       rangeUp.render,
       rangeDown.render,
-      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.wfCanvas.render)
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.wfCanvas.render),
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.channelCanvas.render)
     )
   }
 }
@@ -96,6 +97,7 @@ class RecordingPresenter(model: ModelProperty[RecordingModel],
     val id = model.subProp(_.recordingSelected).get.get.id
     model.subProp(_.state).modify{ s => s.copy(dataSource = Some(Playback(id)))}
     model.subProp(_.state).modify{ s => s.copy(isRunning = true) }
+    canvasController.fireStateChange
   }
 
 

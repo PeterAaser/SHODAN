@@ -51,9 +51,13 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
     t.unsafeToFuture()
   }
 
-  override def unregister : Unit = listeners.update(_.filter(_ != ci)).unsafeRunSync()
+  override def unregister: Unit = listeners.update(_.filter(_ != ci)).unsafeRunSync()
 
-  override def setSHODANstate(s: ProgramState) : Future[Unit] = state.set(s).unsafeToFuture()
+  override def setSHODANstate(s: ProgramState)  : Future[Unit] = {
+    say(s"setting new state $s")
+    state.set(s).unsafeToFuture()
+  }
+
   override def setSHODANconfig(c: FullSettings) : Future[Unit] = conf.set(c).unsafeToFuture()
 
   override def getRecordings : Future[List[RecordingInfo]] = {
@@ -64,21 +68,20 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
     .unsafeToFuture()
   }
 
+  override def startAgent : Unit = ???
+  override def selectLargeChannel(c: Int) : Future[Unit] = ???
 
+  def printState = state.discrete.map{x => say(s"state is $x", Console.GREEN); x}.drain
+  def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain
 
-  // if(s.isRunning == true) {
-  //   Stream.emit(Start).through(userQ).compile.drain.unsafeRunSync()
-  // }
+  (printState merge printStateChanges).compile.drain.unsafeRunAsyncAndForget()
+  
 
-
-  override def startPlayback(recording: RecordingInfo): Unit = ???
-
-  override def startRecording : Unit = ???
-  override def stopRecording  : Unit = ???
-
-  override def startAgent     : Unit = ???
-
-  val startStop = state.discrete.map(_.isRunning).changes.evalTap(x =>
+  val startStop = state.discrete
+    .changes
+    .map(_.isRunning).changes
+    .map{x => say(s"new running state is $x", Console.CYAN); x}
+    .evalTap(x =>
     if(x) userQ.enqueue1(Start) else userQ.enqueue1(Stop))
 
   val recordStartStop = state.discrete.map(_.isRecording).changes.evalTap(x =>

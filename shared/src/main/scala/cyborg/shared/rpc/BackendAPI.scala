@@ -21,14 +21,12 @@ trait MainServerRPC {
   // If we set to running but something explodes
   def setSHODANstate(s: ProgramState)   : Future[Unit]
   def setSHODANconfig(c: FullSettings)  : Future[Unit]
-  def startPlayback(rec: RecordingInfo) : Unit
 
   def getRecordings(): Future[List[RecordingInfo]]
 
-  def startRecording() : Unit
-  def stopRecording()  : Unit
-
   def startAgent: Unit
+
+  def selectLargeChannel(c: Int) : Future[Unit]
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

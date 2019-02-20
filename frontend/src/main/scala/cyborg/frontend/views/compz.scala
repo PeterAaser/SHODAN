@@ -69,10 +69,11 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val channelCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
 
   /**
-    This is kinda very bad...
+    This is kinda very very bad...
     */
   scalajs.js.timers.setInterval(1000){
     say("checking for updates")
@@ -89,32 +90,35 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     }
   }
 
-
-  val stateListener = state.listen( s => Context.serverRpc.setSHODANstate(s) )
+  def fireStateChange: Unit = Context.serverRpc.setSHODANstate(state.get)
 
   val wfQueue    = new scala.collection.mutable.Queue[Array[Int]]()
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
   val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
+  val drawQueue  = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
+  
   agentQueue.enqueue(Agent.init)
 
   cyborg.frontend.services.rpc.Hurr.register(
     agentQueue,
     wfQueue,
     confQueue,
-    stateQueue
+    stateQueue,
+    drawQueue
   )
 
   val wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+  val big = new cyborg.LargeWFviz(channelCanvas, drawQueue)
 
-  def onStopClicked(btn: UdashButton) = state.modify( s =>
+  def onStopClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRunning = false, isRecording = false)
-  )
+  }
 
-  def onStopRecordingClicked(btn: UdashButton) = state.modify( s =>
+  def onStopRecordingClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRecording = false)
-  )
+  }
 
   def onRangeUpClicked(btn: UdashButton) = {
     val current = wf.getMaxVal

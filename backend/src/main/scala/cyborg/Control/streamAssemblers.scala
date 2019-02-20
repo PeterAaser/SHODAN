@@ -42,12 +42,7 @@ object Assemblers {
 
     val dsp = new cyborg.dsp.DSP(httpClient)
 
-    // val t = implicitly[Timer[IO]]
-
     for {
-
-      // _            <- Stream.eval(mockServer.assembleTestHttpServer(8888))
-      // _            <- Stream.eval(t.sleep(3.second))
 
       initState    <- Stream.eval(initProgramState(httpClient, dsp))
       stateServer  <- Stream.eval(SignallingRef[IO,ProgramState](initState))
@@ -73,9 +68,9 @@ object Assemblers {
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
 
-
+      staleConf    <- Stream.eval(configServer.get)
+      _            <- Stream.eval(doDspTestStuff(dsp, staleConf))
       _            <- commandQueue.dequeue.through(commandPipe)
-                        // .concurrently(mockServer.assembleTestTcpServer(12340))
     } yield ()
   }
 
@@ -116,7 +111,9 @@ object Assemblers {
   def broadcastDataStream(
     source      : Stream[IO,TaggedSegment],
     topics      : List[Topic[IO,TaggedSegment]],
-    rawSink     : Sink[IO,TaggedSegment]) : IO[InterruptableAction[IO]] = {
+    rawSink     : Sink[IO,TaggedSegment],
+    hurrSink    : Sink[IO,Array[Array[DrawCommand]]],
+    filter      : SpikeTools[IO]) : IO[InterruptableAction[IO]] = {
 
     val interrupted = SignallingRef[IO,Boolean](false)
 
@@ -124,7 +121,6 @@ object Assemblers {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
-
           case Some((taggedSeg, tl)) => {
             val idx = taggedSeg.channel
             if(idx != -1){
@@ -135,9 +131,11 @@ object Assemblers {
           case None => Pull.done
         }
       }
-
       in => go(in).stream
     }
+
+
+    val spammer = filter.visualize(topics(3).subscribe(100000).map(_.data).chunkify).through(hurrSink)
 
     interrupted.map { interruptSignal =>
       InterruptableAction(
@@ -146,31 +144,10 @@ object Assemblers {
           .interruptWhen(interruptSignal)
           .observe(rawSink)
           .through(publishSink(topics))
+          .concurrently(spammer.drain)
+          // .concurrently(spammer2.drain)
           .compile.drain
       )
-    }
-  }
-
-
-  // not used?
-  def startLiveBroadcast(topics: List[Topic[IO,TaggedSegment]], rawSink: Sink[IO,TaggedSegment])
-      : Kleisli[Id, FullSettings, IO[InterruptableAction[IO]]] = for {
-    dataStream <- cyborg.io.Network.streamFromTCP
-  } yield broadcastDataStream(dataStream, topics, rawSink)
-
-
-  /**
-    Since a playback from broadcast alters the config it is encoded using StateT. A StateT can be transformed
-    to a readerT using `StateT.flatMapToKleisli` defined in the streamUtils extension method for StateT
-    */
-  def startPlaybackBroadcast(id: Int, topics: List[Topic[IO,TaggedSegment]], rawSink: Sink[IO,TaggedSegment])
-      : StateT[IO, FullSettings, InterruptableAction[IO]] = StateT[IO, FullSettings, InterruptableAction[IO]] { conf =>
-    val recordingInfoTask: IO[RecordingInfo] = cyborg.io.database.databaseIO.getRecordingInfo(id)
-    recordingInfoTask.flatMap { recordingInfo =>
-      val newConf = conf.copy(daq = recordingInfo.daqSettings)
-      val dataStream = cyborg.io.DB.streamFromDatabase(id)
-      val broadcast = broadcastDataStream(dataStream, topics, rawSink)
-      broadcast.map(bc => (newConf, bc))
     }
   }
 
@@ -216,6 +193,7 @@ object Assemblers {
     topics        : List[Topic[IO,TaggedSegment]],
     rawSink       : Sink[IO,TaggedSegment],
     frontendSink  : Sink[IO,Array[Int]],
+    hurrSink      : Sink[IO,Array[Array[DrawCommand]]],
     client        : MEAMEHttpClient[IO],
   ): IO[InterruptableAction[IO]] = {
 
@@ -233,25 +211,32 @@ object Assemblers {
     val getAndBroadcastDatastream: Kleisli[IO,FullSettings,InterruptableAction[IO]] = programState.dataSource.get match {
         case Live => for {
           source              <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
+          filter              <- SpikeTools.kleisliConstructor[IO](100.millis)
           frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
           broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                       topics,
                                                       (s: Stream[IO,TaggedSegment]) => s
                                                         .observe(rawSink)
                                                         .through(frontendDownsampler)
-                                                        .through(frontendSink)))
+                                                        .through(frontendSink),
+                                                      hurrSink,
+                                                      filter,
+          ))
         } yield broadcast
 
         case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { source =>
           for {
             frontendDownsampler <- assembleFrontendDownsampler.mapF(IO.pure(_))
+            filter              <- SpikeTools.kleisliConstructor[IO](100.millis)
             broadcast           <- Kleisli.liftF(broadcastDataStream(source,
                                                         topics,
                                                         (s: Stream[IO,TaggedSegment]) => s
                                                           .observe(rawSink)
-                                                          .map(x => x.copy(data = x.data.map(x => (x.toDouble * 5.9605e-5).toInt)))
                                                           .through(frontendDownsampler)
-                                                          .through(frontendSink)))
+                                                          .through(frontendSink),
+                                                        hurrSink,
+                                                        filter,
+            ))
           } yield broadcast
         }
       }
@@ -276,5 +261,11 @@ object Assemblers {
 
       setter(ProgramState.init)
     }
+  }
+
+  def doDspTestStuff(dsp: cyborg.dsp.DSP[IO], conf: FullSettings): IO[Unit] = {
+    say("Running DSP test methods!!", Console.RED)
+    say("Ensure that the MOCK EXECUTOR is being run!!", Console.RED)
+    dsp.setup(conf) >> dsp.setStimgroupPeriod(0, 100.millis) >> dsp.enableStimGroup(0)
   }
 }

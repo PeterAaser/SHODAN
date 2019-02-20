@@ -31,4 +31,10 @@ object RPCmessages {
     )
   object RecordingInfo extends HasGenCodecAndModelPropertyCreator[RecordingInfo]
 
+
+  case class DrawCommand(
+    yMin: Int,
+    yMax: Int,
+    color: Int)
+  object DrawCommand extends HasGenCodecAndModelPropertyCreator[DrawCommand]
 }

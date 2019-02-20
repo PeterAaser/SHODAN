@@ -17,6 +17,7 @@ trait MainClientRPC {
 
 trait WfClientRPC {
   def wfPush(data: Array[Int]): Unit
+  def dcPush(data: Array[Array[DrawCommand]])
 }
 
 trait AgentClientRPC {

@@ -62,7 +62,9 @@ object databaseIO {
       }
     }
 
-    data
+    say("DOWNSCALING DATABASE OUTPUT", Console.RED)
+
+    data.map(x => (x.toDouble * 5.9605e-5).toInt)
   }
 
   def newestRecordingId: IO[Int] = getNewestExperimentId.transact(xa)

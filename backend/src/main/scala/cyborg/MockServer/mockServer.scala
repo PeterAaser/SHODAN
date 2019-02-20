@@ -86,6 +86,7 @@ object mockServer {
       s.update(_.copy(dataAcquisition = true)).flatMap(_ => Ok(""))
     case GET -> Root / "stop" =>
       s.update(_.copy(dataAcquisition = false)).flatMap(_ => Ok(""))
+    case POST -> Root / "aux" / "logmsg" => Ok("")
   }
 
 
@@ -228,7 +229,6 @@ object mockServer {
       listeners <- Stream.eval(Queue.bounded[IO,Resource[IO,Socket[IO]]](10))
       _         <- Ssay[IO]("TCP serverino starterino", Console.CYAN)
       _         <- Stream(tcpServer(listeners), broadcastMockDataStream(listeners)).parJoinUnbounded
-      // _         <- Ssay[IO]("wut, Console.RED")
     } yield ()
   }
 

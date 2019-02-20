@@ -206,10 +206,12 @@ class WaveformGenerator[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
     if(isValid)
       for {
+        // _ <- client.meameConsoleLog("--- Uploading waveform ---")
         _ <- setRegistersRequest(stimReset)
         _ <- setRegistersRequest(stimUploads)
         _ <- setRegistersRequest(SBSReset)
         _ <- setRegistersRequest(SBSUploads)
+        // _ <- client.meameConsoleLog("--- upload complete ---\n\n\n")
       } yield ()
     else
       for {

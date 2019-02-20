@@ -29,10 +29,10 @@ object StateClient extends ClientStateRPC {
 object WfClient extends WfClientRPC {
 
   var onWfUpdate: Array[Int] => Unit = (_: Array[Int]) => ()
-  var wfRunning = false
-  // var num = 0
+  var onDrawCall: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
 
   override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
+  override def dcPush(data: Array[Array[DrawCommand]]) = onDrawCall(data)
 }
 
 object AgentClient extends AgentClientRPC {
@@ -47,13 +47,16 @@ object Hurr {
   def register(agent: scala.collection.mutable.Queue[Agent],
                wf: scala.collection.mutable.Queue[Array[Int]],
                conf: scala.collection.mutable.Queue[FullSettings],
-               state: scala.collection.mutable.Queue[ProgramState]): Unit = {
+               state: scala.collection.mutable.Queue[ProgramState],
+               drawCommands: scala.collection.mutable.Queue[Array[Array[DrawCommand]]]
+  ): Unit = {
 
     // HURR HURR HURR
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
     AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
     WfClient.onWfUpdate       = (a => {wf.enqueue(a)})
+    WfClient.onDrawCall       = (a => {drawCommands.enqueue(a)})
 
     Context.serverRpc.register
   }

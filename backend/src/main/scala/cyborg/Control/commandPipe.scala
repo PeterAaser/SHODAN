@@ -74,6 +74,7 @@ object ControlPipe {
                                          topics,
                                          _.through(rawTopic.publish),
                                          _.evalMap(frontend.waveformTap(_)),
+                                         _.evalMap(frontend.drawCommandTap(_)),
                                          httpClient)
         } yield actions
 

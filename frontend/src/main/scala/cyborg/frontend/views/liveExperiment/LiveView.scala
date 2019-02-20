@@ -47,6 +47,13 @@ class LiveView(model: ModelProperty[LiveModel],
   val stopRecordButton = UdashButton()(Icons.FontAwesome.timesCircle)
   val stopButton = UdashButton()(Icons.FontAwesome.square)
 
+  val stimButton1 = UdashButton()(Icons.FontAwesome.bolt)
+  val stimButton2 = UdashButton()(Icons.FontAwesome.bolt)
+  val stimButton3 = UdashButton()(Icons.FontAwesome.bolt)
+  val stimPause1  = UdashButton()(Icons.FontAwesome.pause)
+  val stimPause2  = UdashButton()(Icons.FontAwesome.pause)
+  val stimPause3  = UdashButton()(Icons.FontAwesome.pause)
+
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _)       => presenter.onPlayClicked(btn) }
   recordButton.listen { case UdashButton.ButtonClickEvent(btn, _)     => presenter.onRecordClicked(btn) }
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _)       => canvasController.onStopClicked(btn) }
@@ -97,10 +104,12 @@ class LivePresenter(model: ModelProperty[LiveModel], canvasController: WaveformC
   def onPlayClicked(btn: UdashButton) = {
     model.subProp(_.state).modify{ s => s.copy(dataSource = Some(Live))}
     model.subProp(_.state).modify{ s => s.copy(isRunning = true) }
+    canvasController.fireStateChange
   }
 
-  def onRecordClicked(btn: UdashButton) = model.subProp(_.state).modify{ s =>
-    s.copy(isRecording = true)
+  def onRecordClicked(btn: UdashButton) = {
+    model.subProp(_.state).modify{ s => s.copy(isRecording = true) }
+    canvasController.fireStateChange
   }
 
 

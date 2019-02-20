@@ -38,7 +38,7 @@ object waveformVisualizer {
     case class Vec(x: Double, y: Double, z: Double)
 
     val pixels = Array.ofDim[Int](60,vizLength)
-    val imageData = renderer.createImageData(1200, 1200)
+    // val imageData = renderer.createImageData(1200, 1200)
 
 
     /**
@@ -159,9 +159,11 @@ object waveformVisualizer {
       var prevMax = Int.MinValue
       var prevMin = Int.MaxValue
 
+      val x_offset = idx*vizLength
+      val y_offset = (idy*vizHeight + vizHeight/2)
+
+      renderer.fillStyle = "orange"
       for(ii <- 0 until pixels(index).length/2){
-        val x_offset = idx*vizLength
-        val y_offset = (idy*vizHeight + vizHeight/2)
 
         val min = pixels(index)(ii*2)
         val max = pixels(index)((ii*2)+1)
@@ -176,8 +178,9 @@ object waveformVisualizer {
         val start  = y_offset - drawMax
 
         renderer.fillRect(x_offset + ii, start, 2, height)
-        renderer.fillStyle = "orange"
       }
+      renderer.fillStyle = "darkSlateGray"
+      renderer.fillRect(x_offset, y_offset, x_offset + vizLength - 1, 2)
     }
 
     def drawPixelArrays(): Unit = {

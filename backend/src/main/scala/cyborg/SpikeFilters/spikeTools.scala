@@ -13,145 +13,155 @@ import utilz._
 import Settings._
 
 
-class SpikeTools[F[_]](kernelWidth: FiniteDuration, settings: FullSettings) {
-
-  val frameSizeM = hardcode(0.05.second)
-  val pointsPerFrame = (settings.daq.samplerate * (frameSizeM.toMillis.toDouble/1000.0)).toInt
+/**
+  Thissu shittu needsu a visualizer
+  
+  What we do is make a pipeN that bundles all the shittu together
+  */
+class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettings) {
 
   val kernelSize = {
-    val size = (settings.daq.samplerate*(kernelWidth.toMillis.toDouble/1000.0)).toInt
+    val size = (conf.daq.samplerate*(kernelWidth.toMillis.toDouble/1000.0)).toInt
     if(size % 2 == 0) size + 1 else size
   }
 
 
   // pretty arbitrary
-  val elementsPerChunk = (pointsPerFrame/kernelSize)
-
-
   // How many elements of raw data we pull per frame
   val frameSize = hardcode(500)
   val totalFrames = hardcode(10)
 
+  val canvasPoints = 1000
+  val canvasPointLifetime = 5000.millis
+  val pointsNeededPerSec = (canvasPoints.toDouble/canvasPointLifetime.toSeconds.toDouble).toInt //200
+
+  val pointsPerDrawcall = conf.daq.samplerate/pointsNeededPerSec // 50 for 10khz
+
   /**
     The gaussian blur convolutor not only outputs the convoluted value, it also outputs the raw input
     stream as a chunk aligned with the smoothed curve
+    
+    Not sure if this thing is very good. Can't the API just be zip anyways?
+    Sure, syncing isn't 100% trivial, but it's better than this unreadable clusterfuck
 
-    cbf making it general enough to uncons without exploding
     */
-  private def gaussianBlurConvolutor: Pipe[F,Int,(Chunk[Int], Chunk[Int])] = {
+  private def gaussianBlurConvolutor: Pipe[F,Int,Int] = {
 
-    val cutoff = (kernelSize/2) + 1
-
-    // It's a rounding trick yo
-    val pointsPerPull = (pointsPerFrame/kernelSize)*kernelSize
-
-    def go(s: Stream[F,Int], q: MutableQueue[Int], sum: Int): Pull[F, (Chunk[Int], Chunk[Int]), Unit] = {
-      s.pull.unconsN(pointsPerPull, false).flatMap {
+    def go(s: Stream[F,Int], q: MutableQueue[Int], sum: Int): Pull[F, Int, Unit] = {
+      s.pull.uncons.flatMap {
         case Some((chunk, tl)) => {
 
-          val convBuffer = Array.ofDim[Int](chunk.size - (cutoff))
+          val convBuffer = Array.ofDim[Int](chunk.size)
           var sumRef = sum
-          for(ii <- 0 until chunk.size - (cutoff)){
+          for(ii <- 0 until chunk.size){
             convBuffer(ii) = sumRef/kernelSize
-            sumRef = sumRef + chunk(ii + cutoff) - q.dequeue()
-            q.enqueue(chunk(ii + cutoff))
+            sumRef += (chunk(ii) - q.dequeue())
+            q.enqueue(chunk(ii))
           }
-          Pull.output1((chunk.take(chunk.size - (cutoff)), Chunk.ints(convBuffer))) >>
-            go(tl.cons(chunk.drop(chunk.size - (cutoff))), q, sumRef)
+          Pull.output(Chunk.ints(convBuffer)) >>
+            go(tl, q, sumRef)
         }
-        case None => Pull.done
+        case None => say("pull ded"); Pull.done
       }
     }
 
-    def init(s: Stream[F,Int]): Pull[F, (Chunk[Int], Chunk[Int]), Unit] = {
+    def init(s: Stream[F,Int]): Pull[F, Int, Unit] = {
       s.pull.unconsN(kernelSize, false) flatMap {
         case Some((chunk, tl)) => {
-          val rest = chunk.drop(cutoff - 1)
-          go(tl.cons(rest), MutableQueue[Int]() ++= chunk.toArray, chunk.foldMonoid)
+          go(tl, MutableQueue[Int]() ++= chunk.toArray, chunk.foldMonoid)
         }
-        case None => Pull.done
+        case None => say("pull ded"); Pull.done
       }
     }
-
     inStream => init(inStream).stream
   }
 
-  // TODO Ensure that raw size is frameSize, or if not change it downstream
-  private def avgNormalizer: Pipe[F,(Chunk[Int], Chunk[Int]), Int] = {
-    def go(s: Stream[F,(Chunk[Int],Chunk[Int])]): Pull[F,Int,Unit] = {
-      s.pull.uncons1.flatMap {
-        case Some(((raw, convoluted), tl)) => {
-          say(s"raw size is: ${raw.size}")
-          val buf = Array.ofDim[Int](raw.size)
-          for(ii <- 0 until raw.size){
-            buf(ii) = raw(ii) - convoluted(ii)
-          }
-          Pull.output(Chunk.ints(buf)) >> go(tl)
-        }
-        case None => Pull.done
-      }
-    }
-    inStream => go(inStream).stream
+
+  private def avgNormalizer(raw: Stream[F,Int], convoluted: Stream[F,Int]): Stream[F,Int] = {
+    raw.drop(kernelSize/2).zip(convoluted).map{ case(raw, averaged) => averaged - raw}
   }
 
 
   /**
-    Calculates the amount of spikes in given frame
-    If framesize is set to 500 this is equivalent to a 50ms window in a 10khz stream
+    Calculates an array of spike/not-spike for visualizing
+    
+    Sans cooldown
     */
-  private def spikeDetectorPipe: Pipe[F,Int,Int] = {
+  private def spikeDetectorPipe2: Pipe[F,Int,Boolean] = {
 
-    val thresh = hardcode(100)
-    val cooldown = hardcode(100)
+    lazy val thresh = hardcode(100)
 
-    def go(s: Stream[F,Int], cooldown: Int): Pull[F,Int,Unit] =
-      s.pull.unconsN(pointsPerFrame, false) flatMap {
+    def go(s: Stream[F,Int], canSpike: Boolean): Pull[F,Boolean,Unit] =
+      s.pull.uncons.flatMap {
         case Some((chunk, tl)) => {
-          val (spikes, nextCooldown) = chunk.foldLeft((0, cooldown)){ case((spikesAcc, cd), voltage) =>
-            if(cd > 0)
-              (spikesAcc, cd - 1)
-            else if(math.abs(voltage) > thresh)
-              (spikesAcc + 1, cooldown)
+          val spikes = Array.ofDim[Boolean](chunk.size)
+          var canSpikeRef = canSpike
+          for(ii <- 0 until chunk.size){
+            if(canSpikeRef && chunk(ii) > thresh){
+              spikes(ii) = true
+              canSpikeRef = false
+            }
+            else if(!canSpikeRef && chunk(ii) < thresh){
+              spikes(ii) = false
+              canSpikeRef = true
+            }
             else
-              (spikesAcc, cooldown)
+              spikes(ii) = false
           }
-          Pull.output1(spikes) >> go(tl, cooldown)
+          Pull.output(Chunk.booleans(spikes)) >> go(tl, canSpikeRef)
         }
+        case None => say("pull ded"); Pull.done
       }
 
-    inStream => go(inStream, 0).stream
+    inStream => go(inStream, true).stream
   }
 
 
-  /**
-    Aggregates the spikes from a list of channels.
-    */
-  private def spikeAggregator(sourcesL: List[Stream[F,Int]]): Stream[F,Int] = {
+  import cyborg.RPCmessages.DrawCommand
+  def visualizeRaw(hi: Int, lo: Int) = DrawCommand(hi, lo, 0)
+  def visualizeAvg(hi: Int, lo: Int) = DrawCommand(hi, lo, 1)
 
-    val sources = sourcesL.toArray
-    val outBuf = Array.ofDim[Int](60)
 
-    def loop(idx: Int): Pull[F,Int,Unit] = {
-      if(idx < 60){
-        sources(idx).pull.uncons1.flatMap {
-          case Some((spikeCount, tl)) => {
-            sources(idx) = tl
-            outBuf(idx) = spikeCount
-            loop(idx + 1)
-          }
-        }
-      }
-      else
-        Pull.output(Chunk.ints(outBuf)) >> loop(0)
-    }
+  // Let's just try with raw first, OK?
+  import cyborg.RPCmessages._
+  def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = {
+  // def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = Stream.eval(Topic[F,Int](0)).flatMap {
 
-    loop(0).stream
+    val rawStream = inputs.drop((kernelSize/2) + 1)
+    val rawStreamViz = rawStream
+      .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
+
+    val blurred = inputs.through(gaussianBlurConvolutor)
+      .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
+    
+    // val avgs = avgNormalizer(
+    //   rawStream,
+    //   inputs.through(gaussianBlurConvolutor))
+    // val avgsViz = avgs
+    //   .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
+
+    (rawStreamViz zip blurred).map{ case(a,b) => 
+      Array(a,b)
+    }.mapN(_.toArray, 50)
   }
 
-  /**
-    Windows the aggregated spikes
-    */
-  private def spikeWindowBundler: Pipe[F,Int,Chunk[Int]] = { inStream =>
-    inStream.through(stridedSlide(60*totalFrames, 60))
+  def vizzulaize: Pipe[F,Int,Array[Array[DrawCommand]]] = inStream => {
+    inStream
+      .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
+      .map(Array(_))
+      .mapN(_.toArray, 50)
+      .map{x => say("Sending some data to viz"); x}
+  }
+
+  def wat: Pipe[F,Int,Array[Int]] = inStream => {
+    inStream
+      .mapN(_.toArray, 50)
+      .map{x => say("Sending some data to viz"); x}
+  }
+}
+
+object SpikeTools {
+  def kleisliConstructor[F[_]: Concurrent](width: FiniteDuration): Kleisli[F, FullSettings, SpikeTools[F]] = Kleisli[F, FullSettings, SpikeTools[F]]{ conf =>
+    Sync[F].delay(new SpikeTools[F](width, conf))
   }
 }
