@@ -29,8 +29,7 @@ import Network._
 import State._
 
 import backendImplicits._
-import Assemblers._
-import cyborg.backend.server.ApplicationServer.RPCserver
+// import cyborg.backend.server.ApplicationServer.RPCserver
 
 object ControlPipe {
 
@@ -49,42 +48,28 @@ object ControlPipe {
   val placeholder = IO.unit
 
   def controlPipe(
+    assembler          : Assembler,
     stateServer        : SignallingRef[IO,ProgramState],
     confServer         : Signal[IO,FullSettings],
-    eventQueue         : Queue[IO,UserCommand],
-    frontend           : RPCserver,
-    httpClient         : MEAMEHttpClient[IO]
+    eventQueue         : Queue[IO,UserCommand]
   ) : IO[Sink[IO,UserCommand]] = {
 
     for {
       actionRef <- SignallingRef[IO,ProgramActions](ProgramActions())
-      topics    <- List.fill(60)(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))).sequence
-      rawTopic  <- Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))
     } yield {
 
       /**
         May start a playback or live recording based on datasource
         */
       def start: IO[Unit] = {
-        val interruptableAction = for {
-          programState <- stateServer.get
-          conf         <- confServer.get
-          actions      <- startBroadcast(conf,
-                                         programState,
-                                         topics,
-                                         _.through(rawTopic.publish),
-                                         _.evalMap(frontend.waveformTap(_)),
-                                         _.evalMap(frontend.drawCommandTap(_)),
-                                         httpClient)
-        } yield actions
-
-        val updateAndRun = for {
-          action <- interruptableAction
-          _      <- actionRef.update(state => (state.copy(stopData = action.interrupt)))
-          _      <- action.start
-        } yield ()
-
-        updateAndRun
+        for {
+          programState     <- stateServer.get
+          conf             <- confServer.get
+          broadcast        <- assembler.startBroadcast(conf, programState)
+          frontendBrodcast <- assembler.broadcastToFrontend(conf)
+          _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop)))
+          _                <- (broadcast.start, frontendBrodcast.start).parMapN((_,_) => ())
+        } yield {}
       }
 
       def stop: IO[Unit] = {
@@ -96,22 +81,14 @@ object ControlPipe {
       }
 
 
-      /**
-        Her var jeg. Problemet er at vi ikke har noen referanse til strømmen herfra.
-        Jo det har vi.
-        
-        Hmm, egentlig ikke, vi mangler rawStream. Kanskje vi burde hente den in på et eget topic?
-        startBroadcast tar inn en sink som nå kun puttes inn i en sink.
-
-        Så vi lager en topic da, for raw.
-        */
       def startRecording: IO[Unit] = {
+        say("NYI WARNING!!!", Console.RED)
         for {
           programState <- stateServer.get
           conf         <- confServer.get
-          recordAction <- io.database.databaseIO.streamToDatabase(rawTopic.subscribe(10000), "Just a test")(conf)
-          _            <- actionRef.update(_.copy(stopRecording = recordAction.interrupt))
-          _            <- recordAction.start
+          // recordAction <- io.database.databaseIO.streamToDatabase(rawTopic.subscribe(10000), "Just a test")(conf)
+          // _            <- actionRef.update(_.copy(stopRecording = recordAction.interrupt))
+          // _            <- recordAction.start
         } yield()
       }
 

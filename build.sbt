@@ -42,6 +42,12 @@ inThisBuild(Seq(
     // such as foo[F[_], A]
     "-Ypartial-unification",
 
+    // Completery moronic discarding of values.
+    // Had a really nasty bug where IO[IO[Unit]] was accepted when the signature was IO[Unit]
+    // Nightmare to debug...
+    "-Ywarn-value-discard"
+
+
     // Yeah no
     // "-Xfatal-warnings",
     // "-Xlint:_,-missing-interpolator,-adapted-args"

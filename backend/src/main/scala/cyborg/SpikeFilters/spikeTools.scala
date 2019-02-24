@@ -122,42 +122,38 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
   def visualizeAvg(hi: Int, lo: Int) = DrawCommand(hi, lo, 1)
 
 
-  // Let's just try with raw first, OK?
+  /**
+    Sure as hell ain't pretty...
+    */
   import cyborg.RPCmessages._
   def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = {
-  // def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = Stream.eval(Topic[F,Int](0)).flatMap {
 
     val rawStream = inputs.drop((kernelSize/2) + 1)
     val rawStreamViz = rawStream
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
 
     val blurred = inputs.through(gaussianBlurConvolutor)
+    val blurredViz = blurred.through(gaussianBlurConvolutor)
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
-    
-    // val avgs = avgNormalizer(
-    //   rawStream,
-    //   inputs.through(gaussianBlurConvolutor))
-    // val avgsViz = avgs
-    //   .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
 
-    (rawStreamViz zip blurred).map{ case(a,b) => 
+
+
+    (rawStreamViz zip blurredViz).map{ case(a,b) => 
       Array(a,b)
     }.mapN(_.toArray, 50)
   }
 
-  def vizzulaize: Pipe[F,Int,Array[Array[DrawCommand]]] = inStream => {
-    inStream
+  def visualize2: Pipe[F,Int,Array[Array[DrawCommand]]] = { inputs =>
+    val blurred = inputs.through(gaussianBlurConvolutor)
+    val avgNormalized = avgNormalizer(inputs, blurred)
+
+    avgNormalizer(inputs, blurred)
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
-      .map(Array(_))
+      .map(x => Array(x))
       .mapN(_.toArray, 50)
-      .map{x => say("Sending some data to viz"); x}
+
   }
 
-  def wat: Pipe[F,Int,Array[Int]] = inStream => {
-    inStream
-      .mapN(_.toArray, 50)
-      .map{x => say("Sending some data to viz"); x}
-  }
 }
 
 object SpikeTools {

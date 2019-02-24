@@ -30,11 +30,13 @@ object ClientRPChandle {
     new DefaultClientRPC[MainClientRPC](target).get
 }
 
-class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
-                        userQ: Queue[IO,UserCommand],
-                        state: SignallingRef[IO,ProgramState],
-                        conf: SignallingRef[IO,FullSettings])
-                       (implicit ci: ClientId) extends MainServerRPC {
+class ServerRPCendpoint(
+  listeners: Ref[IO,List[ClientId]],
+  userQ: Queue[IO,UserCommand],
+  state: SignallingRef[IO,ProgramState],
+  conf: SignallingRef[IO,FullSettings],
+  selectedChannel: SignallingRef[IO, Int]
+)(implicit ci: ClientId) extends MainServerRPC {
 
 
   override def register : Future[Unit] = {
@@ -69,7 +71,9 @@ class ServerRPCendpoint(listeners: Ref[IO,List[ClientId]],
   }
 
   override def startAgent : Unit = ???
-  override def selectLargeChannel(c: Int) : Future[Unit] = ???
+
+  import mcsChannelMap._
+  override def selectLargeChannel(c: Int) : Future[Unit] = selectedChannel.set(c).unsafeToFuture()
 
   def printState = state.discrete.map{x => say(s"state is $x", Console.GREEN); x}.drain
   def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain

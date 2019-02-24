@@ -9,6 +9,9 @@ import State._
 import fs2._
 import cats.effect.concurrent.{ Ref }
 import fs2.concurrent.{ Signal, Queue, Topic }
+import cats.implicits._
+
+import org.eclipse.jetty.server.{ Server => JettyServer }
 
 import cyborg.backend.rpc.ServerRPCendpoint
 import cyborg.shared.rpc.server.MainServerRPC
@@ -19,42 +22,49 @@ import _root_.io.udash.rpc._
 import cyborg.backend.rpc.ClientRPChandle
 import cyborg.Settings._
 
+/**
+  All comms from SHODAN --> MEAME is accessed here
+  */
+class RPCserver(
+  s: JettyServer,
+  listeners: Ref[IO, List[ClientId]]){
+
+  def start : IO[Unit] = IO { s.start() }
+  def stop  : IO[Unit] = IO { s.stop()  }
+
+  def agentPush(a: Agent): IO[Unit] =
+    listeners.get.flatMap{ci =>
+      IO { ci.foreach(ClientRPChandle(_).agent().agentPush(a)) }
+    }
+
+  def waveformPush(data: Array[Int]): IO[Unit] =
+    listeners.get.flatMap{ci =>
+      IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
+    }
+
+  def drawCommandPush(idx:Int)(data: Array[Array[DrawCommand]]): IO[Unit] =
+    listeners.get.flatMap{ci => idx match {
+      case 0 => IO { say("0"); ci.foreach(ClientRPChandle(_).wf().dcPush(data)) }
+      case 1 => IO { say("1"); ci.foreach(ClientRPChandle(_).wf().dcPush2(data)) }
+      case 2 => IO { ci.foreach(ClientRPChandle(_).wf().dcPush3(data)) }
+      case 3 => IO { ci.foreach(ClientRPChandle(_).wf().dcPush4(data)) }
+    }
+    }
+
+  // def streamSelected = selectedChannel.discrete.switchMap( channel =>
+  //   topics(channel).subscribe(100).through
+  // )
+}
+
+
 object ApplicationServer {
 
-
-  case class RPCserver(s: org.eclipse.jetty.server.Server, listeners: Ref[IO, List[ClientId]]){
-
-    def start : IO[Unit] = IO { s.start() }
-    def stop  : IO[Unit] = IO { s.stop()  }
-
-    def pushAgent(a: Agent, ci: List[ClientId]) : IO[Unit] =
-      IO { ci.foreach(ClientRPChandle(_).agent().agentPush(a)) }
-    def agentTap(a: Agent): IO[Unit] =
-      listeners.get.flatMap(ci => pushAgent(a, ci))
-
-
-    /**
-      Yep, we cheat using IO.unit here
-      */
-    def waveformTap(data: Array[Int]): IO[Unit] = {
-      listeners.get.flatMap{ci =>
-        IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
-      }
-    }
-
-    def drawCommandTap(data: Array[Array[DrawCommand]]): IO[Unit] = {
-      listeners.get.flatMap{ci =>
-        IO { ci.foreach(ClientRPChandle(_).wf().dcPush(data)) }
-      }
-    }
-  }
-
-
   def assembleFrontend(
-    userCommands      : Queue[IO,UserCommand],
-    state             : SignallingRef[IO,ProgramState],
-    conf              : SignallingRef[IO,FullSettings])
-      : IO[RPCserver] = {
+    userCommands    : Queue[IO,UserCommand],
+    state           : SignallingRef[IO,ProgramState],
+    conf            : SignallingRef[IO,FullSettings],
+    selectedChannel : SignallingRef[IO,Int]
+  ) : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
     import org.eclipse.jetty.server.Server
@@ -64,15 +74,16 @@ object ApplicationServer {
     val port = 8080
     val resourceBase = "frontend/target/UdashStatics/WebContent"
 
-    def createAtmosphereHolder(listeners: Ref[IO, List[ClientId]]): ServletHolder = {
+    def createAtmosphereHolder(listeners: Ref[IO, List[ClientId]], selectedChannel: SignallingRef[IO, Int]): ServletHolder = {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
             listeners,
             userCommands,
             state,
-            conf)(
-            clientId)
+            conf,
+            selectedChannel
+          )(clientId)
         )
       )
 
@@ -90,13 +101,14 @@ object ApplicationServer {
       appHolder
     }
 
+    import backendImplicits._
     cats.effect.concurrent.Ref.of[IO, List[ClientId]](Nil).flatMap { ci =>
       IO {
         say(s"Making a server with port: $port")
         val server = new Server(port)
         val contextHandler = new ServletContextHandler
         val appHolder = createAppHolder()
-        val atmosphereHolder = createAtmosphereHolder(ci)
+        val atmosphereHolder = createAtmosphereHolder(ci, selectedChannel)
 
         contextHandler.setSessionHandler(new SessionHandler)
         contextHandler.getSessionHandler.addEventListener(
@@ -107,7 +119,7 @@ object ApplicationServer {
         contextHandler.addServlet(appHolder, "/*")
         server.setHandler(contextHandler)
 
-        RPCserver(server, ci)
+        new RPCserver(server, ci)
       }
     }
   }
