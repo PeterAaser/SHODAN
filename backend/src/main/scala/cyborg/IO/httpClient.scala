@@ -5,6 +5,7 @@ import cats.data.Kleisli
 
 import cats.effect._
 import cats.implicits._
+import java.io.FileWriter
 
 import org.http4s._
 import org.http4s.client.Client
@@ -80,6 +81,11 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
     def setRegistersRequest(regs: RegisterSetList): F[Unit] = {
       val what = regs.asJson
       val req = POST(regs.asJson, buildUri("DSP/write"))
+
+      val fw = new FileWriter("/home/peteraa/SHODANlog.txt", true) ;
+      fw.write(s"${regs.asJson.toString()},\n" ) ;
+      fw.close()
+
       httpClient.expect[String](req).void
     }
 
@@ -94,6 +100,11 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
     def dspCall(call: Int, args: (Int,Int)*): F[Unit] = {
       val funcCall = DspFuncCall(call, args.toList)
       val req = POST(funcCall.asJson, buildUri("DSP/call"))
+
+      val fw = new FileWriter("/home/peteraa/SHODANlog.txt", true) ;
+      fw.write(s"${funcCall.asJson.toString()},\n" ) ;
+      fw.close()
+
       httpClient.expect[String](req).void
     }
   }

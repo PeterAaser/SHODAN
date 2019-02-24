@@ -14,14 +14,15 @@ import scala.concurrent.duration.FiniteDuration
 object MEAMEmessages {
 
   case class DAQparams(samplerate: Int, segmentLength: Int)
+
   case class DspFuncCall(func: Int, args: List[(Int, Int)]){
     // Don't use these if you're not sure they're there
     def sqGroup  = args.toMap.apply(STIM_QUEUE_GROUP)
     def sqPeriod = args.toMap.apply(STIM_QUEUE_GROUP)
     def sqElec0  = args.toMap.apply(STIM_QUEUE_GROUP)
     def sqElec1  = args.toMap.apply(STIM_QUEUE_GROUP)
-
   }
+
 
   object DspFuncCall {
     def apply(func: Int, args: (Int,Int)*): DspFuncCall = {

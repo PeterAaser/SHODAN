@@ -70,6 +70,9 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val channelCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val channelCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val channelCanvas3: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val channelCanvas4: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
 
   /**
@@ -97,6 +100,9 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
   val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
   val drawQueue  = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
+  val drawQueue2 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
+  val drawQueue3 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
+  val drawQueue4 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
   
   agentQueue.enqueue(Agent.init)
 
@@ -105,12 +111,20 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     wfQueue,
     confQueue,
     stateQueue,
-    drawQueue
+    drawQueue,
+    drawQueue2,
+    drawQueue3,
+    drawQueue4
   )
 
-  val wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue)
+  def onChannelClicked(c: Int) = Context.serverRpc.selectLargeChannel(c)
+
+  val wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
   val big = new cyborg.LargeWFviz(channelCanvas, drawQueue)
+  val big2 = new cyborg.LargeWFviz(channelCanvas2, drawQueue2)
+  val big3 = new cyborg.LargeWFviz(channelCanvas3, drawQueue3)
+  val big4 = new cyborg.LargeWFviz(channelCanvas4, drawQueue4)
 
   def onStopClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRunning = false, isRecording = false)

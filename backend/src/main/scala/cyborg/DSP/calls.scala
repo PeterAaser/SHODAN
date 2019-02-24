@@ -64,7 +64,7 @@ class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: Wavefo
   } yield ()
 
   val resetStimQueue: F[Unit] = for {
-    _ <- Fsay[F](s"reset stim queue (dsp call $RESET")
+    _ <- Fsay[F](s"reset stim queue (dsp call $RESET)")
     _ <- dspCall(RESET).void
   } yield ()
 
@@ -75,6 +75,7 @@ class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: Wavefo
   } yield ()
 
   def enableStimReqGroup(group: Int): F[Unit] = for {
+    _ <- Fsay[F](s"enable stim group $group (dsp call $ENABLE_STIM_GROUP)")
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
@@ -85,7 +86,7 @@ class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: Wavefo
   } yield ()
 
   def uploadWave(upload: F[Unit]): F[Unit] = for {
-    _ <- stopStimQueue
+    // _ <- stopStimQueue
     _ <- upload
   } yield ()
 

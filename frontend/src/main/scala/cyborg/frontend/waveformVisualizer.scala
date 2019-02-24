@@ -8,8 +8,17 @@ import cyborg.frontend.services.rpc.RPCService
 
 object waveformVisualizer {
 
-  class WFVisualizerControl(canvas: html.Canvas,
-                            dataqueue: scala.collection.mutable.Queue[Array[Int]]) {
+  class WFVisualizerControl(
+    canvas: html.Canvas,
+    dataqueue: scala.collection.mutable.Queue[Array[Int]],
+    channelClickedHandler: Int => Unit
+  ) {
+
+    var clickyX = 0
+    var clickyY = 0
+
+    var vizUserIdx = 0
+    var vizChannelIdx = 0
 
     var maxVal = 1024
     def setMaxVal(x: Int): Unit = {
@@ -23,7 +32,8 @@ object waveformVisualizer {
     canvas.width = vizLength*8 + 4
     canvas.height = vizHeight*8 + 4
 
-    val renderer = canvas.getContext("2d")
+    val renderer = canvas
+      .getContext("2d")
       .asInstanceOf[dom.CanvasRenderingContext2D]
 
     // sadly doesn't work, no comic sans 4 u :(
@@ -57,8 +67,6 @@ object waveformVisualizer {
 
       Some tuple rearranging, but conceptually simple, just follow the types
       */
-
-
     val topRowWithCoords: List[(Int, Int)] =
       (1 to 6).map(x => (x,0)).toList
 
@@ -163,6 +171,9 @@ object waveformVisualizer {
       val y_offset = (idy*vizHeight + vizHeight/2)
 
       renderer.fillStyle = "orange"
+      if(index == vizChannelIdx)
+        renderer.fillStyle = "yellow"
+
       for(ii <- 0 until pixels(index).length/2){
 
         val min = pixels(index)(ii*2)
@@ -196,7 +207,7 @@ object waveformVisualizer {
       renderer.fillStyle = "rgb(211, 211, 211)"
       renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
       renderer.fillStyle = "grey"
-      renderer.fillRect(vizLength, 0, canvas.width.toDouble - vizLength*2, canvas.height.toDouble)
+      renderer.fillRect(vizLength, 0, canvas.width.toDouble - (vizLength*2), canvas.height.toDouble)
       renderer.fillRect(0, vizHeight, canvas.width.toDouble, canvas.height.toDouble - vizHeight*2)
     }
 
@@ -205,7 +216,6 @@ object waveformVisualizer {
       renderer.fillStyle = "black"
       renderer.fillRect(vizLength, 0,           vizLength*6, 4) // ----------
       renderer.fillRect(vizLength, vizHeight*8, vizLength*6, 4) // ----------
-
 
       renderer.fillRect(0,           0 + vizHeight, 4, vizHeight*6) // |
       renderer.fillRect(vizLength*8, 0 + vizHeight, 4, vizHeight*6) //          |
@@ -233,8 +243,40 @@ object waveformVisualizer {
       }
     }
 
+    def normalizeCanvasCoords(x: Int, y: Int) = {
+      val boundingBox = canvas.getBoundingClientRect()
+      ((x - boundingBox.left) * (canvas.width / boundingBox.width),
+        (y - boundingBox.top) * (canvas.height / boundingBox.height))
+    }
+
+    canvas.onclick = { (e: dom.MouseEvent) =>
+      import mcsChannelMap._
+      val (x,y) = normalizeCanvasCoords(e.clientX.toInt, e.clientY.toInt)
+      this.clickyX = x.toInt
+      this.clickyY = y.toInt
+      val xChannel = x/vizLength
+      val yChannel = y/vizHeight
+      val windows = channelsWithCoordinates.zipWithIndex.toMap
+
+      // the one we see in the viz
+      var newVizUserIdx = windows.lift((xChannel.toInt, yChannel.toInt)).getOrElse(vizUserIdx)
+      say(s"old viz user idx $vizUserIdx")
+      say(s"new viz user idx$newVizUserIdx")
+
+      // Interal one
+      vizChannelIdx = MCStoSHODAN(SHODANvizToMCS(newVizUserIdx))
+      say(vizChannelIdx)
+
+      if(newVizUserIdx != vizUserIdx){
+        channelClickedHandler(vizChannelIdx)
+        vizUserIdx = newVizUserIdx
+      }
+    }
+
     def drawMax(): Unit = {
       renderer.fillText(s"max: $maxVal", 50, 50)
+      renderer.fillText(s"selected: $vizChannelIdx", 50, (7.5*vizHeight))
+      renderer.fillText(s"selected: $vizUserIdx", 50, (7.5*vizHeight) + 30 )
     }
   }
 }

@@ -29,10 +29,16 @@ object StateClient extends ClientStateRPC {
 object WfClient extends WfClientRPC {
 
   var onWfUpdate: Array[Int] => Unit = (_: Array[Int]) => ()
-  var onDrawCall: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
 
   override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
+  var onDrawCall: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
+  var onDrawCall2: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
+  var onDrawCall3: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
+  var onDrawCall4: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
   override def dcPush(data: Array[Array[DrawCommand]]) = onDrawCall(data)
+  override def dcPush2(data: Array[Array[DrawCommand]]) = onDrawCall2(data)
+  override def dcPush3(data: Array[Array[DrawCommand]]) = onDrawCall3(data)
+  override def dcPush4(data: Array[Array[DrawCommand]]) = onDrawCall4(data)
 }
 
 object AgentClient extends AgentClientRPC {
@@ -48,7 +54,10 @@ object Hurr {
                wf: scala.collection.mutable.Queue[Array[Int]],
                conf: scala.collection.mutable.Queue[FullSettings],
                state: scala.collection.mutable.Queue[ProgramState],
-               drawCommands: scala.collection.mutable.Queue[Array[Array[DrawCommand]]]
+               drawCommands: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
+               drawCommands2: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
+               drawCommands3: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
+               drawCommands4: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
   ): Unit = {
 
     // HURR HURR HURR
@@ -57,6 +66,9 @@ object Hurr {
     AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
     WfClient.onWfUpdate       = (a => {wf.enqueue(a)})
     WfClient.onDrawCall       = (a => {drawCommands.enqueue(a)})
+    WfClient.onDrawCall2      = (a => {drawCommands2.enqueue(a)})
+    WfClient.onDrawCall3      = (a => {drawCommands3.enqueue(a)})
+    WfClient.onDrawCall4      = (a => {drawCommands4.enqueue(a)})
 
     Context.serverRpc.register
   }

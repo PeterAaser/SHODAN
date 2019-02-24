@@ -143,16 +143,17 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
 
 
       for {
-        _ <- calls.resetStimQueue
-        _ <- configureBlanking(
+        _   <- configureBlanking(
           conf.dsp.stimulusElectrodes.flatten,
           conf.dsp.blanking,
           conf.dsp.blankingProtection
         )
-        _ <- configureStimGroup(0, conf.dsp.stimulusElectrodes.lift(0).getOrElse(Nil))
-        _ <- configureStimGroup(1, conf.dsp.stimulusElectrodes.lift(1).getOrElse(Nil))
-        _ <- configureStimGroup(2, conf.dsp.stimulusElectrodes.lift(2).getOrElse(Nil))
-        _ <- setElectrodeModes(conf.dsp.stimulusElectrodes.flatten)
+        _   <- configureStimGroup(0, conf.dsp.stimulusElectrodes.lift(0).getOrElse(Nil))
+        _   <- configureStimGroup(1, conf.dsp.stimulusElectrodes.lift(1).getOrElse(Nil))
+        _   <- configureStimGroup(2, conf.dsp.stimulusElectrodes.lift(2).getOrElse(Nil))
+        _   <- setElectrodeModes(conf.dsp.stimulusElectrodes.flatten)
+        cfg <- calls.readElectrodeConfig
+        _   <- Fsay[F](cfg)
       } yield ()
     })
     ////////////////////////////////////////////////////////////////////////////////
@@ -177,7 +178,7 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
       } yield ()
 
       val uploadWave = for {
-        _ <- uploadSquareTest(1000.micros, 200)
+        _ <- uploadSquareTest(100.millis, 20)
       } yield ()
 
       val commitConfigAndStart = for {
