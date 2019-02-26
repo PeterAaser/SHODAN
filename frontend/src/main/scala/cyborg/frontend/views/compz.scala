@@ -109,14 +109,21 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
 
   // Queues for the various canvases
-  val canvasQueues = new scala.collection.mutable.HashMap[
-    Int, scala.collection.mutable.Queue[DrawCall]]()
+  val canvasQueues = new scala.collection.mutable.HashMap[Int, scala.collection.mutable.Queue[Array[DrawCall]]]()
+  val myQueue = new scala.collection.mutable.Queue[Array[DrawCall]]()
+  canvasQueues(1) = myQueue
+
+  val myQueue2 = new scala.collection.mutable.Queue[Array[DrawCall]]()
+  canvasQueues(2) = myQueue2
+
+  val bigwfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val bigwfCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
   def handleDrawcallBatch(idx: Int, dcs: Array[DrawCall]): Unit = {
     if (idx == 0)
       wfQueue.enqueue(dcs(0))
     else
-      canvasQueues.lift(idx).foreach(q => q ++= dcs)
+      canvasQueues.lift(idx).foreach(q => q += dcs)
   }
 
 
@@ -133,6 +140,8 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   val wf = new cyborg.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+  val big = new cyborg.LargeWFviz(bigwfCanvas, myQueue)
+  val big2 = new cyborg.LargeWFviz(bigwfCanvas2, myQueue2)
 
   def onStopClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRunning = false, isRecording = false)

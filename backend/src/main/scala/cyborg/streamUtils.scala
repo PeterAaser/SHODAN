@@ -27,6 +27,17 @@ object utilz {
   case class TaggedSegment(channel: Channel, data: Chunk[Int]){}
 
 
+  /**
+    Kinda clumsy API here, but it helps efficiency.
+    
+    The underlying problem here is that a regular pipe will have to expose the result as
+    a stream of tuples which would then be transformed again, causing a lot of unnecessary 
+    copying.
+
+    For a different approach it could be possible to copy the approach in scodec-protocols
+    using the Transfom class.
+    (https://github.com/scodec/scodec-protocols/blob/series/1.2.x/src/main/scala/scodec/protocols/Transform.scala)
+    */
   def downsampleHiLoWith[F[_],A](dropEvery: Int, f: (Int, Int) => A): Pipe[F,Int,A] = {
 
     def go(s: Stream[F,Int], hi: Int, lo: Int, count: Int): Pull[F, A, Unit] = {
@@ -119,12 +130,14 @@ object utilz {
 
   implicit class ChunkedStreamBonusOps[F[_],O](s: Stream[F,Chunk[O]]) {
     def chunkify: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
+    def hideChunks: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
   }
 
-  // implicit class PullBonusOps[F[_]](
-  def doneWith(msg: String) = {
-    say(msg)
-    Pull.done
+  implicit class PullBonusOps[F[_]](p: Pull.type){
+    def doneWith(msg: String) = {
+      say(msg)
+      Pull.done
+    }
   }
 
 
@@ -977,20 +990,20 @@ object utilz {
   }
 
 
-  /**
-    Reads relevant neuro data from a topic list and pipes each channel through a spike
-    detector, before aggregating spikes from each channel into ANN input vectors
+  // /**
+  //   Reads relevant neuro data from a topic list and pipes each channel through a spike
+  //   detector, before aggregating spikes from each channel into ANN input vectors
 
-    Type inference does not like id :(
-    */
-  def assembleInputFilter[F[_]](broadcastSource : List[Topic[F,TaggedSegment]]) =
+  //   Type inference does not like id :(
+  //   */
+  def assembleInputFilter[F[_]](broadcastSource : List[Topic[F,Chunk[Int]]]) =
     Kleisli[Id, Settings.FullSettings, Pipe[F,Int,Double] => Stream[F,Chunk[Double]]](
       conf => {
         val inputs = conf.readout.inputChannels
         val channelStreams = inputs.map(broadcastSource(_).subscribe(10000))
         spikeFilter => {
           val spikeChannels = channelStreams.map(
-            _.map(_.data).chunkify.through(spikeFilter))
+            _.hideChunks.through(spikeFilter))
 
           roundRobinC(spikeChannels).covary[F]
         }

@@ -34,7 +34,8 @@ import org.http4s.client._
 
 class Assembler(httpClient   : MEAMEHttpClient[IO],
   RPCserver    : cyborg.backend.server.RPCserver,
-  topics       : List[Topic[IO,TaggedSegment]],
+  agentTopic   : Topic[IO,Agent],
+  topics       : List[Topic[IO,Chunk[Int]]],
   commandQueue : Queue[IO,UserCommand],
   zoomLevel    : SignallingRef[IO,Int],
   drawChannel  : SignallingRef[IO,Int],
@@ -60,18 +61,13 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
   }
 
 
-  def assembleMazeRunner(broadcastSource : List[Topic[IO,TaggedSegment]],
-    agentTopic      : Topic[IO,Agent],
-    dsp             : cyborg.dsp.DSP[IO])
-      : Kleisli[Id,FullSettings,Stream[IO,Unit]] = Kleisli{ conf =>
-
+  def assembleMazeRunner: Kleisli[Id,FullSettings,Stream[IO,Unit]] = Kleisli{ conf =>
     val perturbationSink: Sink[IO,List[Double]] =
       _.through(PerturbationTransform.toStimReq())
         .to(dsp.stimuliRequestSink(conf))
 
-    val mazeRunner = Maze.runMazeRunner(broadcastSource, perturbationSink, agentTopic.publish)
-    val gogo = mazeRunner(conf)
-    gogo: Id[Stream[IO,Unit]]
+    val mazeRunner = new Maze(conf).runMazeRunner(topics, perturbationSink, agentTopic.publish)
+    mazeRunner: Id[Stream[IO,Unit]]
   }
 
 
@@ -83,14 +79,14 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     */
   private def broadcastDataStream(source: Stream[IO,TaggedSegment]): Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
 
-    def publishSink(topics: List[Topic[IO,TaggedSegment]]): Sink[IO,TaggedSegment] = {
+    def publishSink: Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
           case Some((taggedSeg, tl)) => {
             val idx = taggedSeg.channel
             if(idx != -1){
-              Pull.eval(topicsV(idx).publish1(taggedSeg)) >> go(tl)
+              Pull.eval(topicsV(idx).publish1(taggedSeg.data)) >> go(tl)
             }
             else go(tl)
           }
@@ -100,7 +96,7 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
       in => go(in).stream
     }
 
-    InterruptableAction.apply(source.through(publishSink(topics)))
+    InterruptableAction.apply(source.through(publishSink))
   }
 
 
@@ -108,13 +104,16 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     BROADCAST --> FRONTEND
     */
   def broadcastToFrontend: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
-    def renderer(f: Int => Int): Pipe[IO,TaggedSegment,DrawCommand] = FrontendFilters.assembleFrontendRenderer(conf)(f)
+    def renderer(f: Int => Int): Pipe[IO,Chunk[Int],DrawCommand] = FrontendFilters.assembleFrontendRenderer(conf)(f)
     val pixelsPerPull = 10
+    val spikeFilter = new SpikeTools[IO](40.millis, conf)
+
+    val mazeRunner: Stream[IO,Unit] = assembleMazeRunner(conf)
 
     /**
       Pretty crazy thingy, might break lol.
       */
-    def gogo(zl: Int): Pull[IO,Array[DrawCommand],Unit] = {
+    def allChannels(zl: Int): Pull[IO,Array[DrawCommand],Unit] = {
 
       var buf = Array.ofDim[DrawCommand](pixelsPerPull*60)
       val streams: Array[Stream[IO,DrawCommand]] = topics.toArray.map(_.subscribe(10).through(renderer(FrontendFilters.zoomFilter(zl))))
@@ -139,12 +138,32 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
       go(0)
     }
 
+    val allChannelsStream = zoomLevel.discrete.changes.switchMap(
+      zoomLevel => allChannels(zoomLevel)
+        .stream.map(Array(_))
+        .evalMap(data => RPCserver.drawCommandPush(0)(data)))
+
+    val selectedChannelStream = drawChannel.discrete.changes.switchMap(
+      channel => topics(channel).subscribe(10).hideChunks
+        .through(spikeFilter.visualizeRawAvg)
+        .evalMap(RPCserver.drawCommandPush(1))
+    )
+
+    val selectedChannelStream2 = drawChannel.discrete.changes.switchMap(
+      channel => topics(channel).subscribe(10).hideChunks
+        .through(spikeFilter.visualizeNormSpikes)
+        .evalMap(RPCserver.drawCommandPush(2))
+    )
+
+    val agentBroadcast = agentTopic.subscribe(10).evalMap(RPCserver.agentPush)
 
     InterruptableAction.apply(
-      zoomLevel.discrete.changes.switchMap(
-        zoomLevel => gogo(zoomLevel)
-          .stream.map(Array(_))
-          .evalMap(data => RPCserver.drawCommandPush(0)(data))))
+      allChannelsStream
+        .concurrently(selectedChannelStream)
+        .concurrently(selectedChannelStream2)
+        .concurrently(mazeRunner)
+        .concurrently(agentBroadcast)
+    )
   }
 
 

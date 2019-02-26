@@ -1,5 +1,6 @@
 package cyborg
 
+import scala.concurrent.duration._
 object params {
 
   object experiment {
@@ -22,7 +23,10 @@ object params {
     val messagesPerSecond: Int = 40
     val pointsPerMessagePerChannel: Int = vizLength/messagesPerSecond
     val pointsPerMessage = pointsPerMessagePerChannel*60
+  }
 
+  object staticFilterParams {
+    val kernelWidts = 30.millis
   }
 
   object Network {

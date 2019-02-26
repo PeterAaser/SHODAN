@@ -35,13 +35,12 @@ object FrontendFilters {
 
   // def frontendDownsampler
 
-  def assembleFrontendRenderer = Kleisli[Id, FullSettings, (Int => Int) => Pipe[IO,TaggedSegment,DrawCommand]]{ conf =>
+  def assembleFrontendRenderer = Kleisli[Id, FullSettings, (Int => Int) => Pipe[IO,Chunk[Int],DrawCommand]]{ conf =>
 
     val canvasPoints        = params.waveformVisualizer.vizLength
     val canvasPointLifetime = 1000.millis
     val pointsNeededPerSec  = (canvasPoints.toDouble/canvasPointLifetime.toSeconds.toDouble).toInt
     val pointsPerDrawcall   = conf.daq.samplerate/pointsNeededPerSec
-
 
     /**
       The icky stuff in the middle ensures that there can be no gaps between each
@@ -66,8 +65,7 @@ object FrontendFilters {
         DrawCommand(zoomScaler(hi).clamp(-50,50), zoomScaler(lo).clamp(-50,50), 0)
       }
 
-      in => in.map(_.data)
-      .chunkify
+      in => in.hideChunks
       .through(downsampleHiLoWith(pointsPerDrawcall,makeDrawCall))
       .scanChunks((Int.MinValue, Int.MaxValue)){
         case(acc, chunk) => {

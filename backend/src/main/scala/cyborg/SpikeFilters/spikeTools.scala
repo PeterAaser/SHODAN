@@ -4,7 +4,8 @@ import scala.concurrent.duration._
 import scala.collection.mutable.{ Queue => MutableQueue }
 
 import cats.data.Kleisli
-import fs2.{ Chunk, _ }
+import fs2._
+import fs2.concurrent.Topic
 import cats._
 import cats.effect._
 import cats.implicits._
@@ -12,30 +13,32 @@ import utilz._
 
 import Settings._
 
-
-/**
-  Thissu shittu needsu a visualizer
-  
-  What we do is make a pipeN that bundles all the shittu together
-  */
 class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettings) {
 
+  lazy val bucketSize = hardcode(20.millis)
+  lazy val buckets = hardcode(100)
+
   val kernelSize = {
-    val size = (conf.daq.samplerate*(kernelWidth.toMillis.toDouble/1000.0)).toInt
+    val size = (conf.daq.samplerate.toDouble*(kernelWidth.toMillis.toDouble/1000.0)).toInt
     if(size % 2 == 0) size + 1 else size
   }
 
 
-  // pretty arbitrary
-  // How many elements of raw data we pull per frame
-  val frameSize = hardcode(500)
-  val totalFrames = hardcode(10)
-
+  /**
+    For drawing
+    */
   val canvasPoints = 1000
   val canvasPointLifetime = 5000.millis
   val pointsNeededPerSec = (canvasPoints.toDouble/canvasPointLifetime.toSeconds.toDouble).toInt //200
-
   val pointsPerDrawcall = conf.daq.samplerate/pointsNeededPerSec // 50 for 10khz
+
+  /**
+    For Spike detectan
+    */
+  val pointsPerBucket = (conf.daq.samplerate.toDouble*(bucketSize.toMillis.toDouble/1000.0)).toInt // ???
+  say(s"points per bucket: $pointsPerBucket")
+
+
 
   /**
     The gaussian blur convolutor not only outputs the convoluted value, it also outputs the raw input
@@ -78,7 +81,7 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
 
 
   private def avgNormalizer(raw: Stream[F,Int], convoluted: Stream[F,Int]): Stream[F,Int] = {
-    raw.drop(kernelSize/2).zip(convoluted).map{ case(raw, averaged) => averaged - raw}
+    raw.drop(kernelSize/2).zip(convoluted).map{ case(raw, averaged) => raw - averaged}
   }
 
 
@@ -89,7 +92,7 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     */
   private def spikeDetectorPipe2: Pipe[F,Int,Boolean] = {
 
-    lazy val thresh = hardcode(100)
+    lazy val thresh = hardcode(2000)
 
     def go(s: Stream[F,Int], canSpike: Boolean): Pull[F,Boolean,Unit] =
       s.pull.uncons.flatMap {
@@ -97,7 +100,7 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
           val spikes = Array.ofDim[Boolean](chunk.size)
           var canSpikeRef = canSpike
           for(ii <- 0 until chunk.size){
-            if(canSpikeRef && chunk(ii) > thresh){
+            if(canSpikeRef && math.abs(chunk(ii)) > thresh){
               spikes(ii) = true
               canSpikeRef = false
             }
@@ -110,7 +113,7 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
           }
           Pull.output(Chunk.booleans(spikes)) >> go(tl, canSpikeRef)
         }
-        case None => say("pull ded"); Pull.done
+        case None => Pull.doneWith("spike detector is dead!")
       }
 
     inStream => go(inStream, true).stream
@@ -118,42 +121,71 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
 
 
   import cyborg.RPCmessages.DrawCommand
-  def visualizeRaw(hi: Int, lo: Int) = DrawCommand(hi, lo, 0)
-  def visualizeAvg(hi: Int, lo: Int) = DrawCommand(hi, lo, 1)
-
+  private def visualizeRaw(hi: Int, lo: Int) = DrawCommand(hi, lo, 0)
+  private def visualizeAvg(hi: Int, lo: Int) = DrawCommand(hi, lo, 1)
+  
 
   /**
     Sure as hell ain't pretty...
     */
   import cyborg.RPCmessages._
-  def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = {
+  // def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = {
+  def visualizeRawAvg: Pipe[F, Int, Array[Array[DrawCommand]]] = { inputs =>
 
     val rawStream = inputs.drop((kernelSize/2) + 1)
     val rawStreamViz = rawStream
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
 
     val blurred = inputs.through(gaussianBlurConvolutor)
-    val blurredViz = blurred.through(gaussianBlurConvolutor)
+    val blurredViz = blurred
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
 
+    val avgNormalized = avgNormalizer(inputs, blurred)
+    val avgNormalizedViz = avgNormalized
+      .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
 
+
+    // val spikes = avgNormalized.through(spikeDetectorPipe2)
+    // val spikesViz = spikes.through(downsampleWith(pointsPerDrawcall, 1)((c: Chunk[Boolean]) => c.foldLeft(false)(_||_)))
+    //   .map(b => if(b) DrawCommand(-1000, -10000, 1) else DrawCommand(0,0,0))
 
     (rawStreamViz zip blurredViz).map{ case(a,b) => 
       Array(a,b)
     }.mapN(_.toArray, 50)
   }
 
-  def visualize2: Pipe[F,Int,Array[Array[DrawCommand]]] = { inputs =>
+
+
+  def visualizeNormSpikes: Pipe[F,Int,Array[Array[DrawCommand]]] = { inputs =>
     val blurred = inputs.through(gaussianBlurConvolutor)
     val avgNormalized = avgNormalizer(inputs, blurred)
-
-    avgNormalizer(inputs, blurred)
+    val avgNormalizedViz = avgNormalized
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
-      .map(x => Array(x))
-      .mapN(_.toArray, 50)
+
+    val spikes = avgNormalized.through(spikeDetectorPipe2)
+    val spikesViz = spikes.through(downsampleWith(pointsPerDrawcall, 1)((c: Chunk[Boolean]) => c.foldLeft(false)(_||_)))
+      .map(b => if(b) DrawCommand(-2600, -10000, 1) else DrawCommand(0,0,0))
+
+    (avgNormalizedViz zip spikesViz).map{ case(a,b) => 
+      Array(a,b)
+    }.mapN(_.toArray, 50)
 
   }
 
+
+
+  def outputSpikes(topics: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Int]] = {
+
+    val spikeBuckets = topics.map{ topic =>
+      val inputs = topic.subscribe(10).hideChunks
+      val blurred = inputs.through(gaussianBlurConvolutor)
+      val avgNormalized = avgNormalizer(inputs, blurred)
+      val spikes = avgNormalized.through(spikeDetectorPipe2)
+      val bucketed = spikes.mapN(_.foldMap(b => if(b) 1 else 0), pointsPerBucket)
+      bucketed
+    }
+    roundRobinC(spikeBuckets)
+  }
 }
 
 object SpikeTools {

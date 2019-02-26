@@ -80,7 +80,9 @@ class RecordingView(model: ModelProperty[RecordingModel],
       rangeUp.render,
       rangeDown.render,
       showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.wfCanvas.render),
-      // showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.channelCanvas.render)
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.agentCanvas.render),
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.bigwfCanvas.render),
+      showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.bigwfCanvas2.render)
     )
   }
 }

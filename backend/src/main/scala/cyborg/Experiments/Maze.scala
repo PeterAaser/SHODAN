@@ -25,11 +25,7 @@ import scala.concurrent.duration._
 
 import backendImplicits._
 
-
-/**
-  I really really hope this one doesn't take more introduction...
-  */
-object Maze {
+class Maze(conf: FullSettings){
 
   type FilterOutput       = Chunk[Double]
   type ReadoutOutput      = Chunk[Double] // aka (Double, Double)
@@ -51,43 +47,41 @@ object Maze {
 
     TODO use unconsLimit
     */
-  def taskRunner[F[_]: Concurrent] = Kleisli[Id, FullSettings, Pipe[F,ReadoutOutput, TaskOutput]]( conf =>
-    {
+  def taskRunner[F[_]: Concurrent]: Pipe[F,ReadoutOutput, TaskOutput] = {
 
-      // Here we can use the reader conf if we want
-      val initAgent = {
-        import params.game._
-        Agent(Coord(( width/2.0), ( height/2.0)), 0.0, 90)
-      }
+    val initAgent = {
+      import params.game._
+      Agent(Coord(( width/2.0), ( height/2.0)), 0.0, 90)
+    }
 
-      say("creating simrunner")
-      def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
-        def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
-          s.pull.uncons1 flatMap {
-            case Some((agentInput, tl)) => {
-              val nextAgent = Agent.updateAgent(agent, agentInput.toList)
-              if (ticks > 0){
-                Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
-              }
-              else {
-                say("Challenge done")
-                Pull.output1(nextAgent) >> Pull.done
-              }
+    say("creating simrunner")
+    def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
+      def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
+        s.pull.uncons1 flatMap {
+          case Some((agentInput, tl)) => {
+            val nextAgent = Agent.updateAgent(agent, agentInput.toList)
+            if (ticks > 0){
+              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             }
-            case None => {
-              say("simrunner done??")
-              Pull.done
+            else {
+              say("Challenge done")
+              Pull.output1(nextAgent) >> Pull.done
             }
           }
+          case None => {
+            say("simrunner done??")
+            Pull.done
+          }
         }
-        in => go(conf.ga.ticksPerEval, agent, in).stream
       }
+      in => go(conf.ga.ticksPerEval, agent, in).stream
+    }
 
-      val challenges = wallAvoid.createChallenges
-      val challengePipes = challenges.map(simRunner)
+    val challenges = wallAvoid.createChallenges
+    val challengePipes = challenges.map(simRunner)
 
-      joinPipes(Stream.emits(challengePipes).covary[F])
-    })
+    joinPipes(Stream.emits(challengePipes).covary[F])
+  }
 
 
   /**
@@ -97,25 +91,24 @@ object Maze {
 
     Could be rewritten easily with foldMonoid
     */
-  def taskEvaluator[F[_]] = Kleisli[Id, FullSettings, Pipe[F,TaskOutput,Double]](conf =>
-    {
-      def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
-        s.pull.unconsN(conf.ga.ticksPerEval, false) flatMap {
-          case Some((chunk, _)) => {
-            val closest = chunk
-              .map(_.distanceToClosest)
-              .toList
-              .min
+  def taskEvaluator[F[_]]: Pipe[F,TaskOutput,Double] = {
+    def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
+      s.pull.unconsN(conf.ga.ticksPerEval, false) flatMap {
+        case Some((chunk, _)) => {
+          val closest = chunk
+            .map(_.distanceToClosest)
+            .toList
+            .min
 
-            Pull.output1(closest) >> Pull.done
-          }
-          case None => {
-            Pull.done
-          }
+          Pull.output1(closest) >> Pull.done
+        }
+        case None => {
+          Pull.done
         }
       }
-      in => go(in).stream
-    })
+    }
+    in => go(in).stream
+  }
 
 
   /**
@@ -125,54 +118,48 @@ object Maze {
   def perturbationTransform[F[_]]: Pipe[F,TaskOutput,PerturbationOutput] = _.map(_.distances)
 
 
-  def inputSource[F[_]](broadcastSource: List[Topic[F,TaggedSegment]]) = {
-    for {
-      filterGenerator <- assembleInputFilter(broadcastSource)
-      filter          <- spikeDetector.spikeDetectorPipe[F]
-    } yield (filterGenerator(filter))
-  }
 
 
   /**
     Creates initial networks, then creates new ones based on how the inital networks performed
     and so on...
     */
-  def readoutLayerGenerator[F[_]]: Kleisli[Id, FullSettings, Pipe[F,Double,Pipe[F,FilterOutput,ReadoutOutput]]] = for {
-    gaRunner <- GArunnerz.asKleisli[F]
-  } yield {
-    inStream => inStream.through(gaRunner.FFANNGenerator[F]).map(_.toPipe[F])
+  def readoutLayerGenerator[F[_]]: Pipe[F,Double,Pipe[F,FilterOutput,ReadoutOutput]] = { inStream =>
+    val huh = for {
+      gaRunner <- GArunnerz.asKleisli[F](conf)
+    } yield {
+      inStream.through(gaRunner.FFANNGenerator[F]).map(_.toPipe[F])
+    }
+    huh
   }
 
 
+
   def runMazeRunner[F[_]: Concurrent : Timer](
-    inputs: List[Topic[F,TaggedSegment]],
+    inputs: List[Topic[F,Chunk[Int]]],
     perturbationSink: Sink[F,PerturbationOutput],
-    agentSink: Sink[F,Agent]) = Kleisli[Id, FullSettings, Stream[F,Unit]]{ conf =>
+    agentSink: Sink[F,Agent]): Stream[F,Unit] = {
+
+    val spikeTools = new SpikeTools[F](10.millis, conf)
+
+    def inputSource(broadcastSource: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Double]] =
+      spikeTools.outputSpikes(inputs).map(_.map(_.toDouble))
 
     Stream.eval(Queue.bounded[F,Double](20)) flatMap { evalQueue =>
-      val mazeRunner = for {
-        readoutGenerator <- readoutLayerGenerator[F]
-        taskEvaluator    <- taskEvaluator[F]
-        taskRunner       <- taskRunner[F]
-        inputSource      <- inputSource[F](inputs)
-      } yield {
 
-        val readoutSource     = evalQueue.dequeue.through(readoutGenerator)
-        val evaluationSink    = taskEvaluator andThen evalQueue.enqueue
-        val taskRunnerWithObs = taskRunner andThen (_.observeAsync(1000)(agentSink))
+      val readoutSource     = evalQueue.dequeue.through(readoutLayerGenerator)
+      val evaluationSink    = taskEvaluator andThen evalQueue.enqueue
+      val taskRunnerWithObs = taskRunner andThen (_.observeAsync(1000)(agentSink))
 
-        val exp: Sink[F,Chunk[Double]] = MazeRunner.run(
-          taskRunnerWithObs,
-          perturbationTransform,
-          readoutSource,
-          evaluationSink,
-          perturbationSink
-        )
+      val exp: Sink[F,Chunk[Double]] = MazeRunner.run(
+        taskRunnerWithObs,
+        perturbationTransform,
+        readoutSource,
+        evaluationSink,
+        perturbationSink
+      )
 
-        inputSource.through(exp)
-      }
-
-      Stream.emit(mazeRunner(conf)): Id[Stream[F,Unit]]
+      inputSource(inputs).through(exp)
     }
   }
 }

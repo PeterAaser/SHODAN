@@ -22,6 +22,8 @@ import cats._
 import cats.effect._
 import cats.implicits._
 
+import cyborg.wallAvoid.Agent
+
 import scala.concurrent.ExecutionContext
 
 object Launcher extends IOApp {
@@ -52,8 +54,8 @@ object Launcher extends IOApp {
 
     client.use{ c =>
       for {
-        topics          <-  List.fill(60)(Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))).sequence
-        rawTopic        <-  Topic[IO,TaggedSegment](TaggedSegment(-1, Chunk[Int]()))
+        topics          <-  List.fill(60)(Topic[IO,Chunk[Int]](Chunk.empty[Int])).sequence
+        agent           <-  Topic[IO,Agent](Agent.init)
 
         httpClient       =  new MEAMEHttpClient(c)
         dsp              =  new cyborg.dsp.DSP(httpClient)
@@ -62,10 +64,22 @@ object Launcher extends IOApp {
         stateServer     <-  SignallingRef[IO,ProgramState](initState)
         configServer    <-  SignallingRef[IO,FullSettings](FullSettings.default)
         selectedChannel <-  SignallingRef[IO,Int](0)
+        zoomLevel       <-  SignallingRef[IO,Int](5)
         commandQueue    <-  Queue.unbounded[IO,UserCommand]
-        rpcServer       <-  cyborg.backend.server.ApplicationServer.assembleFrontend(commandQueue, stateServer, configServer, selectedChannel)
+        rpcServer       <-  cyborg.backend.server.ApplicationServer.assembleFrontend(commandQueue, stateServer, configServer, zoomLevel, selectedChannel)
 
-        assembler        =  new Assembler(new MEAMEHttpClient(c), rpcServer, rawTopic, topics, commandQueue, selectedChannel, configServer, stateServer, dsp)
+        assembler        =  new Assembler(
+          new MEAMEHttpClient(c),
+          rpcServer,
+          agent,
+          topics,
+          commandQueue,
+          zoomLevel,
+          selectedChannel,
+          configServer,
+          stateServer,
+          dsp
+        )
 
         exitCode        <-  assembler.startSHODAN.compile.drain.as(ExitCode.Success)
       } yield exitCode

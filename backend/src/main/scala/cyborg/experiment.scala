@@ -46,9 +46,15 @@ import backendImplicits._
 
   This topology corresponds to the agent task
   */
-class ClosedLoopExperiment[F[_]: Concurrent,FilterO,ReadoutO,TaskO,PerturbationO] {
+class ClosedLoopExperiment[
+  F[_]: Concurrent,
+  FilterO,
+  ReadoutO,
+  TaskO,
+  PerturbationO
+] {
 
-  type InputFilter           = List[Topic[F,TaggedSegment]] => Stream[F,FilterO]
+  // type InputFilter           = List[Topic[F,Chunk[Int]]] => Stream[F,FilterO]
   type ReadoutLayer          = Pipe[F,FilterO,ReadoutO]
   type TaskRunner            = Pipe[F,ReadoutO,TaskO]
   type PerturbationTransform = Pipe[F,TaskO,PerturbationO]
