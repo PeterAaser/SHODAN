@@ -26,4 +26,15 @@ object frontilz {
       p.set(f(a))
     }
   }
+
+  def getColor(colorIdx: Int, renderer: org.scalajs.dom.CanvasRenderingContext2D) = colorIdx match {
+    case 0 => renderer.fillStyle = "yellow"
+    case 1 => renderer.fillStyle = "orange"
+    case 2 => renderer.fillStyle = "green"
+    case 3 => renderer.fillStyle = "cyan"
+
+    case 4 => renderer.fillStyle = "yellow"
+    case 5 => renderer.fillStyle = "yellow"
+    case 6 => renderer.fillStyle = "yellow"
+  }
 }

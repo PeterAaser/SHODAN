@@ -37,23 +37,12 @@ class RPCserver(
       IO { ci.foreach(ClientRPChandle(_).agent().agentPush(a)) }
     }
 
-  def waveformPush(data: Array[Int]): IO[Unit] =
-    listeners.get.flatMap{ci =>
-      IO { ci.foreach(ClientRPChandle(_).wf().wfPush(data)) }
-    }
 
   def drawCommandPush(idx:Int)(data: Array[Array[DrawCommand]]): IO[Unit] =
-    listeners.get.flatMap{ci => idx match {
-      case 0 => IO { say("0"); ci.foreach(ClientRPChandle(_).wf().dcPush(data)) }
-      case 1 => IO { say("1"); ci.foreach(ClientRPChandle(_).wf().dcPush2(data)) }
-      case 2 => IO { ci.foreach(ClientRPChandle(_).wf().dcPush3(data)) }
-      case 3 => IO { ci.foreach(ClientRPChandle(_).wf().dcPush4(data)) }
+    listeners.get.flatMap{ci =>
+      IO {
+        ci.foreach(ClientRPChandle(_).wf().drawCallPush((idx, data.map(_.toList).toList))) }
     }
-    }
-
-  // def streamSelected = selectedChannel.discrete.switchMap( channel =>
-  //   topics(channel).subscribe(100).through
-  // )
 }
 
 
@@ -63,7 +52,8 @@ object ApplicationServer {
     userCommands    : Queue[IO,UserCommand],
     state           : SignallingRef[IO,ProgramState],
     conf            : SignallingRef[IO,FullSettings],
-    selectedChannel : SignallingRef[IO,Int]
+    zoomLevel       : SignallingRef[IO,Int],
+    selectedChannel : SignallingRef[IO,Int],
   ) : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
@@ -82,6 +72,7 @@ object ApplicationServer {
             userCommands,
             state,
             conf,
+            zoomLevel,
             selectedChannel
           )(clientId)
         )

@@ -103,5 +103,7 @@ object bonus {
 
       field | masked
     }
+
+    def clamp(min: Int, max: Int): Int = if(i < min) min else if(i > max) max else i
   }
 }

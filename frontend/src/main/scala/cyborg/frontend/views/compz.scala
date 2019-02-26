@@ -27,6 +27,10 @@ import org.scalajs.dom.html
 
 object compz {
 
+  // A single pixels worth of drawing
+  // Takes on a different meaning for the inner array holds a big chunk of data rather than
+  // several calls per pixel
+
   /**
     * There has to be better API for this
     */
@@ -67,12 +71,10 @@ import cyborg.Settings._
 import cyborg.wallAvoid.Agent
 class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) {
 
+  type DrawCall = Array[DrawCommand]
+
   val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-  val channelCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-  val channelCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-  val channelCanvas3: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-  val channelCanvas4: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
 
   /**
@@ -95,36 +97,42 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   def fireStateChange: Unit = Context.serverRpc.setSHODANstate(state.get)
 
-  val wfQueue    = new scala.collection.mutable.Queue[Array[Int]]()
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
   val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
-  val drawQueue  = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
-  val drawQueue2 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
-  val drawQueue3 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
-  val drawQueue4 = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
-  
+
+  // The queue for receiving unMuxed draw calls
+  val drawQueue  = new scala.collection.mutable.Queue[(Int, Array[DrawCall])]()
+
+  // Special queue for all waveforms
+  val wfQueue    = new scala.collection.mutable.Queue[Array[DrawCommand]]()
+
+
+  // Queues for the various canvases
+  val canvasQueues = new scala.collection.mutable.HashMap[
+    Int, scala.collection.mutable.Queue[DrawCall]]()
+
+  def handleDrawcallBatch(idx: Int, dcs: Array[DrawCall]): Unit = {
+    if (idx == 0)
+      wfQueue.enqueue(dcs(0))
+    else
+      canvasQueues.lift(idx).foreach(q => q ++= dcs)
+  }
+
+
   agentQueue.enqueue(Agent.init)
 
   cyborg.frontend.services.rpc.Hurr.register(
     agentQueue,
-    wfQueue,
     confQueue,
     stateQueue,
-    drawQueue,
-    drawQueue2,
-    drawQueue3,
-    drawQueue4
-  )
+    handleDrawcallBatch)
+
 
   def onChannelClicked(c: Int) = Context.serverRpc.selectLargeChannel(c)
 
-  val wf = new cyborg.waveformVisualizer.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
+  val wf = new cyborg.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
-  val big = new cyborg.LargeWFviz(channelCanvas, drawQueue)
-  val big2 = new cyborg.LargeWFviz(channelCanvas2, drawQueue2)
-  val big3 = new cyborg.LargeWFviz(channelCanvas3, drawQueue3)
-  val big4 = new cyborg.LargeWFviz(channelCanvas4, drawQueue4)
 
   def onStopClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRunning = false, isRecording = false)
@@ -135,14 +143,10 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   }
 
   def onRangeUpClicked(btn: UdashButton) = {
-    val current = wf.getMaxVal
-    if(current > 128)
-      wf.setMaxVal(current/2)
+    Context.serverRpc.setDownscalingFactor(1).onComplete(x => say("OK"))
   }
 
   def onRangeDownClicked(btn: UdashButton) = {
-    val current = wf.getMaxVal
-    // if(current <= 6400000)
-      wf.setMaxVal(current*2)
+    Context.serverRpc.setDownscalingFactor(-1).onComplete(x => say("OK"))
   }
 }

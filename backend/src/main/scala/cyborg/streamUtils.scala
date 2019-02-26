@@ -24,50 +24,7 @@ object utilz {
   type Channel = Int
 
 
-  case class TaggedSegment(channel: Channel, data: Chunk[Int]){
-
-    /**
-      Will blow up in your face if you call it with numbers that aren't
-      divisible with segment size
-
-      call downsampleHiLo(100) on segment length 90 and you will get 0 output.
-      call downsampleHiLo(51)  on segment length 100 and you will get 1 output per segment only.
-
-      Gets the highest and lowest for every `dropEvery` element, so downsampleHiLo(20) on seg length
-      40 gives an output chunk of size 4
-      */
-    def downsampleHiLo(dropEvery: Int): Chunk[Int] = {
-      import scala.collection.mutable.ArrayBuffer
-      val buf = ArrayBuffer[Int]()
-
-      // Referentially transparent yo
-      var count = 0
-      var lowest = Int.MaxValue
-      var highest = Int.MinValue
-
-      for(ii <- 0 until data.size){
-        if(data(ii) > highest) highest = data(ii)
-        if(data(ii) < lowest)  lowest  = data(ii)
-
-        if(count == dropEvery) {
-          buf.append(lowest)
-          buf.append(highest)
-          lowest = Int.MaxValue
-          highest = Int.MinValue
-          count = 0
-        }
-        count += 1
-      }
-
-      // hehe hurr durr
-      if(count == dropEvery) {
-        buf.append(lowest)
-        buf.append(highest)
-      }
-
-      Chunk.buffer(buf)
-    }
-  }
+  case class TaggedSegment(channel: Channel, data: Chunk[Int]){}
 
 
   def downsampleHiLoWith[F[_],A](dropEvery: Int, f: (Int, Int) => A): Pipe[F,Int,A] = {
@@ -162,6 +119,12 @@ object utilz {
 
   implicit class ChunkedStreamBonusOps[F[_],O](s: Stream[F,Chunk[O]]) {
     def chunkify: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
+  }
+
+  // implicit class PullBonusOps[F[_]](
+  def doneWith(msg: String) = {
+    say(msg)
+    Pull.done
   }
 
 

@@ -27,6 +27,7 @@ trait MainServerRPC {
   def startAgent: Unit
 
   def selectLargeChannel(c: Int) : Future[Unit]
+  def setDownscalingFactor(i: Int) : Future[Int]
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

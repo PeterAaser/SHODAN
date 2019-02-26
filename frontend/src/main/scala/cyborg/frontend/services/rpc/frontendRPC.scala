@@ -28,17 +28,9 @@ object StateClient extends ClientStateRPC {
 
 object WfClient extends WfClientRPC {
 
-  var onWfUpdate: Array[Int] => Unit = (_: Array[Int]) => ()
-
-  override def wfPush(data: Array[Int]): Unit = onWfUpdate(data)
-  var onDrawCall: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
-  var onDrawCall2: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
-  var onDrawCall3: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
-  var onDrawCall4: Array[Array[DrawCommand]] => Unit = (_: Array[Array[DrawCommand]]) => ()
-  override def dcPush(data: Array[Array[DrawCommand]]) = onDrawCall(data)
-  override def dcPush2(data: Array[Array[DrawCommand]]) = onDrawCall2(data)
-  override def dcPush3(data: Array[Array[DrawCommand]]) = onDrawCall3(data)
-  override def dcPush4(data: Array[Array[DrawCommand]]) = onDrawCall4(data)
+  def doNothing(x: (Int, List[List[DrawCommand]])): Unit = ()
+  var onDrawCall: ((Int, List[List[DrawCommand]])) => Unit = doNothing
+  override def drawCallPush(data: (Int, List[List[DrawCommand]])) = onDrawCall(data)
 }
 
 object AgentClient extends AgentClientRPC {
@@ -49,26 +41,19 @@ object AgentClient extends AgentClientRPC {
   override def agentPush(agent: Agent): Unit = onAgentUpdate(agent)
 }
 
+
 object Hurr {
-  def register(agent: scala.collection.mutable.Queue[Agent],
-               wf: scala.collection.mutable.Queue[Array[Int]],
-               conf: scala.collection.mutable.Queue[FullSettings],
-               state: scala.collection.mutable.Queue[ProgramState],
-               drawCommands: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
-               drawCommands2: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
-               drawCommands3: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
-               drawCommands4: scala.collection.mutable.Queue[Array[Array[DrawCommand]]],
-  ): Unit = {
+  def register(agent         : scala.collection.mutable.Queue[Agent],
+               conf          : scala.collection.mutable.Queue[FullSettings],
+               state         : scala.collection.mutable.Queue[ProgramState],
+               drawCallDemux : (Int, Array[Array[DrawCommand]]) => Unit)
+      : Unit = {
 
     // HURR HURR HURR
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
     AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
-    WfClient.onWfUpdate       = (a => {wf.enqueue(a)})
-    WfClient.onDrawCall       = (a => {drawCommands.enqueue(a)})
-    WfClient.onDrawCall2      = (a => {drawCommands2.enqueue(a)})
-    WfClient.onDrawCall3      = (a => {drawCommands3.enqueue(a)})
-    WfClient.onDrawCall4      = (a => {drawCommands4.enqueue(a)})
+    WfClient.onDrawCall       = (a: (Int, List[List[DrawCommand]])) => drawCallDemux(a._1, a._2.map(_.toArray).toArray)
 
     Context.serverRpc.register
   }

@@ -35,6 +35,7 @@ class ServerRPCendpoint(
   userQ: Queue[IO,UserCommand],
   state: SignallingRef[IO,ProgramState],
   conf: SignallingRef[IO,FullSettings],
+  zoomLevel: SignallingRef[IO, Int],
   selectedChannel: SignallingRef[IO, Int]
 )(implicit ci: ClientId) extends MainServerRPC {
 
@@ -74,6 +75,15 @@ class ServerRPCendpoint(
 
   import mcsChannelMap._
   override def selectLargeChannel(c: Int) : Future[Unit] = selectedChannel.set(c).unsafeToFuture()
+  override def setDownscalingFactor(i: Int): Future[Int] = {
+    val task = for {
+      _ <- zoomLevel.update(prev => if((prev + i) > 0 && (prev + i) < 21) prev + i else prev)
+      res <- zoomLevel.get
+      _ <-  Fsay[IO](s"New zoomLevel is $res")
+    } yield res
+    task.unsafeToFuture()
+  }
+
 
   def printState = state.discrete.map{x => say(s"state is $x", Console.GREEN); x}.drain
   def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain
