@@ -1,7 +1,8 @@
 package cyborg.io.database
 import cyborg._
 
-import doobie.imports._
+import doobie._
+import doobie.implicits._
 import doobie.postgres.imports._
 import org.joda.time._
 
@@ -189,21 +190,13 @@ object DoobieQueries {
       .map(_.map(Paths.get(_)))
 
 
-  import doobie.imports.Meta
   import java.sql.Timestamp
   import org.joda.time.{ DateTime, Instant }
+  implicit val InstantMeta: Meta[Instant] = Meta[Timestamp]
+    .imap((t: Timestamp) => new Instant(t.getTime))((i: Instant) => new Timestamp(i.getMillis))
 
-
-  // TODO just moved nxmap to xmap. YOLO
-  implicit val InstantMeta: Meta[Instant] = Meta[Timestamp].xmap(
-    (t: Timestamp) => new Instant(t.getTime),
-    (i: Instant) => new Timestamp(i.getMillis)
-  )
-
-  implicit val DateTimeMeta: Meta[DateTime] = Meta[Timestamp].xmap(
-    (t: Timestamp) => new DateTime(t.getTime),
-    (d: DateTime) => new Timestamp(d.getMillis)
-  )
+  implicit val DateTimeMeta: Meta[DateTime] = Meta[Timestamp]
+    .imap((t: Timestamp) => new DateTime(t.getTime))((d: DateTime) => new Timestamp(d.getMillis))
 
 
   def experimentsInInterval(interval: Interval): ConnectionIO[List[Int]] = {

@@ -1,4 +1,6 @@
 package cyborg.frontend
+import cyborg.frontilz._
+
 
 // import io.udash.logging.CrossLogging
 import io.udash.wrappers.jquery._
@@ -11,11 +13,10 @@ object JSLauncher {
 
   @JSExport
   def main(args: Array[String]): Unit = {
-    jQ((jThis: Element) => {
-      // Select #application element from index.html as root of whole app
+    val notUsed = jQ((jThis: Element) => {
       val appRoot = jQ("#application").get(0)
       if (appRoot.isEmpty) {
-        // logger.error("Application root element not found! Check your index.html file!")
+        say("OH FUG :DDD")
       } else {
         Context.applicationInstance.run(appRoot.get)
       }

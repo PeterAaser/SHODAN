@@ -8,7 +8,7 @@ import org.scalajs.dom.html.Input
 import cyborg.frontend.routing._
 import io.udash._
 import io.udash.bootstrap.UdashBootstrap
-import io.udash.bootstrap.utils.Icons
+import io.udash.bootstrap.utils._
 import scala.util.{ Failure, Success }
 
 import cyborg._
@@ -39,20 +39,20 @@ class LiveView(model: ModelProperty[LiveModel],
                presenter: LivePresenter,
                canvasController: WaveformComp) extends ContainerView with CssView {
 
-  val rangeUp = UdashButton()(Icons.FontAwesome.plus)
-  val rangeDown = UdashButton()(Icons.FontAwesome.minus)
+  val rangeUp = UdashButton()(UdashIcons.FontAwesome.plus)
+  val rangeDown = UdashButton()(UdashIcons.FontAwesome.minus)
 
-  val playButton = UdashButton()(Icons.FontAwesome.play)
-  val recordButton = UdashButton()(Icons.FontAwesome.circle)
-  val stopRecordButton = UdashButton()(Icons.FontAwesome.timesCircle)
-  val stopButton = UdashButton()(Icons.FontAwesome.square)
+  val playButton = UdashButton()(UdashIcons.FontAwesome.play)
+  val recordButton = UdashButton()(UdashIcons.FontAwesome.circle)
+  val stopRecordButton = UdashButton()(UdashIcons.FontAwesome.timesCircle)
+  val stopButton = UdashButton()(UdashIcons.FontAwesome.square)
 
-  val stimButton1 = UdashButton()(Icons.FontAwesome.bolt)
-  val stimButton2 = UdashButton()(Icons.FontAwesome.bolt)
-  val stimButton3 = UdashButton()(Icons.FontAwesome.bolt)
-  val stimPause1  = UdashButton()(Icons.FontAwesome.pause)
-  val stimPause2  = UdashButton()(Icons.FontAwesome.pause)
-  val stimPause3  = UdashButton()(Icons.FontAwesome.pause)
+  val stimButton1 = UdashButton()(UdashIcons.FontAwesome.bolt)
+  val stimButton2 = UdashButton()(UdashIcons.FontAwesome.bolt)
+  val stimButton3 = UdashButton()(UdashIcons.FontAwesome.bolt)
+  val stimPause1  = UdashButton()(UdashIcons.FontAwesome.pause)
+  val stimPause2  = UdashButton()(UdashIcons.FontAwesome.pause)
+  val stimPause3  = UdashButton()(UdashIcons.FontAwesome.pause)
 
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _)       => presenter.onPlayClicked(btn) }
   recordButton.listen { case UdashButton.ButtonClickEvent(btn, _)     => presenter.onRecordClicked(btn) }

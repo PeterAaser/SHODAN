@@ -10,6 +10,7 @@ import fs2._
 import fs2.Stream._
 import fs2.concurrent.Topic
 import fs2.io.tcp._
+import fs2.io.tcp.Socket.client
 
 import java.net.InetSocketAddress
 
@@ -26,10 +27,8 @@ object networkIO {
   val keepAlive = true
   val noDelay = true
 
-
-
-  def streamAllChannels[F[_]: ConcurrentEffect : ContextShift]
-    = Kleisli[Id, FullSettings, Stream[F,Int]]{ conf =>
+  def streamAllChannels[F[_]: ConcurrentEffect : ContextShift] =
+    Kleisli[Id, FullSettings, Stream[F,Int]]{ conf =>
 
       def socketStream: Resource[F, Socket[F]] =
         client(

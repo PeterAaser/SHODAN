@@ -56,5 +56,6 @@ object Hurr {
     WfClient.onDrawCall       = (a: (Int, List[List[DrawCommand]])) => drawCallDemux(a._1, a._2.map(_.toArray).toArray)
 
     Context.serverRpc.register
+    ()
   }
 }

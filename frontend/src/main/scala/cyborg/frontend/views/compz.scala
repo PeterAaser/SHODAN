@@ -95,7 +95,9 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     }
   }
 
-  def fireStateChange: Unit = Context.serverRpc.setSHODANstate(state.get)
+  def fireStateChange: Unit = {
+    val _ = Context.serverRpc.setSHODANstate(state.get)
+  }
 
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
@@ -136,7 +138,9 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     handleDrawcallBatch)
 
 
-  def onChannelClicked(c: Int) = Context.serverRpc.selectLargeChannel(c)
+  def onChannelClicked(c: Int) = {
+    val _ = Context.serverRpc.selectLargeChannel(c)
+  }
 
   val wf = new cyborg.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)

@@ -133,6 +133,7 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
             else
               go(idx+1)
           }
+          case None => Pull.doneWith("Channel broadcaster deaded")
         }
       }
       go(0)
@@ -157,12 +158,18 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
 
     val agentBroadcast = agentTopic.subscribe(10).evalMap(RPCserver.agentPush)
 
+    val spikeMemery = drawChannel.discrete.changes.switchMap(
+      channel => spikeFilter.outputSpike(topics(channel)).map{ x => say(x) }
+    )
+
+
     InterruptableAction.apply(
       allChannelsStream
         .concurrently(selectedChannelStream)
         .concurrently(selectedChannelStream2)
         .concurrently(mazeRunner)
         .concurrently(agentBroadcast)
+        // .concurrently(spikeMemery)
     )
   }
 

@@ -15,8 +15,8 @@ import Settings._
 
 class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettings) {
 
-  lazy val bucketSize = hardcode(20.millis)
-  lazy val buckets = hardcode(100)
+  lazy val bucketSize = hardcode(100.millis)
+  lazy val buckets = hardcode(10)
 
   val kernelSize = {
     val size = (conf.daq.samplerate.toDouble*(kernelWidth.toMillis.toDouble/1000.0)).toInt
@@ -129,7 +129,6 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     Sure as hell ain't pretty...
     */
   import cyborg.RPCmessages._
-  // def visualize(inputs: Stream[F,Int]): Stream[F, Array[Array[DrawCommand]]] = {
   def visualizeRawAvg: Pipe[F, Int, Array[Array[DrawCommand]]] = { inputs =>
 
     val rawStream = inputs.drop((kernelSize/2) + 1)
@@ -140,20 +139,10 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     val blurredViz = blurred
       .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
 
-    val avgNormalized = avgNormalizer(inputs, blurred)
-    val avgNormalizedViz = avgNormalized
-      .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
-
-
-    // val spikes = avgNormalized.through(spikeDetectorPipe2)
-    // val spikesViz = spikes.through(downsampleWith(pointsPerDrawcall, 1)((c: Chunk[Boolean]) => c.foldLeft(false)(_||_)))
-    //   .map(b => if(b) DrawCommand(-1000, -10000, 1) else DrawCommand(0,0,0))
-
     (rawStreamViz zip blurredViz).map{ case(a,b) => 
       Array(a,b)
     }.mapN(_.toArray, 50)
   }
-
 
 
   def visualizeNormSpikes: Pipe[F,Int,Array[Array[DrawCommand]]] = { inputs =>
@@ -169,21 +158,20 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     (avgNormalizedViz zip spikesViz).map{ case(a,b) => 
       Array(a,b)
     }.mapN(_.toArray, 50)
-
   }
 
 
+  def outputSpike(topic: Topic[F,Chunk[Int]]): Stream[F,Int] = {
+    val inputs = topic.subscribe(10).hideChunks
+    val blurred = inputs.through(gaussianBlurConvolutor)
+    val avgNormalized = avgNormalizer(inputs, blurred)
+    val spikes = avgNormalized.through(spikeDetectorPipe2)
+    val bucketed = spikes.mapN(_.foldMap(b => if(b) 1 else 0), pointsPerBucket)
+    bucketed
+  }
 
   def outputSpikes(topics: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Int]] = {
-
-    val spikeBuckets = topics.map{ topic =>
-      val inputs = topic.subscribe(10).hideChunks
-      val blurred = inputs.through(gaussianBlurConvolutor)
-      val avgNormalized = avgNormalizer(inputs, blurred)
-      val spikes = avgNormalized.through(spikeDetectorPipe2)
-      val bucketed = spikes.mapN(_.foldMap(b => if(b) 1 else 0), pointsPerBucket)
-      bucketed
-    }
+    val spikeBuckets = topics.map(outputSpike)
     roundRobinC(spikeBuckets)
   }
 }

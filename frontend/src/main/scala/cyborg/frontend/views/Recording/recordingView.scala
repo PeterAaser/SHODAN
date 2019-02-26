@@ -9,7 +9,7 @@ import cyborg.frontend.routing._
 import cyborg.RPCmessages._
 import io.udash._
 import io.udash.bootstrap.UdashBootstrap
-import io.udash.bootstrap.utils.{ Icons, UdashListGroup }
+import io.udash.bootstrap.utils._
 import scala.util.{ Failure, Success }
 
 
@@ -36,15 +36,15 @@ class RecordingView(model: ModelProperty[RecordingModel],
                     recordings: SeqProperty[RecordingInfo],
                     canvasController: WaveformComp) extends FinalView with CssView {
 
-  val rangeUp = UdashButton()(Icons.FontAwesome.plus)
-  val rangeDown = UdashButton()(Icons.FontAwesome.minus)
+  val rangeUp = UdashButton()(UdashIcons.FontAwesome.plus)
+  val rangeDown = UdashButton()(UdashIcons.FontAwesome.minus)
 
   rangeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeUpClicked(btn) }
   rangeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeDownClicked(btn) }
 
-  val playButton = UdashButton()(Icons.FontAwesome.play)
-  val pauseButton = UdashButton()(Icons.FontAwesome.pause)
-  val stopButton = UdashButton()(Icons.FontAwesome.square)
+  val playButton = UdashButton()(UdashIcons.FontAwesome.play)
+  val pauseButton = UdashButton()(UdashIcons.FontAwesome.pause)
+  val stopButton = UdashButton()(UdashIcons.FontAwesome.square)
 
   val listThingy = UdashListGroup(recordings){ rec =>
     val btn = UdashButton()(compz.renderDBrecordSmall(rec))
@@ -138,7 +138,7 @@ case object RecordingViewFactory extends ViewFactory[RecordingState.type] {
 
   override def create(): (View, Presenter[RecordingState.type]) = {
 
-    val recordings = SeqProperty[RecordingInfo]
+    val recordings = SeqProperty.blank[RecordingInfo]
     val model = ModelProperty( RecordingModel(ProgramState(), FullSettings.default, None) )
     val canvasController = new WaveformComp(model.subProp(_.state), model.subProp(_.conf))
 

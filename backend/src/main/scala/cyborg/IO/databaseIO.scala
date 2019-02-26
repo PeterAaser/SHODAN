@@ -37,7 +37,8 @@ object databaseIO {
   val username = "memer"
   val superdupersecretPassword = "memes"
 
-  import doobie.imports._
+  import doobie._
+  import doobie.implicits._
   val xa = Transactor.fromDriverManager[IO](
     "org.postgresql.Driver",
     "jdbc:postgresql:memestorage",

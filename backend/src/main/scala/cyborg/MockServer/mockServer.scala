@@ -56,7 +56,7 @@ object mockServer {
   }
 
 
-  def hello(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
+  def hello(s: SignallingRef[IO,ServerState]) = HttpRoutes.of[IO] {
     case GET -> Root => s.get flatMap { serverState =>
       say("hurr")
       if(!serverState.alive) {
@@ -76,7 +76,7 @@ object mockServer {
   }
 
 
-  def DAQ(s: SignallingRef[IO,ServerState]) = HttpService[IO] {
+  def DAQ(s: SignallingRef[IO,ServerState]) = HttpRoutes.of[IO] {
     case req @ POST -> Root / "connect" =>
       req.decode[DAQparams] { params =>
         Fsay[IO](s"got params $params") >>
@@ -91,7 +91,7 @@ object mockServer {
 
 
   // server
-  def DSP(s: SignallingRef[IO,ServerState], dspMessages: Ref[IO, Chain[DspFuncCall]]) = HttpService[IO] {
+  def DSP(s: SignallingRef[IO,ServerState], dspMessages: Ref[IO, Chain[DspFuncCall]]) = HttpRoutes.of[IO] {
     case GET -> Root / "flash" => {
       s.update(_.copy(dspFlashed = true)) >> Fsay[IO]("flashing OK") >> Ok("hur")
     }
@@ -140,7 +140,7 @@ object mockServer {
       case 40000 => ???
     }
 
-    val recordingId = hardcode(13)
+    val recordingId = hardcode(14)
 
     // Already throttled
     val fromDB = cyborg.io.DB.streamFromDatabaseThrottled(recordingId).repeat
@@ -180,11 +180,10 @@ object mockServer {
     broadcast
   }
 
-
   def tcpServer(listeners: Queue[IO, Resource[IO,Socket[IO]]]): Stream[IO, Unit] = {
     val ay = implicitly[ConcurrentEffect[IO]]
     val createListener: Stream[IO, Unit] =
-      fs2.io.tcp.server[IO](new InetSocketAddress("0.0.0.0", params.Network.tcpPort)).to(listeners.enqueue)
+      fs2.io.tcp.Socket.server[IO](new InetSocketAddress("0.0.0.0", params.Network.tcpPort)).to(listeners.enqueue)
 
     say("tcp listener alive")
     createListener
