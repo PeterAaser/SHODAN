@@ -80,7 +80,7 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   /**
     This is kinda very very bad...
     */
-  scalajs.js.timers.setInterval(1000){
+  scalajs.js.timers.setInterval(200){
     say("checking for updates")
     if(confQueue.size > 0){
       val newest: FullSettings = confQueue.dequeueAll(_ => true).last
@@ -107,25 +107,33 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val drawQueue  = new scala.collection.mutable.Queue[(Int, Array[DrawCall])]()
 
   // Special queue for all waveforms
-  val wfQueue    = new scala.collection.mutable.Queue[Array[DrawCommand]]()
+  // val wfQueue    = new scala.collection.mutable.Queue[Array[DrawCommand]]()
 
 
   // Queues for the various canvases
-  val canvasQueues = new scala.collection.mutable.HashMap[Int, scala.collection.mutable.Queue[Array[DrawCall]]]()
-  val myQueue = new scala.collection.mutable.Queue[Array[DrawCall]]()
-  canvasQueues(1) = myQueue
-
-  val myQueue2 = new scala.collection.mutable.Queue[Array[DrawCall]]()
-  canvasQueues(2) = myQueue2
 
   val bigwfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val bigwfCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
+  val wf = new cyborg.WFVisualizerControl(wfCanvas, onChannelClicked)
+  val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+  val big = new cyborg.LargeWFviz(bigwfCanvas)
+  val big2 = new cyborg.LargeWFviz(bigwfCanvas2)
+
+  val canvasQueues = new scala.collection.mutable.HashMap[
+    Int,
+    Array[Array[DrawCommand]] => Unit
+  ]()
+
+  canvasQueues(1) = big.pushData
+  canvasQueues(2) = big2.pushData
+
   def handleDrawcallBatch(idx: Int, dcs: Array[DrawCall]): Unit = {
     if (idx == 0)
-      wfQueue.enqueue(dcs(0))
-    else
-      canvasQueues.lift(idx).foreach(q => q += dcs)
+      wf.pushData(dcs(0))
+    else {
+      canvasQueues.lift(idx).foreach(q => q(dcs))
+    }
   }
 
 
@@ -142,11 +150,6 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     val _ = Context.serverRpc.selectLargeChannel(c)
   }
 
-  val wf = new cyborg.WFVisualizerControl(wfCanvas, wfQueue, onChannelClicked)
-  val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
-  val big = new cyborg.LargeWFviz(bigwfCanvas, myQueue)
-  val big2 = new cyborg.LargeWFviz(bigwfCanvas2, myQueue2)
-
   def onStopClicked(btn: UdashButton) = state.modify{ s =>
     s.copy(isRunning = false, isRecording = false)
   }
@@ -161,5 +164,13 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   def onRangeDownClicked(btn: UdashButton) = {
     Context.serverRpc.setDownscalingFactor(-1).onComplete(x => say("OK"))
+  }
+
+  def onTimeUpClicked(btn: UdashButton) = {
+    Context.serverRpc.setChannelTimeSpan(1).onComplete(x => say("OK"))
+  }
+  
+  def onTimeDownClicked(btn: UdashButton) = {
+    Context.serverRpc.setChannelTimeSpan(-1).onComplete(x => say("OK"))
   }
 }

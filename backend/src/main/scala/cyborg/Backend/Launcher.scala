@@ -17,6 +17,7 @@ import utilz._
 import cyborg.State._
 import cyborg.Settings._
 import cyborg.RPCmessages._
+import cyborg.VizState._
 
 import cats._
 import cats.effect._
@@ -32,12 +33,10 @@ object Launcher extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 
-
-    if(params.Network.mock){
-      say("Starting test server!")
-      cyborg.mockServer.unsafeStartTestServer
-    }
-
+    // if(params.Network.mock){
+    //   say("Starting test server!")
+    //   cyborg.mockServer.unsafeStartTestServer
+    // }
 
     def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {
       for {
@@ -52,21 +51,26 @@ object Launcher extends IOApp {
     }
 
 
-    client.use{ c =>
+    val gogo = client.use{ c =>
       for {
         topics          <-  List.fill(60)(Topic[IO,Chunk[Int]](Chunk.empty[Int])).sequence
         agent           <-  Topic[IO,Agent](Agent.init)
 
         httpClient       =  new MEAMEHttpClient(c)
         dsp              =  new cyborg.dsp.DSP(httpClient)
-
         initState       <-  initProgramState(httpClient, dsp)
+
         stateServer     <-  SignallingRef[IO,ProgramState](initState)
         configServer    <-  SignallingRef[IO,FullSettings](FullSettings.default)
-        selectedChannel <-  SignallingRef[IO,Int](0)
-        zoomLevel       <-  SignallingRef[IO,Int](5)
+        vizServer       <-  SignallingRef[IO,VizState](VizState.default)
+
         commandQueue    <-  Queue.unbounded[IO,UserCommand]
-        rpcServer       <-  cyborg.backend.server.ApplicationServer.assembleFrontend(commandQueue, stateServer, configServer, zoomLevel, selectedChannel)
+        rpcServer       <-  cyborg.backend.server.ApplicationServer.assembleFrontend(
+          commandQueue,
+          stateServer,
+          configServer,
+          vizServer
+        )
 
         assembler        =  new Assembler(
           new MEAMEHttpClient(c),
@@ -74,8 +78,7 @@ object Launcher extends IOApp {
           agent,
           topics,
           commandQueue,
-          zoomLevel,
-          selectedChannel,
+          vizServer,
           configServer,
           stateServer,
           dsp
@@ -84,5 +87,6 @@ object Launcher extends IOApp {
         exitCode        <-  assembler.startSHODAN.compile.drain.as(ExitCode.Success)
       } yield exitCode
     }
+    gogo
   }
 }

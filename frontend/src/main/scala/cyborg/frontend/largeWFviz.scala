@@ -7,13 +7,51 @@ import frontilz._
 import cyborg.frontend.services.rpc.RPCService
 import cyborg.RPCmessages.DrawCommand
 
-class LargeWFviz(canvas: html.Canvas, dataqueue: scala.collection.mutable.Queue[Array[Array[DrawCommand]]]) {
+class LargeWFviz(canvas: html.Canvas) {
 
   canvas.width = 1000
   canvas.height = 400
 
   val renderer = canvas.getContext("2d")
     .asInstanceOf[dom.CanvasRenderingContext2D]
+
+  val frameQueue = new scala.collection.mutable.Queue[Array[Array[DrawCommand]]]()
+
+  /**
+    * The exposed method to push data
+    * Based on the one from wfViz
+    * 
+    * A batch is pushed every second, thus the size of the batch tells the canvas
+    * how many pixels must be pushed per update
+    * 
+    * Targetting 40 FPS we need to do draw calls every 25ms
+    * 
+    * Each frame gets pushed into the queue, which is then read from at 25ms intervals,
+    * unless empty.
+    * This means that framesize alone (and by extension, batch size) controls the "speed"
+    * of data.
+    */
+  def pushData(data: Array[Array[DrawCommand]]): Unit = {
+
+    val points = data.size
+    val framerateTarget = 40
+
+    // cba dealing with fractions. So what if we drop a few drawcalls?
+    val pointsPerFrame = points/framerateTarget
+    val frames: Array[Array[Array[DrawCommand]]] = data.grouped(pointsPerFrame).toArray
+    frames.foreach(frame => frameQueue.enqueue(frame))
+  }
+
+
+  scalajs.js.timers.setInterval(26) {
+    if(frameQueue.size > 60){
+      // double speed if more than 60 frames are buffered
+      gogo(frameQueue.dequeue)
+    }
+    if(frameQueue.size > 0){
+      gogo(frameQueue.dequeue)
+    }
+  }
 
 
   def fillRectAbs(xLeft: Int, xRight: Int, yTop: Int, yBot: Int): Unit = {
@@ -82,20 +120,4 @@ class LargeWFviz(canvas: html.Canvas, dataqueue: scala.collection.mutable.Queue[
     lines()
   }
 
-
-  // still no idea why this var is here, I just copied it lol
-  var running = false
-  scalajs.js.timers.setInterval(50) {
-    if(!running){
-      running = true
-      if(dataqueue.size > 500){
-        println(dataqueue.size)
-      }
-      if(dataqueue.size > 0){
-        val hurr = dataqueue.dequeue()
-        gogo(hurr)
-      }
-      running = false
-    }
-  }
 }

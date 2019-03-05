@@ -140,10 +140,11 @@ class Maze(conf: FullSettings){
     perturbationSink: Sink[F,PerturbationOutput],
     agentSink: Sink[F,Agent]): Stream[F,Unit] = {
 
-    val spikeTools = new SpikeTools[F](10.millis, conf)
+    val spikeTools: SpikeTools[F] = ???
+    // val spikeTools = new SpikeTools[F](10.millis, conf)
 
-    def inputSource(broadcastSource: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Double]] =
-      spikeTools.outputSpikes(inputs).map(_.map(_.toDouble))
+    def inputSource(broadcastSource: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Double]] = ???
+      // spikeTools.outputSpikes(inputs).map(_.map(_.toDouble))
 
     Stream.eval(Queue.bounded[F,Double](20)) flatMap { evalQueue =>
 

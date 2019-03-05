@@ -97,7 +97,7 @@ object Settings {
     newPipesPerGeneration   : Int,
     newMutantsPerGeneration : Int,
     ticksPerEval            : Int){
-val pipesKeptPerGeneration  : Int = pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)}
+    val pipesKeptPerGeneration  : Int = pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)}
 
   case class ReadoutSettings(
     inputChannels     : List[Int],
@@ -106,7 +106,7 @@ val pipesKeptPerGeneration  : Int = pipesPerGeneration - (newPipesPerGeneration 
     MAGIC_THRESHOLD   : Int,
     ANNinternalLayout : List[Int],
     outputs           : Int){
-val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: List(outputs)}
+    val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: List(outputs)}
 
   case class DSPsettings(
     blanking           : Boolean,
@@ -138,8 +138,8 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
   ////  DEFAULTS
   object DAQSettings extends HasGenCodec[DAQSettings] {
     val default = DAQSettings(
-      samplerate         = 20000,
-      segmentLength      = 2000
+      samplerate         = 10000,
+      segmentLength      = 1000
     )}
 
   object GAsettings extends HasGenCodec[GAsettings] {
@@ -148,7 +148,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       newPipesPerGeneration   = 2,
       newMutantsPerGeneration = 1,
       ticksPerEval            = 1000,
-      )}
+    )}
 
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
 
@@ -159,10 +159,10 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       ANNinternalLayout = List(), // empty list encodes a network with no hidden outputs
       outputs           = 2,
       inputChannels     = List(16, 17, 18, 19, 20, 21,
-                               24, 25, 26, 27, 28, 29,
-                               32, 33, 34, 35, 36, 37,
-                               40, 41, 42, 43, 44, 45).map(getMCSdataChannel),
-      )}
+        24, 25, 26, 27, 28, 29,
+        32, 33, 34, 35, 36, 37,
+        40, 41, 42, 43, 44, 45).map(getMCSdataChannel),
+    )}
 
   object DSPsettings extends HasGenCodec[DSPsettings] {
     val default = DSPsettings(
@@ -173,8 +173,8 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
         List(54, 55, 56, 57, 58, 59),
         List(0,   1,  2,  3,  4,  5),
         List(6,  14, 22,     38, 46),
-        ).map(_.map(getMCSstimChannel)),
-      )
+      ).map(_.map(getMCSstimChannel)),
+    )
   }
 
   object FilterSettings extends HasGenCodec[FilterSettings] {
@@ -204,7 +204,7 @@ val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: 
       recvBufSize = 262144,
       format      = "Csharp",
       readBufSize = 1024*1024
-      )
+    )
   }
 
 

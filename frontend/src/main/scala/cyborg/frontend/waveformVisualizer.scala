@@ -9,9 +9,10 @@ import cyborg.RPCmessages.DrawCommand
 
 class WFVisualizerControl(
   canvas                : Canvas,
-  dataqueue             : scala.collection.mutable.Queue[Array[DrawCommand]],
   channelClickedHandler : Int => Unit
 ) {
+
+  val frameQueue = new scala.collection.mutable.Queue[Array[DrawCommand]]()
 
   import params.waveformVisualizer._
   canvas.width = vizLength*8 + 4
@@ -30,6 +31,58 @@ class WFVisualizerControl(
   renderer.textAlign = "center"
   renderer.textBaseline = "middle"
   renderer.fillStyle = "yellow"
+
+
+  /**
+    * The exposed method to push data
+    * 
+    * A batch is pushed every second, thus the size of the batch tells the canvas
+    * how many pixels must be pushed per update
+    * 
+    * Targetting 40 FPS we need to do draw calls every 25ms
+    * 
+    * Each frame gets pushed into the queue, which is then read from at 25ms intervals,
+    * unless empty.
+    * This means that framesize alone (and by extension, batch size) controls the "speed"
+    * of data.
+    */
+  def pushData(data: Array[DrawCommand]): Unit = {
+
+    val points = data.size/60
+    val framerateTarget = 40
+
+    // cba dealing with fractions. So what if we drop a few drawcalls?
+    val pointsPerFrame = points/framerateTarget
+
+    val frames: Array[Array[Array[DrawCommand]]] = {
+      val channels = data.grouped(points)
+      channels.map(_.grouped(pointsPerFrame).toArray).toArray
+    }
+
+    for(frameNo <- 0 until framerateTarget){
+      val startpoint = pointsPerFrame*frameNo
+      val endpoint = startpoint + pointsPerFrame
+      val buf = Array.ofDim[DrawCommand](pointsPerFrame*60)
+      for(channelNo <- 0 until 60){
+        val channelFrame = frames(channelNo)(frameNo)
+        channelFrame.copyToArray(buf, channelNo*pointsPerFrame, (channelNo+1)*pointsPerFrame)
+      }
+      frameQueue.enqueue(buf)
+    }
+  }
+
+
+  scalajs.js.timers.setInterval(26) {
+    if(frameQueue.size > 60){
+      // double speed if more than 60 frames are buffered
+      gogo(frameQueue.dequeue)
+      println(frameQueue.size)
+    }
+    if(frameQueue.size > 0){
+      gogo(frameQueue.dequeue)
+    }
+  }
+
 
   val pixels = Array.ofDim[DrawCommand](60,vizLength)
   for(ii <- 0 until pixels.size)
@@ -57,22 +110,7 @@ class WFVisualizerControl(
     topRowWithCoords ::: middleRowsWithCoords ::: botRowWithCoords
 
 
-  // var groupSize = 10
-  // TODO what in the name of fuck it this running variable???
-  var running = false
-  scalajs.js.timers.setInterval(50) {
-    if(!running){
-      running = true
-      if(dataqueue.size > 500){
-        println(dataqueue.size)
-      }
-      if(dataqueue.size > 0){
-        val hurr = dataqueue.dequeue()
-        gogo(hurr)
-      }
-      running = false
-    }
-  }
+
 
   /**
     Chop incoming data into chunks for each channel
@@ -85,6 +123,7 @@ class WFVisualizerControl(
       pixels(index) = (chopped(index).reverse ++ remainder)
     }
   }
+
 
 
 
@@ -122,7 +161,8 @@ class WFVisualizerControl(
     }
 
     renderer.fillStyle = "darkSlateGray"
-    renderer.fillRect(x_offset, y_offset, x_offset + vizLength - 1, 2)
+    // renderer.fillRect(x_offset, y_offset, vizLength - 1, 2)
+    renderer.fillRect(x_offset, y_offset, vizLength, 2)
   }
 
 

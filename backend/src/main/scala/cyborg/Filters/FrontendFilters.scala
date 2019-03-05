@@ -31,41 +31,45 @@ import RPCmessages._
 import org.http4s.client.blaze._
 import org.http4s.client._
 
-object FrontendFilters {
+class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeTools[IO]) {
 
-  // def frontendDownsampler
+  val canvasPoints        = params.waveformVisualizer.vizLength
+  val canvasPointLifetime = timeCompressionLevelToTime(vizState.timeCompressionLevel)
+  val pointsNeededPerSec  = (canvasPoints.toDouble/(canvasPointLifetime.toMillis.toDouble/1000.0)).toInt
+  val pointsPerDrawcall   = conf.daq.samplerate/pointsNeededPerSec
 
-  def assembleFrontendRenderer = Kleisli[Id, FullSettings, (Int => Int) => Pipe[IO,Chunk[Int],DrawCommand]]{ conf =>
+  say(s"New frontend filter constructed")
+  say(s"Span in milliseconds: ${canvasPointLifetime.toMillis.toInt}ms (i.e how long each datapoint is visible)")
+  say(s"In order to fill the demand, $pointsNeededPerSec points are needed per second")
+  say(s"points per drawcall: $pointsPerDrawcall (i.e how many points of data per pixelwide column)")
+  say(s"DAQ samplerate is ${conf.daq.samplerate} btw")
 
-    val canvasPoints        = params.waveformVisualizer.vizLength
-    val canvasPointLifetime = 1000.millis
-    val pointsNeededPerSec  = (canvasPoints.toDouble/canvasPointLifetime.toSeconds.toDouble).toInt
-    val pointsPerDrawcall   = conf.daq.samplerate/pointsNeededPerSec
+  val renderer: Pipe[IO,Chunk[Int], DrawCommand] = {
 
     /**
-      The icky stuff in the middle ensures that there can be no gaps between each
-      drawcall.
+      * The icky stuff in the middle ensures that there can be no gaps between each
+      * drawcall.
 
-      For example this:           Becomes this:
-      
-      4|  |##|  |  |##|            4|  |##|  |  |##|
-      3|  |##|  |##|##|            3|  |##|  |##|##|
-      2|  |##|  |  |  |            2|  |##|  |##|  |
-      1|  |  |  |  |  |            1|  |##|  |##|  |
-      0|--|--|##|  |--|------      0|--|##|##|##|--|------
-     -1|##|  |##|  |  |           -1|##|##|##|  |  |
-     -2|##|  |  |  |  |           -2|##|  |  |  |  |
-     -3|##|  |  |  |  |           -3|##|  |  |  |  |
-     -4|##|  |  |  |  |           -4|##|  |  |  |  |
-    */
+      *     For example this:           Becomes this:
+      *     
+      *      4|  |##|  |  |##|            4|  |##|  |  |##|
+      *      3|  |##|  |##|##|            3|  |##|  |##|##|
+      *      2|  |##|  |  |  |            2|  |##|  |##|  |
+      *      1|  |  |  |  |  |            1|  |##|  |##|  |
+      *      0|--|--|##|  |--|------      0|--|##|##|##|--|------
+      *     -1|##|  |##|  |  |           -1|##|##|##|  |  |
+      *     -2|##|  |  |  |  |           -2|##|  |  |  |  |
+      *     -3|##|  |  |  |  |           -3|##|  |  |  |  |
+      *     -4|##|  |  |  |  |           -4|##|  |  |  |  |
+      */
 
-    (zoomScaler: Int => Int) => {
-      def makeDrawCall(hi: Int, lo: Int) = {
-        import cyborg.bonus._
-        DrawCommand(zoomScaler(hi).clamp(-50,50), zoomScaler(lo).clamp(-50,50), 0)
-      }
+    val zoomScaler = zoomFilter(vizState.zoomLevel)
+    def makeDrawCall(hi: Int, lo: Int) = {
+      import cyborg.bonus._
+      DrawCommand(zoomScaler(hi).clamp(-50,50), zoomScaler(lo).clamp(-50,50), 0)
+    }
 
-      in => in.hideChunks
+    in => in.hideChunks
       .through(downsampleHiLoWith(pointsPerDrawcall,makeDrawCall))
       .scanChunks((Int.MinValue, Int.MaxValue)){
         case(acc, chunk) => {
@@ -84,8 +88,118 @@ object FrontendFilters {
           ((prevMin, prevMin), Chunk.seq(buf))
         }
       }
+  }
+
+
+  def renderAll(topics: Seq[Topic[IO,Chunk[Int]]]): Stream[IO,Array[Array[DrawCommand]]] = {
+
+    // Should probably be closer to All of them
+    val pixelsPerPull = pointsNeededPerSec
+
+    // Yep, a mutable reference to a mutable collection.
+    var buf = Array.ofDim[DrawCommand](pixelsPerPull*60)
+
+
+    wakeUp(topics).flatMap{ (sl: Chunk[Stream[IO,Chunk[Int]]]) =>
+      val streams = sl.toArray.map(_.through(this.renderer))
+      def go(idx: Int): Pull[IO,Array[DrawCommand],Unit] = {
+        streams(idx).pull.unconsN(pixelsPerPull, false).flatMap{
+          case Some((chunk, tl)) => {
+            chunk.copyToArray(buf, pixelsPerPull*idx)
+            streams(idx) = tl
+            if(idx == 59){
+              for {
+                _ <- Pull.output1(buf)
+                _ <- Pull.eval(IO { buf = Array.ofDim[DrawCommand](pixelsPerPull*60) } )
+                _ <- go(0)
+              } yield ()
+            }
+            else
+              go(idx+1)
+          }
+          case None => Pull.doneWith("Channel broadcaster deaded")
+        }
+      }
+      go(0).stream
+        .map(Array(_))
+      .map{x => say(s"outputting ${x(0).size} pixels", timestamp = true); x}
+
     }
   }
+
+
+  import cyborg.RPCmessages.DrawCommand
+  def visualizeRaw(hi: Int, lo: Int) = DrawCommand(hi, lo, 0)
+  def visualizeAvg(hi: Int, lo: Int) = DrawCommand(hi, lo, 1)
+  
+
+
+  /**
+    Sure as hell ain't pretty...
+    */
+  import cyborg.RPCmessages._
+  def visualizeRawAvg: Pipe[IO, Chunk[Int], Array[Array[DrawCommand]]] = { inputs =>
+    Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q1 =>
+      Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q2 =>
+
+        val ins = inputs
+          .observe(q1.enqueue)
+          .through(q2.enqueue)
+
+        val rawStream = q1.dequeue.hideChunks.drop((spikeTools.kernelSize/2) + 1)
+        val rawStreamViz = rawStream
+          .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
+
+
+        val blurred = q2.dequeue.hideChunks.through(spikeTools.gaussianBlurConvolutor)
+        val blurredViz = blurred
+          .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
+
+        ((rawStreamViz zip blurredViz).map{ case(a,b) =>
+          Array(a,b)
+        }.mapN(_.toArray, pointsNeededPerSec))
+          .concurrently(ins)
+      }
+    }
+  }
+
+
+
+  def visualizeNormSpikes: Pipe[IO,Chunk[Int],Array[Array[DrawCommand]]] = { inputs =>
+    Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q1 =>
+      Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q2 =>
+        Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q3 =>
+          Stream.eval(Queue.unbounded[IO,Chunk[Int]]).flatMap{ q4 =>
+
+            val ins = inputs
+              .observe(q1.enqueue)
+              .through(q2.enqueue)
+
+            val raw           = q2.dequeue.hideChunks
+            val blurred       = q1.dequeue.hideChunks.through(spikeTools.gaussianBlurConvolutor)
+            val normalizedIns = spikeTools.avgNormalizer(raw, blurred).chunks
+              .observe(q3.enqueue)
+              .through(q4.enqueue)
+
+            val normalizedViz = q3.dequeue.hideChunks
+              .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
+
+            val spikes    = q4.dequeue.hideChunks.through(spikeTools.spikeDetectorPipe)
+            val spikesViz = spikes.through(downsampleWith(pointsPerDrawcall, 1)((c: Chunk[Boolean]) => c.foldLeft(false)(_||_)))
+              .map(b => if(b) DrawCommand(-2600, -10000, 1) else DrawCommand(0,0,0))
+
+            ((normalizedViz zip spikesViz).map{ case(a,b) =>
+              Array(a,b)
+            }.mapN(_.toArray, pointsNeededPerSec))
+              .concurrently(ins)
+              .concurrently(normalizedIns)
+          }
+        }
+      }
+    }
+  }
+
+
 
   def zoomFilter(zoomLevel: Int): Int => Int = zoomLevel match {
     case 0 => (x: Int) => x           // 1µV
@@ -114,4 +228,14 @@ object FrontendFilters {
     case _  => (x: Int) => x          // Uhh...?
   }
 
+  def timeCompressionLevelToTime(level: Int): FiniteDuration = level match {
+    case 0 => 500.millis
+    case 1 => 1.second
+    case 2 => 2.second
+    case 3 => 3.second
+    case 4 => 5.second
+    case 5 => 10.second
+    case 6 => 20.second
+    case 7 => 30.second
+  }
 }

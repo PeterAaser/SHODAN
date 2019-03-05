@@ -28,6 +28,8 @@ trait MainServerRPC {
 
   def selectLargeChannel(c: Int) : Future[Unit]
   def setDownscalingFactor(i: Int) : Future[Int]
+
+  def setChannelTimeSpan(i: Int) : Future[Int]
 }
 
 object MainServerRPC extends DefaultServerUdashRPCFramework.RPCCompanion[MainServerRPC]

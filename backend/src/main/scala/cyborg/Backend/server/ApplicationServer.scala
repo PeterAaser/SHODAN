@@ -22,6 +22,7 @@ import _root_.io.udash.rpc._
 import cyborg.backend.rpc.ClientRPChandle
 import cyborg.Settings._
 
+import scala.concurrent.duration._
 /**
   All comms from SHODAN --> MEAME is accessed here
   */
@@ -38,10 +39,10 @@ class RPCserver(
     }
 
 
-  def drawCommandPush(idx:Int)(data: Array[Array[DrawCommand]]): IO[Unit] =
+  def drawCommandPush(idx: Int)(data: Array[Array[DrawCommand]]): IO[Unit] =
     listeners.get.flatMap{ci =>
       IO {
-        ci.foreach(ClientRPChandle(_).wf().drawCallPush((idx, data.map(_.toList).toList))) }
+        ci.foreach(ClientRPChandle(_).wf().drawCallPush((idx, data))) }
     }
 }
 
@@ -52,8 +53,7 @@ object ApplicationServer {
     userCommands    : Queue[IO,UserCommand],
     state           : SignallingRef[IO,ProgramState],
     conf            : SignallingRef[IO,FullSettings],
-    zoomLevel       : SignallingRef[IO,Int],
-    selectedChannel : SignallingRef[IO,Int],
+    vizServer       : SignallingRef[IO,VizState],
   ) : IO[RPCserver] = {
 
     import _root_.io.udash.rpc._
@@ -64,7 +64,7 @@ object ApplicationServer {
     val port = 8080
     val resourceBase = "frontend/target/UdashStatics/WebContent"
 
-    def createAtmosphereHolder(listeners: Ref[IO, List[ClientId]], selectedChannel: SignallingRef[IO, Int]): ServletHolder = {
+    def createAtmosphereHolder(listeners: Ref[IO, List[ClientId]]): ServletHolder = {
       val config = new DefaultAtmosphereServiceConfig((clientId) =>
         new DefaultExposesServerRPC[MainServerRPC](
           new ServerRPCendpoint(
@@ -72,8 +72,7 @@ object ApplicationServer {
             userCommands,
             state,
             conf,
-            zoomLevel,
-            selectedChannel
+            vizServer,
           )(clientId)
         )
       )
@@ -99,7 +98,7 @@ object ApplicationServer {
         val server = new Server(port)
         val contextHandler = new ServletContextHandler
         val appHolder = createAppHolder()
-        val atmosphereHolder = createAtmosphereHolder(ci, selectedChannel)
+        val atmosphereHolder = createAtmosphereHolder(ci)
 
         contextHandler.setSessionHandler(new SessionHandler)
         contextHandler.getSessionHandler.addEventListener(

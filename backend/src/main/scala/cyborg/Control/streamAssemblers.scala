@@ -22,6 +22,7 @@ import cyborg.backend.server.ApplicationServer
 import cyborg.Settings._
 import cyborg.utilz._
 import cyborg.State._
+import cyborg.VizState._
 
 import scala.concurrent.duration._
 
@@ -33,15 +34,14 @@ import org.http4s.client._
 
 
 class Assembler(httpClient   : MEAMEHttpClient[IO],
-  RPCserver    : cyborg.backend.server.RPCserver,
-  agentTopic   : Topic[IO,Agent],
-  topics       : List[Topic[IO,Chunk[Int]]],
-  commandQueue : Queue[IO,UserCommand],
-  zoomLevel    : SignallingRef[IO,Int],
-  drawChannel  : SignallingRef[IO,Int],
-  configServer : SignallingRef[IO,FullSettings],
-  stateServer  : SignallingRef[IO,ProgramState],
-  dsp          : cyborg.dsp.DSP[IO]) {
+  RPCserver       : cyborg.backend.server.RPCserver,
+  agentTopic      : Topic[IO,Agent],
+  topics          : List[Topic[IO,Chunk[Int]]],
+  commandQueue    : Queue[IO,UserCommand],
+  vizServer       : SignallingRef[IO,VizState],
+  configServer    : SignallingRef[IO,FullSettings],
+  stateServer     : SignallingRef[IO,ProgramState],
+  dsp             : cyborg.dsp.DSP[IO]) {
 
   def startSHODAN: Stream[IO, Unit] = {
 
@@ -79,6 +79,8 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     */
   private def broadcastDataStream(source: Stream[IO,TaggedSegment]): Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
 
+    say(s"Got a conf that looked like $conf")
+
     def publishSink: Sink[IO,TaggedSegment] = {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
@@ -104,72 +106,36 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     BROADCAST --> FRONTEND
     */
   def broadcastToFrontend: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
-    def renderer(f: Int => Int): Pipe[IO,Chunk[Int],DrawCommand] = FrontendFilters.assembleFrontendRenderer(conf)(f)
-    val pixelsPerPull = 10
-    val spikeFilter = new SpikeTools[IO](40.millis, conf)
 
-    val mazeRunner: Stream[IO,Unit] = assembleMazeRunner(conf)
+    val visualizerStream = vizServer.discrete.changes.switchMap{ vizState =>
+      val spikeTools = new SpikeTools[IO](40.millis, conf, vizState)
+      val feFilter   = new FrontendFilters(conf, vizState, spikeTools)
 
-    /**
-      Pretty crazy thingy, might break lol.
-      */
-    def allChannels(zl: Int): Pull[IO,Array[DrawCommand],Unit] = {
+      val allChannelsStream = feFilter.renderAll(topics)
+          .evalMap(data => RPCserver.drawCommandPush(0)(data))
 
-      var buf = Array.ofDim[DrawCommand](pixelsPerPull*60)
-      val streams: Array[Stream[IO,DrawCommand]] = topics.toArray.map(_.subscribe(10).through(renderer(FrontendFilters.zoomFilter(zl))))
-
-      def go(idx: Int): Pull[IO,Array[DrawCommand],Unit] = {
-        streams(idx).pull.unconsN(pixelsPerPull, false).flatMap{
-          case Some((chunk, tl)) => {
-            chunk.copyToArray(buf, idx*pixelsPerPull)
-            streams(idx) = tl
-            if(idx == 59){
-              for {
-                _ <- Pull.output1(buf)
-                _ <- Pull.eval(IO{buf = Array.ofDim[DrawCommand](pixelsPerPull*60)})
-                _ <- go(0)
-              } yield ()
-            }
-            else
-              go(idx+1)
-          }
-          case None => Pull.doneWith("Channel broadcaster deaded")
-        }
-      }
-      go(0)
-    }
-
-    val allChannelsStream = zoomLevel.discrete.changes.switchMap(
-      zoomLevel => allChannels(zoomLevel)
-        .stream.map(Array(_))
-        .evalMap(data => RPCserver.drawCommandPush(0)(data)))
-
-    val selectedChannelStream = drawChannel.discrete.changes.switchMap(
-      channel => topics(channel).subscribe(10).hideChunks
-        .through(spikeFilter.visualizeRawAvg)
+      val select1 = topics(vizState.selectedChannel)
+        .subscribe(10)
+        .through(feFilter.visualizeRawAvg)
         .evalMap(RPCserver.drawCommandPush(1))
-    )
 
-    val selectedChannelStream2 = drawChannel.discrete.changes.switchMap(
-      channel => topics(channel).subscribe(10).hideChunks
-        .through(spikeFilter.visualizeNormSpikes)
+      val select2 = topics(vizState.selectedChannel)
+        .subscribe(100)
+        .through(feFilter.visualizeNormSpikes)
         .evalMap(RPCserver.drawCommandPush(2))
-    )
 
-    val agentBroadcast = agentTopic.subscribe(10).evalMap(RPCserver.agentPush)
-
-    val spikeMemery = drawChannel.discrete.changes.switchMap(
-      channel => spikeFilter.outputSpike(topics(channel)).map{ x => say(x) }
-    )
+      allChannelsStream
+        .concurrently(select1)
+        .concurrently(select2)
+    }
 
 
     InterruptableAction.apply(
-      allChannelsStream
-        .concurrently(selectedChannelStream)
-        .concurrently(selectedChannelStream2)
-        .concurrently(mazeRunner)
-        .concurrently(agentBroadcast)
-        // .concurrently(spikeMemery)
+      visualizerStream
+        // .concurrently(selectedChannelStream)
+        // .concurrently(selectedChannelStream2)
+        // .concurrently(mazeRunner)
+        // .concurrently(agentBroadcast)
     )
   }
 
@@ -181,38 +147,36 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     
     CONFIG --> (MEAME --> BROADCASTER)
     */
-  def startBroadcast(
-    configuration : FullSettings,
-    programState  : ProgramState
-  ): IO[InterruptableAction[IO]] = {
+  def startBroadcast(programState: ProgramState): Kleisli[IO,FullSettings,InterruptableAction[IO]] = {
 
-    // say("starting broadcast")
+      /**
+        This must be run first since the kleisli for the DB case is actually a StateT in disguise!
+        In english: The BD call alters the configuration, thus to ensure synchronized configs it
+        must be used first so that downstream configs match the playback.
 
-    /**
-      This must be run first since the kleisli for the DB case is actually a StateT in disguise!
-      In english: The BD call alters the configuration, thus to ensure synchronized configs it
-      must be used first so that downstream configs match the playback.
+        Would be nice to change this I suppose, but it is what it is
+        
+        TODO: I don't think this works!!
+        */
+      import backendImplicits._
 
-      Would be nice to change this I suppose, but it is what it is
-      */
-    import backendImplicits._
-
-    val getAndBroadcastDatastream = programState.dataSource.get match {
-      case Live => for {
-        _         <- this.httpClient.startMEAMEserver
-        source    <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
-        broadcast <- broadcastDataStream(source)
-      } yield broadcast
-
-      case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { source =>
-        for {
+      val getAndBroadcastDatastream = programState.dataSource.get match {
+        case Live => for {
+          _         <- this.httpClient.startMEAMEserver
+          source    <- cyborg.io.Network.streamFromTCP.mapF(IO.pure(_))
           broadcast <- broadcastDataStream(source)
         } yield broadcast
-      }
-    }
 
-    getAndBroadcastDatastream(configuration)
-  }
+        // TODO: This does not work the way I want it to. This needs to be rethought!
+        case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { (source: Stream[IO,TaggedSegment]) =>
+          for {
+            broadcast <- broadcastDataStream(source)
+          } yield broadcast
+        }
+      }
+
+      getAndBroadcastDatastream
+    }
 
 
   def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {

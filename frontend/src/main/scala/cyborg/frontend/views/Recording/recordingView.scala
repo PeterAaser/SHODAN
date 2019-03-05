@@ -38,9 +38,14 @@ class RecordingView(model: ModelProperty[RecordingModel],
 
   val rangeUp = UdashButton()(UdashIcons.FontAwesome.plus)
   val rangeDown = UdashButton()(UdashIcons.FontAwesome.minus)
+  val timeUp = UdashButton()(UdashIcons.FontAwesome.angleUp)
+  val timeDown = UdashButton()(UdashIcons.FontAwesome.angleDown)
 
   rangeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeUpClicked(btn) }
   rangeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onRangeDownClicked(btn) }
+
+  timeUp.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onTimeUpClicked(btn) }
+  timeDown.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onTimeDownClicked(btn) }
 
   val playButton = UdashButton()(UdashIcons.FontAwesome.play)
   val pauseButton = UdashButton()(UdashIcons.FontAwesome.pause)
@@ -54,6 +59,7 @@ class RecordingView(model: ModelProperty[RecordingModel],
 
   playButton.listen { case UdashButton.ButtonClickEvent(btn, _) => presenter.onPlayClicked(btn) }
   stopButton.listen { case UdashButton.ButtonClickEvent(btn, _) => canvasController.onStopClicked(btn) }
+
 
   model.streamTo( playButton.disabled, initUpdate = true)(m => !m.state.canStartPlayback)
   model.streamTo( stopButton.disabled, initUpdate = true)(m => !m.state.canStop)
@@ -79,6 +85,8 @@ class RecordingView(model: ModelProperty[RecordingModel],
       },
       rangeUp.render,
       rangeDown.render,
+      timeUp.render,
+      timeDown.render,
       showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.wfCanvas.render),
       showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.agentCanvas.render),
       showIf(model.subProp(_.recordingSelected).transform(_.isDefined))(canvasController.bigwfCanvas.render),

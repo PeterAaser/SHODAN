@@ -31,12 +31,11 @@ object ClientRPChandle {
 }
 
 class ServerRPCendpoint(
-  listeners: Ref[IO,List[ClientId]],
-  userQ: Queue[IO,UserCommand],
-  state: SignallingRef[IO,ProgramState],
-  conf: SignallingRef[IO,FullSettings],
-  zoomLevel: SignallingRef[IO, Int],
-  selectedChannel: SignallingRef[IO, Int]
+  listeners       : Ref[IO,List[ClientId]],
+  userQ           : Queue[IO,UserCommand],
+  state           : SignallingRef[IO,ProgramState],
+  conf            : SignallingRef[IO,FullSettings],
+  vizServer       : SignallingRef[IO,VizState],
 )(implicit ci: ClientId) extends MainServerRPC {
 
 
@@ -74,16 +73,33 @@ class ServerRPCendpoint(
   override def startAgent : Unit = ???
 
   import mcsChannelMap._
-  override def selectLargeChannel(c: Int) : Future[Unit] = selectedChannel.set(c).unsafeToFuture()
+
+  // override def selectLargeChannel(c: Int) : Future[Unit] = selectedChannel.set(c).unsafeToFuture()
+  override def selectLargeChannel(c: Int) : Future[Unit] = {
+    vizServer.update(prev => prev.copy(selectedChannel = c)).unsafeToFuture()
+  }
+
   override def setDownscalingFactor(i: Int): Future[Int] = {
     val task = for {
-      _ <- zoomLevel.update(prev => if((prev + i) > 0 && (prev + i) < 21) prev + i else prev)
-      res <- zoomLevel.get
-      _ <-  Fsay[IO](s"New zoomLevel is $res")
+      _   <- vizServer.update{prev =>
+        if((prev.zoomLevel + i) > 0 && (prev.zoomLevel + i) < 21) prev.copy(zoomLevel = prev.zoomLevel + i) else prev
+      }
+      res <- vizServer.get.map(_.zoomLevel)
+      _   <-  Fsay[IO](s"New zoomLevel is $res")
     } yield res
     task.unsafeToFuture()
   }
 
+  override def setChannelTimeSpan(i: Int): Future[Int] = {
+    val task = for {
+      _   <- vizServer.update{prev =>
+        if((prev.timeCompressionLevel + i) >= 0 && (prev.timeCompressionLevel + i) < 7) prev.copy(timeCompressionLevel = prev.timeCompressionLevel + i) else prev
+      }
+      s   <- vizServer.get
+      _   <- Fsay[IO](s"$s")
+    } yield 0
+    task.unsafeToFuture()
+  }
 
   def printState = state.discrete.map{x => say(s"state is $x", Console.GREEN); x}.drain
   def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain

@@ -62,10 +62,11 @@ object ControlPipe {
         May start a playback or live recording based on datasource
         */
       def start: IO[Unit] = {
+
         for {
           programState     <- stateServer.get
           conf             <- confServer.get
-          broadcast        <- assembler.startBroadcast(conf, programState)
+          broadcast        <- assembler.startBroadcast(programState)(conf)
           frontendBrodcast <- assembler.broadcastToFrontend(conf)
           _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop)))
           _                <- (broadcast.start, frontendBrodcast.start).parMapN((_,_) => ())

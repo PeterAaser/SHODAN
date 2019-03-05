@@ -18,7 +18,7 @@ trait MainClientRPC {
 trait WfClientRPC {
 
   // The int is the destination canvas
-  def drawCallPush(data: (Int, List[List[DrawCommand]])): Unit
+  def drawCallPush(data: (Int, Array[Array[DrawCommand]])): Unit
 }
 
 trait AgentClientRPC {

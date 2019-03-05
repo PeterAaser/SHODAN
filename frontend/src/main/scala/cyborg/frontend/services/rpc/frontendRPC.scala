@@ -28,9 +28,9 @@ object StateClient extends ClientStateRPC {
 
 object WfClient extends WfClientRPC {
 
-  def doNothing(x: (Int, List[List[DrawCommand]])): Unit = ()
-  var onDrawCall: ((Int, List[List[DrawCommand]])) => Unit = doNothing
-  override def drawCallPush(data: (Int, List[List[DrawCommand]])) = onDrawCall(data)
+  def doNothing(x: (Int, Array[Array[DrawCommand]])): Unit = ()
+  var onDrawCall: ((Int, Array[Array[DrawCommand]])) => Unit = doNothing
+  override def drawCallPush(data: (Int, Array[Array[DrawCommand]])) = onDrawCall(data)
 }
 
 object AgentClient extends AgentClientRPC {
@@ -53,7 +53,11 @@ object Hurr {
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
     AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
-    WfClient.onDrawCall       = (a: (Int, List[List[DrawCommand]])) => drawCallDemux(a._1, a._2.map(_.toArray).toArray)
+    WfClient.onDrawCall       = (a: (Int, Array[Array[DrawCommand]])) => {
+      say("hurr!! hurr hurr hurr!!!")
+      say(s"${a._1}")
+      drawCallDemux(a._1, a._2)
+    }
 
     Context.serverRpc.register
     ()

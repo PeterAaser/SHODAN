@@ -7,7 +7,7 @@ object Dependencies {
   // val versionOfScala = "2.13.0-M5"
 
   val doobieVersion     = "0.6.0"
-  val fs2Version        = "1.0.2"
+  val fs2Version        = "1.0.4"
   val http4sVersion     = "0.20.0-M3"  // 19 is EOL, 20 is milestone stage. YOLO
   val circeVersion      = "0.10.1"
   val catsVersion       = "1.5.0"
@@ -24,7 +24,7 @@ object Dependencies {
 
 
   // Udash
-  val udashVersion = "0.7.1"
+  val udashVersion = "0.8.0-M3"
   val udashJQueryVersion = "1.2.0"
 
   // Backend

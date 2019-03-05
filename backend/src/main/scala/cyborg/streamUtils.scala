@@ -24,7 +24,7 @@ object utilz {
   type Channel = Int
 
 
-  case class TaggedSegment(channel: Channel, data: Chunk[Int]){}
+  case class TaggedSegment(channel: Channel, data: Chunk[Int])
 
 
   /**
@@ -133,9 +133,9 @@ object utilz {
     def hideChunks: Stream[F,O] = s.flatMap(s => Stream.chunk(s))
   }
 
-  implicit class PullBonusOps[F[_]](p: Pull.type){
+  implicit class PullBonusOps[F[_]](p: Pull.type)(implicit filename: sourcecode.File, line: sourcecode.Line){
     def doneWith(msg: String) = {
-      say(msg)
+      say(msg)(filename, line)
       Pull.done
     }
   }
@@ -146,8 +146,10 @@ object utilz {
     */
   implicit class StateTops[F[_]: FlatMap,S,A](self: StateT[F,S,A]){
     def flatMapToKleisli[B](f: A => Kleisli[F,S,B]): Kleisli[F,S,B] = Kleisli{ (conf: S) =>
-      val fsa = self.run(conf)
+      val fsa: F[(S,A)] = self.run(conf)
       fsa.flatMap { case(s2, a) =>
+        say(s"The old conf was: $conf")
+        say(s"The new conf is: $s2")
         f(a)(s2)
       }
     }
@@ -397,12 +399,27 @@ object utilz {
   /**
     TODO: Do this with chunks from the get-go
     */
-  def roundRobinC[F[_],I](streams: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
-    def zip2List(a: Stream[F,I], b: Stream[F,List[I]]): Stream[F,List[I]] = {
-      a.zipWith(b)(_::_)
-    }
-    val mpty: Stream[F,List[I]] = Stream(List[I]()).repeat
-    streams.foldRight(mpty)((z,u) => zip2List(z,u)).map(Chunk.seq(_))
+  def roundRobinC[F[_], I: ClassTag](sl: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
+    val streams: Array[Stream[F,I]] = sl.toArray
+    val buf = Array.ofDim[I](sl.size)
+
+    def go(idx: Int): Pull[F,Chunk[I],Unit] = 
+      streams(idx).pull.uncons1.flatMap{
+        case Some((element, tl)) => {
+          buf(idx) = element
+          streams(idx) = tl
+          if(idx == sl.size - 1){
+            for {
+              _ <- Pull.output1(Chunk.seq(buf))
+              _ <- go(0)
+            } yield ()
+          }
+          else go(idx + 1)
+        }
+        case None => Pull.doneWith("ded")
+      }
+
+    go(0).stream
   }
 
 
@@ -990,23 +1007,26 @@ object utilz {
   }
 
 
-  // /**
-  //   Reads relevant neuro data from a topic list and pipes each channel through a spike
-  //   detector, before aggregating spikes from each channel into ANN input vectors
+  /**
+    "Awakens" a collection of topics such that all topics will start queueing simultaneously
+    */
+  def wakeUp[F[_]: Concurrent,I](sl: Seq[Topic[F,I]]): Stream[F,Chunk[Stream[F,I]]] = {
+    val streams = sl.map(_.subscribe(1000000)).toArray
 
-  //   Type inference does not like id :(
-  //   */
-  def assembleInputFilter[F[_]](broadcastSource : List[Topic[F,Chunk[Int]]]) =
-    Kleisli[Id, Settings.FullSettings, Pipe[F,Int,Double] => Stream[F,Chunk[Double]]](
-      conf => {
-        val inputs = conf.readout.inputChannels
-        val channelStreams = inputs.map(broadcastSource(_).subscribe(10000))
-        spikeFilter => {
-          val spikeChannels = channelStreams.map(
-            _.hideChunks.through(spikeFilter))
-
-          roundRobinC(spikeChannels).covary[F]
+    def go(idx: Int): Pull[F,Chunk[Stream[F,I]],Unit] = {
+      streams(idx).pull.uncons1.flatMap{
+        case Some((_, tl)) if(idx == sl.size - 1) => {
+          say(s"Waking up $idx")
+          streams(idx) = tl
+          Pull.output1(Chunk.seq(streams))
         }
-      })
-
+        case Some((_, tl)) => {
+          say(s"Waking up $idx")
+          streams(idx) = tl
+          go(idx + 1)
+        }
+      }
+    }
+    go(0).stream
+  }
 }
