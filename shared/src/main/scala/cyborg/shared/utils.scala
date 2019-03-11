@@ -2,6 +2,10 @@ package cyborg
 
 object bonus {
 
+  implicit class MQueueOps[A](xs: scala.collection.mutable.Queue[A]) {
+    def dequeue_(): Unit = xs.dequeue; ()
+  }
+
   implicit class SeqOps[A](xs: Seq[A]) {
     def zipWith[B,C](ys: Seq[B])(f: (A,B) => C): Seq[C] =
       xs.zip(ys) map f.tupled
@@ -14,6 +18,18 @@ object bonus {
     def minByOption(implicit ev: Ordering[A]): Option[A] =
       if (xs.isEmpty) None
       else Some(xs.min)
+  }
+
+  import cats._
+  import cats.implicits._
+  import cats.Semigroup
+  import cats.Monoid
+  def minSG[A: Order]: Semigroup[A] = new Semigroup[A] {
+    def combine(x: A, y: A): A = if((x compare y) > 0) y else x
+  }
+  def minMonoid[A: Order](min: A): Monoid[A] = new Monoid[A] {
+    def empty: A = min
+    def combine(x: A, y: A): A = if((x compare y) > 0) y else x
   }
 
   implicit class MapOps[K,V](m: Map[K,V]) {

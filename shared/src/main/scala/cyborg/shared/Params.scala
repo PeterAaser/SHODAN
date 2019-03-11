@@ -47,9 +47,9 @@ object params {
     val width = 10000.0
     val height = 10000.0
     val speed = 3.0
-    val turnRate = 0.001
+    val turnRate = 0.01
     val viewPoints = 3
-    val maxTurnRate = 0.002
+    val maxTurnRate = 0.02
 
     val sightRange = 3000.0
     val deadZone = 200.0

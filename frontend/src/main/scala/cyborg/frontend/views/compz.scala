@@ -75,13 +75,16 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   val wfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val agentCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val spikeCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val bigwfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
+  val bigwfCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
 
   /**
     This is kinda very very bad...
     */
   scalajs.js.timers.setInterval(200){
-    say("checking for updates")
+    // say("checking for updates")
     if(confQueue.size > 0){
       val newest: FullSettings = confQueue.dequeueAll(_ => true).last
       conf.set(newest)
@@ -102,23 +105,14 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
   val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
+  // val drawQueue  = new scala.collection.mutable.Queue[(Int, Array[DrawCall])]()
 
-  // The queue for receiving unMuxed draw calls
-  val drawQueue  = new scala.collection.mutable.Queue[(Int, Array[DrawCall])]()
-
-  // Special queue for all waveforms
-  // val wfQueue    = new scala.collection.mutable.Queue[Array[DrawCommand]]()
-
-
-  // Queues for the various canvases
-
-  val bigwfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
-  val bigwfCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
   val wf = new cyborg.WFVisualizerControl(wfCanvas, onChannelClicked)
   val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
   val big = new cyborg.LargeWFviz(bigwfCanvas)
   val big2 = new cyborg.LargeWFviz(bigwfCanvas2)
+  val spikey = new SpikeTrainViz(spikeCanvas)
 
   val canvasQueues = new scala.collection.mutable.HashMap[
     Int,
@@ -127,6 +121,7 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
 
   canvasQueues(1) = big.pushData
   canvasQueues(2) = big2.pushData
+  canvasQueues(3) = data => spikey.pushData(data(0))
 
   def handleDrawcallBatch(idx: Int, dcs: Array[DrawCall]): Unit = {
     if (idx == 0)

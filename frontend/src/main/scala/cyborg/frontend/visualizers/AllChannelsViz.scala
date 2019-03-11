@@ -76,7 +76,6 @@ class WFVisualizerControl(
     if(frameQueue.size > 60){
       // double speed if more than 60 frames are buffered
       gogo(frameQueue.dequeue)
-      println(frameQueue.size)
     }
     if(frameQueue.size > 0){
       gogo(frameQueue.dequeue)

@@ -88,7 +88,6 @@ object FFANN {
       (well, two perceptrons, whatever)
       */
     val layout = configuration.getLayout
-    say(layout)
     val neededBias = layout.tail.sum
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
 
@@ -98,10 +97,6 @@ object FFANN {
   }
 
 
-  /**
-    same as ffPipe, but with chunks to make the transition easier.
-    Should eventually replace ffPipe
-    */
   def ffPipe[F[_]](net: FeedForward): Pipe[F,Chunk[Double],Chunk[Double]] = {
 
     def go(s: Stream[F, Chunk[Double]]): Pull[F,Chunk[Double],Unit] = {

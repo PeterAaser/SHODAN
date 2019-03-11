@@ -14,10 +14,11 @@ import utilz._
 
 import Settings._
 
-class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettings, viz: VizState) {
+class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettings) {
 
-  lazy val bucketSize = hardcode(100.millis)
-  lazy val buckets = hardcode(10)
+  // lazy val buckets = hardcode(10)
+  import conf.readout._
+  val bucketSize = conf.readout.bucketSizeMillis.millis
 
   val kernelSize = {
     val size = (conf.daq.samplerate.toDouble*(kernelWidth.toMillis.toDouble/1000.0)).toInt
@@ -131,8 +132,33 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     }
   }
 
-  def outputSpikes(streams: Chunk[Stream[F,Chunk[Int]]]): Stream[F,Chunk[Int]] = {
+
+  def outputSpikes(streams: List[Stream[F,Chunk[Int]]]): Stream[F,Chunk[Int]] = {
     val spikeBuckets = streams.map(_.through(spikePipe)).toList
     roundRobinC(spikeBuckets)
+  }
+
+
+  /**
+    Outputs "windowed" spikes.
+    For every spike interval, a new batch of spikes are added in a 
+    conveyer-belt-like manner like so:
+    
+    [0, 0, 0, 0]      [1, 2, 4, 0]       [1, 1, 5, 1]      [3, 4, 9, 3]      [1, 3, 3, 0]
+    [0, 0, 0, 0]  =>  [0, 0, 0, 0]   =>  [1, 2, 4, 0]  =>  [1, 1, 5, 1]  =>  [3, 4, 9, 4]
+    [0, 0, 0, 0]      [0, 0, 0, 0]       [0, 0, 0, 0]      [1, 2, 4, 0]      [1, 1, 5, 1]
+
+    Uses buckets and bucketSize
+    
+    Note that their representation is a flattened stream
+    */
+  def windowedSpikes(streams: List[Stream[F,Chunk[Int]]]): Stream[F,Chunk[Int]] = {
+
+    val inits = List.fill(buckets)(Chunk.seq(List.fill(60)(0)))
+    val spikesWithInit = outputSpikes(streams)
+      .through(stridedSlideWithInit(buckets, buckets - 1)(inits.toChunk))
+
+
+    spikesWithInit.map(_.flatten)
   }
 }

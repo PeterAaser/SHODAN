@@ -36,6 +36,7 @@ import org.http4s.client._
 class Assembler(httpClient   : MEAMEHttpClient[IO],
   RPCserver       : cyborg.backend.server.RPCserver,
   agentTopic      : Topic[IO,Agent],
+  spikes          : Topic[IO,Chunk[Int]],
   topics          : List[Topic[IO,Chunk[Int]]],
   commandQueue    : Queue[IO,UserCommand],
   vizServer       : SignallingRef[IO,VizState],
@@ -48,9 +49,9 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
     for {
       _            <- Stream.eval(RPCserver.start)
       commandPipe  <- Stream.eval(ControlPipe.controlPipe(this,
-        stateServer,
-        configServer,
-        commandQueue))
+                                                          stateServer,
+                                                          configServer,
+                                                          commandQueue))
 
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
@@ -61,13 +62,26 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
   }
 
 
-  def assembleMazeRunner: Kleisli[Id,FullSettings,Stream[IO,Unit]] = Kleisli{ conf =>
-    val perturbationSink: Sink[IO,List[Double]] =
-      _.through(PerturbationTransform.toStimReq())
+  def assembleMazeRunner: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
+    val perturbationSink: Pipe[IO,Agent,Unit] =
+      _.map(_.distances)
+        .through(PerturbationTransform.toStimReq())
         .to(dsp.stimuliRequestSink(conf))
 
-    val mazeRunner = new Maze(conf).runMazeRunner(topics, perturbationSink, agentTopic.publish)
-    mazeRunner: Id[Stream[IO,Unit]]
+    val spikeTools = new SpikeTools[IO](20.millis, conf)
+
+    val spikeStream = wakeUp(topics)
+
+    val mazeRunner = spikeStream.flatMap{ sl =>
+      new MazeExperiment[IO](
+        conf,
+        spikeTools.windowedSpikes(sl.toList).map(_.map(_.toDouble)),
+        perturbationSink
+      ).run
+    }
+
+
+    InterruptableAction.apply(mazeRunner)
   }
 
 
@@ -108,7 +122,7 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
   def broadcastToFrontend: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
 
     val visualizerStream = vizServer.discrete.changes.switchMap{ vizState =>
-      val spikeTools = new SpikeTools[IO](40.millis, conf, vizState)
+      val spikeTools = new SpikeTools[IO](40.millis, conf)
       val feFilter   = new FrontendFilters(conf, vizState, spikeTools)
 
       val allChannelsStream = feFilter.renderAll(topics)
@@ -120,23 +134,26 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
         .evalMap(RPCserver.drawCommandPush(1))
 
       val select2 = topics(vizState.selectedChannel)
-        .subscribe(100)
+        .subscribe(10)
         .through(feFilter.visualizeNormSpikes)
         .evalMap(RPCserver.drawCommandPush(2))
+
+      val agentStream = agentTopic
+        .subscribe(10)
+        .evalMap(RPCserver.agentPush)
+
+      val allChannelsSpikes = feFilter.visualizeAllSpikes(topics)
+        .evalMap(RPCserver.drawCommandPush(3))
 
       allChannelsStream
         .concurrently(select1)
         .concurrently(select2)
+        .concurrently(agentStream)
+        .concurrently(allChannelsSpikes)
     }
 
 
-    InterruptableAction.apply(
-      visualizerStream
-        // .concurrently(selectedChannelStream)
-        // .concurrently(selectedChannelStream2)
-        // .concurrently(mazeRunner)
-        // .concurrently(agentBroadcast)
-    )
+    InterruptableAction.apply(visualizerStream)
   }
 
 

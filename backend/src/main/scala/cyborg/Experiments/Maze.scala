@@ -25,36 +25,23 @@ import scala.concurrent.duration._
 
 import backendImplicits._
 
-class Maze(conf: FullSettings){
+
+class Maze2[F[_]: Concurrent](conf: FullSettings){
 
   type FilterOutput       = Chunk[Double]
   type ReadoutOutput      = Chunk[Double] // aka (Double, Double)
   type TaskOutput         = Agent
   type PerturbationOutput = List[Double]
 
-  def MazeRunner[F[_]: Concurrent] = new ClosedLoopExperiment[
-    F,
-    FilterOutput,
-    ReadoutOutput,
-    TaskOutput,
-    PerturbationOutput
-  ]
-
+  lazy val ticksPerEval = hardcode(20)
 
   /**
-    Sets up a simulation running an agent in 5 different initial poses
-    aka challenges.
-
-    TODO use unconsLimit
+    Sets up a single simulator run
+    
+    Maybe just have the task as an argument?
+    Rather than as 
     */
-  def taskRunner[F[_]: Concurrent]: Pipe[F,ReadoutOutput, TaskOutput] = {
-
-    val initAgent = {
-      import params.game._
-      Agent(Coord(( width/2.0), ( height/2.0)), 0.0, 90)
-    }
-
-    say("creating simrunner")
+  def taskRunner: Pipe[F,ReadoutOutput, TaskOutput] = {
     def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
       def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
         s.pull.uncons1 flatMap {
@@ -64,17 +51,15 @@ class Maze(conf: FullSettings){
               Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             }
             else {
-              say("Challenge done")
-              Pull.output1(nextAgent) >> Pull.done
+              Pull.output1(nextAgent)
             }
           }
           case None => {
-            say("simrunner done??")
-            Pull.done
+            Pull.doneWith("simRunner ded")
           }
         }
       }
-      in => go(conf.ga.ticksPerEval, agent, in).stream
+      in => go(ticksPerEval, agent, in).stream
     }
 
     val challenges = wallAvoid.createChallenges
@@ -85,83 +70,27 @@ class Maze(conf: FullSettings){
 
 
   /**
-    Used to create readoutSource and evaluatorSink
-
-    This is pretty crufty, and I'm not sure it's a very good evaluator at all
-
-    Could be rewritten easily with foldMonoid
+    Very primitive, all it does is measure worst performance
     */
-  def taskEvaluator[F[_]]: Pipe[F,TaskOutput,Double] = {
-    def go(s: Stream[F,Agent]): Pull[F,Double,Unit] = {
-      s.pull.unconsN(conf.ga.ticksPerEval, false) flatMap {
-        case Some((chunk, _)) => {
-          val closest = chunk
-            .map(_.distanceToClosest)
-            .toList
-            .min
-
-          Pull.output1(closest) >> Pull.done
-        }
-        case None => {
-          Pull.done
-        }
-      }
-    }
-    in => go(in).stream
-  }
+  def taskEvaluator: Pipe[F,Agent,Double] =
+    _.map(_.distanceToClosest)
+      .foldMonoid(bonus.minMonoid(.0))
 
 
-  /**
-    It's a weakness that the perturbation transform doesn't actually do a real tf
-    For experiment, maybe an adaptor should be mandatory?
-    */
-  def perturbationTransform[F[_]]: Pipe[F,TaskOutput,PerturbationOutput] = _.map(_.distances)
-
-
-
-
-  /**
-    Creates initial networks, then creates new ones based on how the inital networks performed
-    and so on...
-    */
-  def readoutLayerGenerator[F[_]]: Pipe[F,Double,Pipe[F,FilterOutput,ReadoutOutput]] = { inStream =>
-    val huh = for {
-      gaRunner <- GArunnerz.asKleisli[F](conf)
-    } yield {
-      inStream.through(gaRunner.FFANNGenerator[F]).map(_.toPipe[F])
-    }
-    huh
-  }
-
-
-
-  def runMazeRunner[F[_]: Concurrent : Timer](
-    inputs: List[Topic[F,Chunk[Int]]],
-    perturbationSink: Sink[F,PerturbationOutput],
-    agentSink: Sink[F,Agent]): Stream[F,Unit] = {
-
-    val spikeTools: SpikeTools[F] = ???
-    // val spikeTools = new SpikeTools[F](10.millis, conf)
-
-    def inputSource(broadcastSource: List[Topic[F,Chunk[Int]]]): Stream[F,Chunk[Double]] = ???
-      // spikeTools.outputSpikes(inputs).map(_.map(_.toDouble))
-
-    Stream.eval(Queue.bounded[F,Double](20)) flatMap { evalQueue =>
-
-      val readoutSource     = evalQueue.dequeue.through(readoutLayerGenerator)
-      val evaluationSink    = taskEvaluator andThen evalQueue.enqueue
-      val taskRunnerWithObs = taskRunner andThen (_.observeAsync(1000)(agentSink))
-
-      val exp: Sink[F,Chunk[Double]] = MazeRunner.run(
-        taskRunnerWithObs,
-        perturbationTransform,
-        readoutSource,
-        evaluationSink,
-        perturbationSink
-      )
-
-      inputSource(inputs).through(exp)
-    }
+  // There are many ways we can fix this. For instance we can just use a mutable buffer, then
+  // as the stream is terminated just enqueue it, bypassing the spikeSink altogether.
+  def run(
+    inputStream      : Stream[F,FilterOutput],
+    readoutLayer     : Pipe[F,FilterOutput,ReadoutOutput],
+    enqueueDataset   : Chunk[Chunk[Double]] => F[Unit],
+    perturbationSink : Pipe[F,TaskOutput,Unit]): F[Unit] = {
+    val spikeBuf = scala.collection.mutable.ArrayBuffer[Chunk[Double]]()
+      inputStream
+        .map{x => spikeBuf.append(x); x}
+        .through(readoutLayer)
+        .through(taskRunner)
+        .through(perturbationSink)
+        .compile
+        .drain >> Fsay[F]("Okay, one maze run is done") >> enqueueDataset((spikeBuf.toList.toChunk))
   }
 }
-

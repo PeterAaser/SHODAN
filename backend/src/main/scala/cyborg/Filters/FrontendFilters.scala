@@ -91,6 +91,9 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
   }
 
 
+  /**
+    * Create the datastream for rendering all 60 channels.
+    */
   def renderAll(topics: Seq[Topic[IO,Chunk[Int]]]): Stream[IO,Array[Array[DrawCommand]]] = {
 
     // Should probably be closer to All of them
@@ -122,7 +125,7 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
       }
       go(0).stream
         .map(Array(_))
-      .map{x => say(s"outputting ${x(0).size} pixels", timestamp = true); x}
+      // .map{x => say(s"outputting ${x(0).size} pixels", timestamp = true); x}
 
     }
   }
@@ -150,7 +153,6 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
         val rawStreamViz = rawStream
           .through(downsampleHiLoWith(pointsPerDrawcall, visualizeRaw))
 
-
         val blurred = q2.dequeue.hideChunks.through(spikeTools.gaussianBlurConvolutor)
         val blurredViz = blurred
           .through(downsampleHiLoWith(pointsPerDrawcall, visualizeAvg))
@@ -163,6 +165,14 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
     }
   }
 
+
+  def visualizeAllSpikes(topics: List[Topic[IO,Chunk[Int]]]): Stream[IO,Array[Array[DrawCommand]]] = {
+    wakeUp(topics).flatMap{ sl =>
+      val spikes = spikeTools.windowedSpikes(sl.toList)
+      spikes.map(_.map(freq => DrawCommand(freq,freq,freq)).toArray)
+        .map(Array(_))
+    }
+  }
 
 
   def visualizeNormSpikes: Pipe[IO,Chunk[Int],Array[Array[DrawCommand]]] = { inputs =>

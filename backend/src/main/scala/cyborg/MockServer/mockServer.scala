@@ -97,7 +97,7 @@ object mockServer {
     }
 
     case req @ POST -> Root / "call" => {
-      say("mock call")
+      // say("mock call")
       req.decode[DspFuncCall] { data =>
         s.get.flatMap{ state =>
           if (!state.dspFlashed) say("Possible error: DSP is not flashed")

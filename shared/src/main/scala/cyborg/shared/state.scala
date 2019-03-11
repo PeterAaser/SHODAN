@@ -93,11 +93,10 @@ object Settings {
     threshold      : Int)
 
   case class GAsettings(
-    pipesPerGeneration      : Int,
-    newPipesPerGeneration   : Int,
-    newMutantsPerGeneration : Int,
-    ticksPerEval            : Int){
-    val pipesKeptPerGeneration  : Int = pipesPerGeneration - (newPipesPerGeneration + newMutantsPerGeneration)}
+    generationSize  : Int,
+    childrenPerGen  : Int,
+    mutantsPerGen   : Int){
+    val dropPerGen  : Int = childrenPerGen + mutantsPerGen}
 
   case class ReadoutSettings(
     inputChannels     : List[Int],
@@ -105,8 +104,10 @@ object Settings {
     weightMax         : Double,
     MAGIC_THRESHOLD   : Int,
     ANNinternalLayout : List[Int],
+    bucketSizeMillis  : Int,
+    buckets           : Int,
     outputs           : Int){
-    val getLayout         : List[Int] = inputChannels.size :: ANNinternalLayout ::: List(outputs)}
+    val getLayout         : List[Int] = inputChannels.size*buckets :: ANNinternalLayout ::: List(outputs)}
 
   case class DSPsettings(
     blanking           : Boolean,
@@ -144,10 +145,9 @@ object Settings {
 
   object GAsettings extends HasGenCodec[GAsettings] {
     val default = GAsettings(
-      pipesPerGeneration      = 6,
-      newPipesPerGeneration   = 2,
-      newMutantsPerGeneration = 1,
-      ticksPerEval            = 1000,
+      generationSize = 20,
+      childrenPerGen = 6,
+      mutantsPerGen  = 4
     )}
 
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
@@ -158,6 +158,8 @@ object Settings {
       MAGIC_THRESHOLD   = 1000,
       ANNinternalLayout = List(), // empty list encodes a network with no hidden outputs
       outputs           = 2,
+      bucketSizeMillis  = 20,
+      buckets           = 50,
       inputChannels     = List(16, 17, 18, 19, 20, 21,
         24, 25, 26, 27, 28, 29,
         32, 33, 34, 35, 36, 37,

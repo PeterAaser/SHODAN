@@ -53,11 +53,7 @@ object Hurr {
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
     AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
-    WfClient.onDrawCall       = (a: (Int, Array[Array[DrawCommand]])) => {
-      say("hurr!! hurr hurr hurr!!!")
-      say(s"${a._1}")
-      drawCallDemux(a._1, a._2)
-    }
+    WfClient.onDrawCall       = (a: (Int, Array[Array[DrawCommand]])) => { drawCallDemux(a._1, a._2) }
 
     Context.serverRpc.register
     ()

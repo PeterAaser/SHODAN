@@ -103,6 +103,7 @@ object utilz {
     def ++(that: Chunk[I]): Chunk[I] = Chunk.concat(List(c, that))
     def foldMonoid[I2 >: I](implicit I: Monoid[I2]): I2 =
       c.foldLeft(I.empty)(I.combine)
+    
   }
   implicit val intAdditionMonoid: Monoid[Int] = new Monoid[Int] {
     def empty: Int = 0
@@ -120,6 +121,9 @@ object utilz {
     def mapN[O2](f: Chunk[O] => O2, n: Int): Stream[F,O2] = s.chunkN(n, false).map(f)
   }
 
+  implicit class SeqBonusOps[A](xs: Seq[A]) {
+    def toChunk: Chunk[A] = Chunk.seq(xs)
+  }
 
   implicit class StreamBonusOps2[F[_]: Timer : Concurrent, O](s: Stream[F,O]) {
 
@@ -286,7 +290,6 @@ object utilz {
     def go(s: Stream[F,I], last: Chunk[I]): Pull[F,Chunk[I],Unit] = {
       s.pull.unconsN(stepsize, false).flatMap {
         case Some((chunk, tl)) =>
-          val concatenated2 = last ++ chunk
           val concatenated = Chunk.concat(List(last, chunk))
           Pull.output1(concatenated) >> go(tl, concatenated.drop(stepsize))
         case None => Pull.done
@@ -299,6 +302,31 @@ object utilz {
       }
       case None => Pull.done
     }.stream
+  }
+
+
+  def stridedSlideWithInit[F[_],I](windowWidth: Int, overlap: Int)(init: Chunk[I]): Pipe[F,I,Chunk[I]] = {
+    require(windowWidth > 0,          "windowWidth must be > 0")
+    require(windowWidth > overlap,    "windowWidth must be wider than overlap")
+    require(init.size == windowWidth, "supplied init element must be same size as windowwidth")
+    val stepsize = windowWidth - overlap
+    say(stepsize)
+    def go(s: Stream[F,I], last: Chunk[I]): Pull[F,Chunk[I],Unit] = {
+      s.pull.unconsN(stepsize, false).flatMap {
+        case Some((chunk, tl)) =>
+          val concatenated = Chunk.concat(List(last, chunk))
+          val next = concatenated.drop(stepsize)
+          // say(s"last:")
+          // say(last.toList.mkString("\n","\n","\n"))
+          // say(s"chunk: \n${chunk}")
+          // say(s"concatenated:")
+          // say(concatenated.toList.mkString("\n","\n","\n"))
+          Pull.output1(concatenated) >> go(tl, next)
+        case None => Pull.done
+      }
+    }
+
+    in => go(in, init).stream
   }
 
 
@@ -399,7 +427,8 @@ object utilz {
   /**
     TODO: Do this with chunks from the get-go
     */
-  def roundRobinC[F[_], I: ClassTag](sl: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
+  def roundRobinCArray[F[_], I: ClassTag](sl: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
+    say("WARNING: THIS THING CAN BREAK WITH NECRONOMICON TIER ERROR MESSAGES!!!", Console.RED)
     val streams: Array[Stream[F,I]] = sl.toArray
     val buf = Array.ofDim[I](sl.size)
 
@@ -410,7 +439,7 @@ object utilz {
           streams(idx) = tl
           if(idx == sl.size - 1){
             for {
-              _ <- Pull.output1(Chunk.seq(buf))
+              _ <- Pull.output1(Chunk.seq(buf.clone))
               _ <- go(0)
             } yield ()
           }
@@ -420,6 +449,28 @@ object utilz {
       }
 
     go(0).stream
+  }
+
+  def roundRobinC[F[_], I: ClassTag](sl: List[Stream[F,I]]): Stream[F,Chunk[I]] = {
+    val buf = Array.ofDim[I](sl.size)
+
+    def go(idx: Int, tails: Vector[Stream[F,I]]): Pull[F,Chunk[I],Unit] = 
+      tails(idx).pull.uncons1.flatMap{
+        case Some((element, tl)) => {
+          buf(idx) = element
+          val nextTails = tails.updated(idx, tl)
+          if(idx == sl.size - 1){
+            for {
+              _ <- Pull.output1(Chunk.seq(buf.clone))
+              _ <- go(0, nextTails)
+            } yield ()
+          }
+          else go(idx + 1, nextTails)
+        }
+        case None => Pull.doneWith("ded")
+      }
+
+    go(0, sl.toVector).stream
   }
 
 
@@ -1010,15 +1061,15 @@ object utilz {
   /**
     "Awakens" a collection of topics such that all topics will start queueing simultaneously
     */
-  def wakeUp[F[_]: Concurrent,I](sl: Seq[Topic[F,I]]): Stream[F,Chunk[Stream[F,I]]] = {
-    val streams = sl.map(_.subscribe(1000000)).toArray
+  def wakeUp[F[_]: Concurrent,I](sl: Seq[Topic[F,I]], queueSize: Int = 1000): Stream[F,Chunk[Stream[F,I]]] = {
+    val streams = sl.map(_.subscribe(queueSize)).toArray
 
     def go(idx: Int): Pull[F,Chunk[Stream[F,I]],Unit] = {
       streams(idx).pull.uncons1.flatMap{
         case Some((_, tl)) if(idx == sl.size - 1) => {
           say(s"Waking up $idx")
           streams(idx) = tl
-          Pull.output1(Chunk.seq(streams))
+          Pull.output1(Chunk.seq(streams.clone))
         }
         case Some((_, tl)) => {
           say(s"Waking up $idx")

@@ -9,7 +9,8 @@ import cyborg.RPCmessages.DrawCommand
 
 class LargeWFviz(canvas: html.Canvas) {
 
-  canvas.width = 1000
+  val width = 2000
+  canvas.width = width
   canvas.height = 400
 
   val renderer = canvas.getContext("2d")
@@ -60,9 +61,9 @@ class LargeWFviz(canvas: html.Canvas) {
     renderer.fillRect(xLeft, yTop, width, height)
   }
 
-  var drawCommands = Array.ofDim[Array[DrawCommand]](1000)
+  var drawCommands = Array.ofDim[Array[DrawCommand]](width)
   def addToCommandArray(commands: Array[Array[DrawCommand]]): Unit = {
-    val (remainder, _) = drawCommands.splitAt(1000 - commands.size)
+    val (remainder, _) = drawCommands.splitAt(width - commands.size)
     drawCommands = commands.reverse ++ remainder
   }
 
@@ -91,7 +92,7 @@ class LargeWFviz(canvas: html.Canvas) {
   def drawCommandArray(cmds: Array[DrawCommand], x: Int): Unit = cmds.foreach(drawCommand(_, x))
 
   def drawPixelArray(): Unit = {
-    for(ii <- 0 until 1000){
+    for(ii <- 0 until width){
       if(drawCommands(ii) != null){
         drawCommandArray(drawCommands(ii), ii)
       }
@@ -102,15 +103,15 @@ class LargeWFviz(canvas: html.Canvas) {
     renderer.fillStyle = "rgb(211, 211, 211)"
     renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
     renderer.fillStyle = "grey"
-    renderer.fillRect(1000, 0, 1000, 400)
+    renderer.fillRect(width, 0, width, 400)
 
   }
 
   def lines(): Unit = {
     renderer.fillStyle = "darkSlateGray"
-    fillRectAbs(0, 1000, 99, 101)
-    fillRectAbs(0, 1000, 199, 201)
-    fillRectAbs(0, 1000, 299, 301)
+    fillRectAbs(0, width, 99, 101)
+    fillRectAbs(0, width, 199, 201)
+    fillRectAbs(0, width, 299, 301)
   }
 
   def gogo(data: Array[Array[DrawCommand]]): Unit = {
