@@ -79,16 +79,26 @@ object wallAvoid {
     }
 
 
-    def autopilot: Agent = {
-      if(distances.min > 3200)
+    def autopilot: Agent =
+      if(distances.min > params.game.sightRange)
         update(0.0, 0.0)
-      if(distances.head > distances.last)
+      else if(distances.head > distances.last)
         update(0.0, 1.0)
       else if(distances.head < distances.last)
         update(1.0, 0.0)
       else
         update(0.0, 0.0)
-    }
+
+    def neutral: Agent = update(0.0, 0.0)
+      // if(distances.min > params.game.sightRange)
+      //   update(0.0, 0.0)
+      // else if(distances.head > distances.last)
+      //   update(0.0, 1.0)
+      // else if(distances.head < distances.last)
+      //   update(1.0, 0.0)
+      // else
+      //   update(0.0, 0.0)
+
 
     override def toString: String = {
       val locS = "[%.2f][%.2f]".format(loc.x, loc.y)
@@ -118,20 +128,24 @@ object wallAvoid {
 
   def createChallenges: List[Agent] = {
 
-    val loc = Coord(8000.0, 5000.0)
+    val straightRun = Agent(Coord(2000.0, 5000.0), PI, 80)
+
+    val loc = Coord(6000.0, 5000.0)
     val firstAngle  = PI + PI/6.0
     val secondAngle = PI + PI/12.0
     val thirdAngle  = PI + .0
     val fourthAngle = PI + -PI/6.0
     val fifthAngle  = PI + -PI/12.0
 
-    val agentPA = Agent(loc, _: Double, 120)
+    val agentPA = Agent(loc, _: Double, 80)
 
-    List(agentPA(firstAngle),
-         agentPA(secondAngle),
-         agentPA(thirdAngle),
-         agentPA(fourthAngle),
-         agentPA(fifthAngle))
+    List(
+      // agentPA(firstAngle),
+      agentPA(secondAngle),
+      straightRun,
+      agentPA(fourthAngle),
+      // agentPA(fifthAngle)
+    )
   }
 
   def traceObstacleDistance(loc: Coord, angleRad: Double): Double = {
@@ -144,7 +158,11 @@ object wallAvoid {
     val xDistance = xWallDistance/math.abs(math.cos(angleRad))
     val yDistance = yWallDistance/math.abs(math.sin(angleRad))
 
-    if(math.abs(xDistance) > math.abs(yDistance)) yDistance else xDistance
+    Math.max(
+      Math.min(params.game.sightRange, if(math.abs(xDistance) > math.abs(yDistance)) yDistance else xDistance),
+      params.game.deadZone
+    )
+
   }
 
   def normalizeAngle(a: Double): Double =

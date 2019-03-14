@@ -16,62 +16,136 @@ class GA(conf: FullSettings) {
   import GAsyntax._
   import conf.ga._
 
-  def generate(seed: Array[(Double, FeedForward)]): Array[FeedForward] = {
-    val rouletteScaled = seed.normalize.rouletteScale
-    val children       = generateChildren(rouletteScaled)
-    val mutants        = rouletteScaled.sample(mutantsPerGen).strip.map(mutate)
+  def generate(seed: Seq[ScoredNet]): Seq[FeedForward] = {
+    val scoredSeq = ScoredSequeunce(seed)
+    // val rouletteScaled = scoredSeq.errorScored.normalize.sortByScore.rouletteScale
+    val scored         = scoredSeq.errorScored
+    val children       = generateChildrenTournament(scored)
+    val mutants        = scored.randomSample(mutantsPerGen).strip.map(mutate)
 
     children ++ mutants
   }
 
 
-  def generateChildren(seed: Array[(Double, FeedForward)]) : Array[FeedForward] = {
+  private def generateChildrenRoulette(scoredSeq: ScoredSequeunce) : Seq[FeedForward] = {
     val children = Array.ofDim[FeedForward](childrenPerGen)
     for(ii <- 0 until childrenPerGen/2){
-      val (mom, dad)        = seed.sample2
+      val (mom, dad)        = scoredSeq.sample2
       val (brother, sister) = fugg(mom, dad)
       children(ii*2)        = brother
       children((ii*2)+1)    = sister
     }
 
-    children
+    children.toList
+  }
+
+  private def generateChildrenTournament(scoredSeq: ScoredSequeunce) : Seq[FeedForward] = {
+    val children = Array.ofDim[FeedForward](childrenPerGen)
+    for(ii <- 0 until childrenPerGen/2){
+      val (mom, dad)        = scoredSeq.tournamentSample2
+      val (brother, sister) = fugg(mom, dad)
+      say("\n")
+      say(mom)
+      say(dad)
+      children(ii*2)        = brother
+      children((ii*2)+1)    = sister
+    }
+
+    children.toList
   }
 }
 
-
 object GAsyntax {
 
-  implicit class ScoredNetBonusOps(val repr: (Double, FeedForward)) extends AnyVal {
-    def score = repr._1
-    def net   = repr._2
+  case class ScoredSequeunce(
+    repr: Seq[ScoredNet],
+    isNormalized: Boolean,
+    isSorted: Boolean,
+    isScored: Boolean,
+    isScaled: Boolean
+  ){
+    def errorScored = copy(repr.errorScored, isScored = true)
+
+    def normalize = {
+      assert(isScored, "Must be scored")
+      copy(repr = repr.normalize, isNormalized = true)
+    }
+
+    def sortByScore = {
+      assert(isScored, "Must be scored")
+      copy(repr = repr.sortByScore, isSorted = true)
+    }
+
+    def rouletteScale = {
+      assert(isScored, "Must be scored")
+      assert(isSorted, "Must be sorted")
+      assert(isNormalized, "Must be normalized")
+      copy(repr = repr.rouletteScale, isScaled = true)
+    }
+
+    def sample2 = {
+      assert(isScored, "Must be scored")
+      assert(isSorted, "Must be sorted")
+      assert(isNormalized, "Must be normalized")
+
+      repr.sample2
+    }
+
+    def tournamentSample2 = {
+      val contestants = randomSample(4)
+      (if(contestants(0).error < contestants(1).error) contestants(0).net else contestants(1).net,
+       if(contestants(2).error < contestants(3).error) contestants(2).net else contestants(3).net)
+    }
+
+    def randomSample(n: Int) =
+      repr.randomSample(n)
+  }
+  object ScoredSequeunce {
+    def apply(repr: Seq[ScoredNet]): ScoredSequeunce = {
+      ScoredSequeunce(repr, false, false, false, false)
+    }
   }
 
-  implicit class ScoredSeqBonusOps(val repr: Array[(Double, FeedForward)]) extends AnyVal {
+  type ScoredNet = (Double, Double, FeedForward)
 
-    def errorScored = repr.map(x => (x._1 * -1.0, x._2))
-    def scoreSum : Double = repr.foldLeft(.0)( (sum, ss) => sum + ss._1)
-    def sortByScore = repr.sortWith(_._1 < _._1)
+  implicit class ScoredNetBonusOps(val repr: ScoredNet) extends AnyVal {
+    def error = repr._1
+    def score = repr._2
+    def net   = repr._3
+    def strip = repr._3
+  }
+
+  implicit class ScoredSeqBonusOps(val repr: Seq[ScoredNet]) extends AnyVal {
+
+    def errorScored = repr.map(x => (x.error, x.error * -1.0, x.net))
+    def errorSum : Double = repr.foldLeft(.0)( (sum, ss) => sum + ss.error)
+    def scoreSum : Double = repr.foldLeft(.0)( (sum, ss) => sum + ss.score)
+    def sortByScore = repr.sortWith(_.score < _.score)
+    def sortByError = repr.sortWith(_.error > _.error)
 
     /**
-      Sums all scores for a scored sequence then normalizes the score of each
-      network based on the sum.
+      * Sums all scores for a scored sequence then normalizes the score of each
+      * network based on the sum.
       */
-    def normalize = repr.map(x => (x._1/scoreSum, x._2))
-
-    def strip = repr.map(_._2)
+    def normalize = repr.map(x => (x.error, x.score/scoreSum, x.net))
 
     /**
-      Scales the scores such that when a number between 0 and 1 is randomly chosen
-      the chance for each number to be picked is equal to their normalized score
+      * strips error and score
+      */
+    def strip = repr.map(_._3)
+
+
+    /**
+      * Scales the scores such that when a number between 0 and 1 is randomly chosen
+      * the chance for each number to be picked is equal to their normalized score
       */
     def rouletteScale = {
-
-      assert((scoreSum <= 1.01) && (scoreSum > 0.99), s"must be normalized first you dunce. was ${scoreSum}")
-      val scores = repr.foldLeft((List[Double](), .0)){ case ((acc, prev), (score, net)) =>
+      // assert((scoreSum <= 1.01) && (scoreSum > 0.99), s"must be normalized first you dunce. was ${scoreSum}")
+      val scores = repr.foldLeft((List[Double](), .0)){ case ((acc, prev), (error, score, net)) =>
         ((prev + score) :: acc, prev + score)
-      }._1.reverse.toArray
+      }._1.reverse
 
-      (repr zip scores).map{ case((old, network), newScore) => (newScore, network)}
+      (repr zip scores).map{ case((error, old, network), newScore) => (error, newScore, network)}
     }
 
     def randomSample(samples: Int) = {
@@ -81,6 +155,12 @@ object GAsyntax {
 
 
     /**
+      * samples an item from a roulette scaled list analogous to
+      * spinning the roulette wheel.
+      * 
+      * For List(0.1, 0.35, 1.0) the probability of choosing element 
+      * 0 is 10%, element 1: 25% and element 2: 65%
+      * 
       * Checks for boundary conditions, then does a binary search
       * 
       * Please don't call on something that isn't roulettescaled!
@@ -139,7 +219,7 @@ object GAsyntax {
     /**
       * Deadlocks if called with bad args :^)
       */
-    def sample(n: Int) = {
+    def sample(n: Int): Seq[ScoredNet] = {
 
       assert(repr.map(_.score).toList == repr.map(_.score).toList.sorted, s"must be sorted first you dunce. was ${scoreSum}")
 
@@ -160,7 +240,7 @@ object GAsyntax {
 
         indexes(ii) = idx
       }
-      indexes.map(idx => repr(idx - 1))
+      indexes.map(idx => repr(idx - 1)).toList
     }
 
 

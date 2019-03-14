@@ -5,14 +5,15 @@ object Genetics {
   import FFANN._
   import scala.util.Random
 
-  val severity = 0.2
+  val severity = 0.5
+  val mutationSeverity = 0.4
 
   def mutate(ff: FeedForward): FeedForward = {
     val t1 = ff.weights.toArray
 
     for (i <- 0 until ((t1.length)*severity).toInt){
-      if(Random.nextDouble > severity)
-        t1(i) = t1(i) + Random.nextDouble()*0.2
+      if(Random.nextDouble < severity)
+        t1(i) = t1(i) + (Random.nextDouble()*0.5 - 0.25)
     }
 
     ff.copy(weights = t1.toList)

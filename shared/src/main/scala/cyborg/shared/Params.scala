@@ -46,10 +46,10 @@ object params {
   object game {
     val width = 10000.0
     val height = 10000.0
-    val speed = 3.0
-    val turnRate = 0.01
-    val viewPoints = 3
-    val maxTurnRate = 0.02
+    val speed = 10.0
+    val turnRate = 0.025
+    val viewPoints = 2
+    val maxTurnRate = 0.0025
 
     val sightRange = 3000.0
     val deadZone = 200.0

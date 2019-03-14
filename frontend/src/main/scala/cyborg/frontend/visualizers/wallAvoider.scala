@@ -6,144 +6,143 @@ import frontilz._
 
 import wallAvoid._
 
-case class Point(x: Int, y: Int){
-  def +(p: Point) = Point(x + p.x, y + p.y)
-  def /(d: Int) = Point(x / d, y / d)
-}
 
-object Visualizer {
+class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.mutable.Queue[Agent]) {
 
-  import params.game._
+  case class Point(x: Int, y: Int){
+    def +(p: Point) = Point(x + p.x, y + p.y)
+    def /(d: Int) = Point(x / d, y / d)
+  }
 
-  class VisualizerControl(
-    canvas: html.Canvas,
-    agentQueue: scala.collection.mutable.Queue[Agent]) {
+  import params._
 
-    val renderer = canvas.getContext("2d")
-      .asInstanceOf[dom.CanvasRenderingContext2D]
+  val renderer = canvas.getContext("2d")
+    .asInstanceOf[dom.CanvasRenderingContext2D]
 
-    canvas.width = 800
-    canvas.height = 800
+  canvas.width = 800
+  canvas.height = 800
 
-    renderer.font = "16 comic sans"
-    renderer.textAlign = "center"
-    renderer.textBaseline = "middle"
+  def toCanvasUnits(gameDistance: Double): Double = gameDistance*(canvas.width/game.width)
+  def toGameUnits(canvasDistance: Double): Double = canvasDistance*(game.width/canvas.width)
 
-    val PI = 3.14
+  renderer.font = "16 comic sans"
+  renderer.textAlign = "center"
+  renderer.textBaseline = "middle"
 
-    // TODO what in the name of fuck it this running variable???
-    var running = false
-    scalajs.js.timers.setInterval(25) {
-      if(!running){
-        running = true
-        if(agentQueue.size > 50){
-          println("UH OH AGENT QUEUE OVERFLOWING")
-          println(agentQueue.size)
-        }
-        if(agentQueue.size > 0){
-          run(agentQueue.last)
-          agentQueue.dequeueAll(_ => true)
-        }
-        running = false
+  val PI = 3.14
+
+  // TODO what in the name of fuck it this running variable???
+  var running = false
+  scalajs.js.timers.setInterval(25) {
+    if(!running){
+      running = true
+      if(agentQueue.size > 50){
+        println("UH OH AGENT QUEUE OVERFLOWING")
+        println(agentQueue.size)
       }
+      if(agentQueue.size > 0){
+        run(agentQueue.last)
+        agentQueue.dequeueAll(_ => true)
+      }
+      running = false
     }
+  }
 
 
-    def drawWalls(): Unit = {
+  def drawWalls(): Unit = {
+    renderer.save()
+    renderer.fillStyle = "grey"
+    renderer.fillRect(0, 0, 30, canvas.height.toDouble)
+    renderer.fillRect(0, 0, canvas.width.toDouble, 30)
+    renderer.fillRect(canvas.width - 30.0, 0, 30, canvas.height.toDouble)
+    renderer.fillRect(0, canvas.height - 30.0, canvas.width.toDouble, 30.0)
+    renderer.restore()
+  }
+
+
+  def drawAgent(memer: Agent): Unit = {
+
+    val screenCoords = memer.loc.toPixelCoordinates(canvas.width - 2*30, canvas.height - 2*30)
+
+    def drawBody(): Unit = {
       renderer.save()
-      renderer.fillStyle = "grey"
-      renderer.fillRect(0, 0, 30, canvas.height.toDouble)
-      renderer.fillRect(0, 0, canvas.width.toDouble, 30)
-      renderer.fillRect(canvas.width - 30.0, 0, 30, canvas.height.toDouble)
-      renderer.fillRect(0, canvas.height - 30.0, canvas.width.toDouble, 30.0)
+      renderer.fillStyle = "green"
+      renderer.rotate(memer.heading)
+
+      renderer.beginPath()
+      renderer.arc(0, 0, 25.0, (Math.PI/4.0)+(Math.PI/2.0), (Math.PI/4.0)+(Math.PI), true)
+      renderer.fill()
       renderer.restore()
+
     }
 
+    def drawLoS(): Unit = {
+      renderer.fillStyle = "blue"
+        (memer.viewAngles zip memer.distances).foreach { case (angle, gameDistance) =>
+          renderer.save()
+          renderer.rotate(angle)
 
-    def drawAgent(memer: Agent): Unit = {
-
-      val screenCoords = memer.loc.toPixelCoordinates(canvas.width - 2*30, canvas.height - 2*30)
-
-      def drawBody(): Unit = {
-        renderer.save()
-        renderer.fillStyle = "green"
-        renderer.rotate(memer.heading)
-
-        renderer.beginPath()
-        renderer.arc(0, 0, 25.0, (Math.PI/4.0)+(Math.PI/2.0), (Math.PI/4.0)+(Math.PI), true)
-        renderer.fill()
-        renderer.restore()
-
-      }
-
-      def drawLoS(): Unit = {
-        renderer.fillStyle = "blue"
-          (memer.viewAngles zip memer.distances).foreach { case (angle, distance) =>
-            renderer.save()
-            renderer.rotate(angle)
-
-            renderer.save()
-            renderer.beginPath()
-            renderer.translate(26,0)
+          renderer.save()
+          renderer.beginPath()
+          renderer.translate(26,0)
 
 
-            renderer.arc(0, 0, 5.0, 0, Math.PI*2.0, false)
-            renderer.fill()
-            renderer.restore()
+          renderer.arc(0, 0, 5.0, 0, Math.PI*2.0, false)
+          renderer.fill()
+          renderer.restore()
 
-            renderer.translate(30,0)
+          renderer.translate(30,0)
 
-            if (distance > sightRange)
-              renderer.fillStyle = "rgb(0, 255, 255)"
-            else {
-              val badness = Math.sqrt(1.0 - (distance.toDouble + 1.0)/(3000.0 + 1.0))
-              val badnessc = (badness*255.0).toInt
-              val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
-              renderer.fillStyle = memeString
-            }
-
-            renderer.fillRect(0, -4, 180, 8)
-            renderer.restore()
+          if (gameDistance > game.sightRange)
+            renderer.fillStyle = "rgb(0, 255, 255)"
+          else {
+            val badness = Math.sqrt(1.0 - (gameDistance.toDouble + 1.0)/(game.sightRange + 1.0))
+            val badnessc = (badness*255.0).toInt
+            val memeString = s"rgb(${badnessc}, ${255 - badnessc}, ${255 - badnessc})"
+            renderer.fillStyle = memeString
           }
-      }
 
-      renderer.save()
-
-      renderer.translate(40, 40)
-      renderer.translate(screenCoords.x, screenCoords.y)
-
-      renderer.rotate(Math.PI)
-      drawBody
-      drawLoS
-
-      renderer.restore()
+          renderer.fillRect(0, -4, toCanvasUnits(game.sightRange), 8)
+          renderer.restore()
+        }
     }
 
-    def draw(agent: Agent): Unit = {
+    renderer.save()
 
-      renderer.save();
-      drawAgent(agent)
-      drawWalls
-      renderer.fillStyle = "black"
-      val memeString1 = s"x: ${agent.loc.x}"
-      val memeString2 = s"y: ${agent.loc.y}"
-      renderer.fillText(memeString1, 200, 200)
-      renderer.fillText(memeString2, 200, 230)
-      renderer.restore();
-    }
+    renderer.translate(40, 40)
+    renderer.translate(screenCoords.x, screenCoords.y)
+
+    renderer.rotate(Math.PI)
+    drawBody
+    drawLoS
+
+    renderer.restore()
+  }
+
+  def draw(agent: Agent): Unit = {
+
+    renderer.save();
+    drawAgent(agent)
+    drawWalls
+    renderer.fillStyle = "black"
+    val memeString1 = s"x: ${agent.loc.x}"
+    val memeString2 = s"y: ${agent.loc.y}"
+    renderer.fillText(memeString1, 200, 200)
+    renderer.fillText(memeString2, 200, 230)
+    renderer.restore();
+  }
 
 
 
-    def run(agent: Agent): Unit = {
-      renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
-      renderer.fillStyle = "rgb(212, 212, 212)"
-      renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
+  def run(agent: Agent): Unit = {
+    renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
+    renderer.fillStyle = "rgb(212, 212, 212)"
+    renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
 
-      draw(agent)
-    }
+    draw(agent)
+  }
 
-    def update(a: Agent): Unit = {
-      run(a)
-    }
+  def update(a: Agent): Unit = {
+    run(a)
   }
 }

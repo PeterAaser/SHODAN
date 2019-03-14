@@ -107,7 +107,8 @@ object Settings {
     bucketSizeMillis  : Int,
     buckets           : Int,
     outputs           : Int){
-    val getLayout         : List[Int] = inputChannels.size*buckets :: ANNinternalLayout ::: List(outputs)}
+    // val getLayout         : List[Int] = inputChannels.size*buckets :: ANNinternalLayout ::: List(outputs)}
+    val getLayout         : List[Int] = 9 :: ANNinternalLayout ::: List(outputs)}
 
   case class DSPsettings(
     blanking           : Boolean,
@@ -145,9 +146,9 @@ object Settings {
 
   object GAsettings extends HasGenCodec[GAsettings] {
     val default = GAsettings(
-      generationSize = 20,
-      childrenPerGen = 6,
-      mutantsPerGen  = 4
+      generationSize = 1000,
+      childrenPerGen = 500,
+      mutantsPerGen  = 400
     )}
 
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {

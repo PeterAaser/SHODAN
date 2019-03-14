@@ -33,7 +33,8 @@ import org.http4s.client.blaze._
 import org.http4s.client._
 
 
-class Assembler(httpClient   : MEAMEHttpClient[IO],
+class Assembler(
+  httpClient      : MEAMEHttpClient[IO],
   RPCserver       : cyborg.backend.server.RPCserver,
   agentTopic      : Topic[IO,Agent],
   spikes          : Topic[IO,Chunk[Int]],
@@ -80,9 +81,35 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
       ).run
     }
 
+    InterruptableAction.apply(mazeRunner)
+  }
+
+
+  def assembleMazeRunnerBasicReservoir: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
+
+    val reservoir = new SimpleReservoir
+    // val reservoir = new EchoReservoir
+
+    val perturbationSink: Pipe[IO,Agent,Unit] = agentStream =>
+    agentStream
+      .observe(agentTopic.publish)
+      .map(_.distances.toChunk)
+      .through(reservoir.perturbationSink)
+
+    val reservoirOutput =
+      Stream.eval(IO(reservoir.reservoirState.clone.toChunk)).repeat.metered(30.millis)
+
+    val mazeRunner = {
+      new MazeExperiment[IO](
+        conf,
+        reservoirOutput,
+        perturbationSink
+      ).run
+    }
 
     InterruptableAction.apply(mazeRunner)
   }
+  
 
 
   /**
@@ -146,10 +173,10 @@ class Assembler(httpClient   : MEAMEHttpClient[IO],
         .evalMap(RPCserver.drawCommandPush(3))
 
       allChannelsStream
-        .concurrently(select1)
-        .concurrently(select2)
+        // .concurrently(select1)
+        // .concurrently(select2)
         .concurrently(agentStream)
-        .concurrently(allChannelsSpikes)
+        // .concurrently(allChannelsSpikes)
     }
 
 

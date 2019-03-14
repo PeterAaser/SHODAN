@@ -105,11 +105,10 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val agentQueue = new scala.collection.mutable.Queue[Agent]()
   val confQueue  = new scala.collection.mutable.Queue[FullSettings]()
   val stateQueue = new scala.collection.mutable.Queue[ProgramState]()
-  // val drawQueue  = new scala.collection.mutable.Queue[(Int, Array[DrawCall])]()
 
 
   val wf = new cyborg.WFVisualizerControl(wfCanvas, onChannelClicked)
-  val ag = new cyborg.Visualizer.VisualizerControl(agentCanvas, agentQueue)
+  val ag = new cyborg.AgentVisualizerControl(agentCanvas, agentQueue)
   val big = new cyborg.LargeWFviz(bigwfCanvas)
   val big2 = new cyborg.LargeWFviz(bigwfCanvas2)
   val spikey = new SpikeTrainViz(spikeCanvas)

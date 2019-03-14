@@ -36,7 +36,6 @@ object WfClient extends WfClientRPC {
 object AgentClient extends AgentClientRPC {
 
   var onAgentUpdate: Agent => Unit = (_: Agent) => ()
-  var agentRunning = false
 
   override def agentPush(agent: Agent): Unit = onAgentUpdate(agent)
 }
@@ -52,7 +51,7 @@ object Hurr {
     // HURR HURR HURR
     StateClient.onStatePush   = (s => {say("state pushed"); state.enqueue(s)})
     StateClient.onConfPush    = (c => {say("conf pushed"); conf.enqueue(c)})
-    AgentClient.onAgentUpdate = (a => {agent.enqueue(a)})
+    AgentClient.onAgentUpdate = (a => {say("agent pushed"); agent.enqueue(a)})
     WfClient.onDrawCall       = (a: (Int, Array[Array[DrawCommand]])) => { drawCallDemux(a._1, a._2) }
 
     Context.serverRpc.register

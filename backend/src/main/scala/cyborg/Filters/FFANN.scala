@@ -16,11 +16,16 @@ object FFANN {
     val layers = layout.length
     val layout_ = layout.toArray
 
+
     /**
       Ugly, but that's OK
       */
     val weightArray: Array[Array[Double]] = Array.ofDim(layers - 1)
     val nodeArray: Array[Array[Double]]   = Array.ofDim(layers)
+
+    def reset: Unit = for(ii <- 0 until nodeArray.size)
+      for(kk <- 0 until nodeArray(ii).size)
+        nodeArray(ii)(kk) = 0.0
 
     /**
       Assign weights and bias to the weight array
@@ -57,13 +62,22 @@ object FFANN {
       }
     }
 
+    def internalState: String = {
+      nodeArray.foldLeft(""){ case (acc, nodes) =>
+        acc + nodes.map(ii => "[%.2f]".format(ii)).mkString + "\n"
+      }
+    }
+
+    def drawWeights: String = {
+      weightArray.foldLeft(""){ case (acc, weights) =>
+        acc + weights.map(ii => "[%.2f]".format(ii)).mkString + "\n"
+      }
+    }
 
     /**
       Runs the network.
       This does change the networks internal state, however none of this is visible
       preserving referential transparency.
-
-      not tested lol
       */
     def runNet(input: Chunk[Double]): Chunk[Double] = {
 
@@ -72,11 +86,16 @@ object FFANN {
         calculateLayer(ii)
       }
 
-      Chunk.array(nodeArray(layers - 1))
+      val res = Chunk.array(nodeArray(layers - 1).clone)
+      reset
+      res
     }
 
     def toPipe[F[_]] = ffPipe[F](this)
 
+    override def toString: String = {
+      weights.map(x => "[%.2f]".format(x)).mkString("")
+    }
   }
 
 
@@ -91,7 +110,7 @@ object FFANN {
     val neededBias = layout.tail.sum
     val neededWeights = ((layout zip layout.tail).map{ case (a, b) => {a*b}}.sum)
 
-    val weights = (0 until (neededBias + neededWeights)).map(_ => (Random.nextDouble()))
+    val weights = (0 until (neededBias + neededWeights)).map(_ => -0.5 + (Random.nextDouble()))
 
     FeedForward(layout, weights.toList)
   }

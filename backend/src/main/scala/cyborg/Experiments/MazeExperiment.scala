@@ -43,7 +43,7 @@ import wallAvoid.Agent
   */
 class MazeExperiment[F[_]: Concurrent](conf: FullSettings, spikeStream: Stream[F,Chunk[Double]], perturbationSink: Pipe[F,Agent,Unit]) {
 
-  val mazeRunner = new Maze2(conf)
+  val mazeRunner = new Maze(conf)
 
   /**
     Accumulates the diff between an ideal agent and actual agent,
@@ -52,6 +52,7 @@ class MazeExperiment[F[_]: Concurrent](conf: FullSettings, spikeStream: Stream[F
   def evaluateMazeRunner: Pipe[F,Agent,Double] = { agentStream =>
     agentStream.zipWithPrevious.fold(0.0){
       case (acc, (prevAgent, nextAgent)) => prevAgent.map{ prev =>
+        // val autopilot = prev.neutral
         val autopilot = prev.autopilot
         val diff = Math.abs(nextAgent.heading - autopilot.heading)
         // say(s"previous agent was ${prev}")    
@@ -77,14 +78,14 @@ class MazeExperiment[F[_]: Concurrent](conf: FullSettings, spikeStream: Stream[F
   def simRunnerEvaluator : Pipe[F,Chunk[Double],Double] = runMazeRunner andThen evaluateMazeRunner
 
   def run: Stream[F,Unit] = {
-    Stream.eval(SignallingRef[F,Pipe[F,Chunk[Double], Chunk[Double]]](FFANN.ffPipe(FFANN.randomNet(conf.readout)))).flatMap{ bestResult =>
+    Stream.eval(SignallingRef[F,(Double, Pipe[F,Chunk[Double], Chunk[Double]])]((Int.MaxValue, FFANN.ffPipe(FFANN.randomNet(conf.readout))))).flatMap{ bestResult =>
       ReadoutOptimizer(conf, simRunnerEvaluator, bestResult).flatMap{ mazeOptimizer =>
 
         def runOne: F[Unit] = {
           bestResult.get.flatMap{ readout =>
             mazeRunner.run(
               spikeStream,
-              readout,
+              readout._2,
               mazeOptimizer.enq(_),
               perturbationSink)
           }

@@ -26,14 +26,14 @@ import scala.concurrent.duration._
 import backendImplicits._
 
 
-class Maze2[F[_]: Concurrent](conf: FullSettings){
+class Maze[F[_]: Concurrent](conf: FullSettings){
 
   type FilterOutput       = Chunk[Double]
   type ReadoutOutput      = Chunk[Double] // aka (Double, Double)
   type TaskOutput         = Agent
   type PerturbationOutput = List[Double]
 
-  lazy val ticksPerEval = hardcode(20)
+  lazy val ticksPerEval = hardcode(300)
 
   /**
     Sets up a single simulator run
@@ -42,11 +42,13 @@ class Maze2[F[_]: Concurrent](conf: FullSettings){
     Rather than as 
     */
   def taskRunner: Pipe[F,ReadoutOutput, TaskOutput] = {
+
     def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
       def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
         s.pull.uncons1 flatMap {
           case Some((agentInput, tl)) => {
             val nextAgent = Agent.updateAgent(agent, agentInput.toList)
+            // val nextAgent = agent.autopilot
             if (ticks > 0){
               Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
             }
@@ -69,28 +71,28 @@ class Maze2[F[_]: Concurrent](conf: FullSettings){
   }
 
 
-  /**
-    Very primitive, all it does is measure worst performance
-    */
-  def taskEvaluator: Pipe[F,Agent,Double] =
-    _.map(_.distanceToClosest)
-      .foldMonoid(bonus.minMonoid(.0))
-
 
   // There are many ways we can fix this. For instance we can just use a mutable buffer, then
   // as the stream is terminated just enqueue it, bypassing the spikeSink altogether.
   def run(
     inputStream      : Stream[F,FilterOutput],
     readoutLayer     : Pipe[F,FilterOutput,ReadoutOutput],
-    enqueueDataset   : Chunk[Chunk[Double]] => F[Unit],
+    enqueueDataset   : Chunk[(Agent, Chunk[Chunk[Double]])] => F[Unit],
     perturbationSink : Pipe[F,TaskOutput,Unit]): F[Unit] = {
     val spikeBuf = scala.collection.mutable.ArrayBuffer[Chunk[Double]]()
+    val taskBuf = scala.collection.mutable.ArrayBuffer[Agent]()
       inputStream
         .map{x => spikeBuf.append(x); x}
         .through(readoutLayer)
         .through(taskRunner)
+        .map{x => taskBuf.append(x); x}
         .through(perturbationSink)
         .compile
-        .drain >> Fsay[F]("Okay, one maze run is done") >> enqueueDataset((spikeBuf.toList.toChunk))
+        .drain >> Fsay[F]("Okay, one maze run is done") >> {
+          val inputs = spikeBuf.grouped(spikeBuf.size/3).map(_.toChunk)
+          val agents = taskBuf.grouped(taskBuf.size/3).map(_.head)
+          val dataset = agents.zip(inputs).toList.toChunk
+          enqueueDataset(dataset)
+        }
   }
 }

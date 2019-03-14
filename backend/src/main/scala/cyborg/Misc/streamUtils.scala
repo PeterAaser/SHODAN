@@ -124,6 +124,9 @@ object utilz {
   implicit class SeqBonusOps[A](xs: Seq[A]) {
     def toChunk: Chunk[A] = Chunk.seq(xs)
   }
+  implicit class ArrayBonusOps[A: ClassTag](xs: Array[A]) {
+    def toChunk: Chunk[A] = Chunk.seq(xs)
+  }
 
   implicit class StreamBonusOps2[F[_]: Timer : Concurrent, O](s: Stream[F,O]) {
 
