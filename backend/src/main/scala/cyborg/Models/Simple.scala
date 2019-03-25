@@ -21,13 +21,11 @@ class SimpleReservoir() {
 
   val reservoirState = (0 until 9).map(_ => 0.0).toArray
 
-  // cba with state monad
   private def perturb(perturbation: Chunk[Double]): Unit = {
     assert(perturbation.size == 2, "This reservoir expects 2 intputs fam")
     val p1 = perturbation(0)/params.game.sightRange
     val p2 = perturbation(1)/params.game.sightRange
 
-    // I dunno, probably has enough information :DD
     reservoirState(0) = p1 + p2
     reservoirState(1) = p1 - p2
     reservoirState(2) = p2 - p1
@@ -50,15 +48,11 @@ class EchoReservoir() {
 
   val reservoirState = (0 until 2).map(_ => 0.0).toArray
 
-  // cba with state monad
   private def perturb(perturbation: Chunk[Double]): Unit = {
     assert(perturbation.size == 2, "This reservoir expects 2 intputs fam")
     val p1 = perturbation(0)/params.game.sightRange
     val p2 = perturbation(1)/params.game.sightRange
 
-    // say(s"perturbed with" + "%.2f, %.2f".format(perturbation(0), perturbation(1)))
-
-    // I dunno, probably has enough information :DD
     reservoirState(0) = p1
     reservoirState(1) = p2
   }
