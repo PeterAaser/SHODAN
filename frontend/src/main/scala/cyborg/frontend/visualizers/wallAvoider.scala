@@ -29,6 +29,7 @@ class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.m
   renderer.textAlign = "center"
   renderer.textBaseline = "middle"
 
+
   val PI = 3.14
 
   // TODO what in the name of fuck it this running variable???
@@ -119,9 +120,29 @@ class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.m
     renderer.restore()
   }
 
+  val trailLength = 500
+  val trailQueue = Array.ofDim[Coord](trailLength)
+  var trailHead = 0
+  def drawTrail(): Unit = {
+    renderer.fillStyle = "Black"
+    for(ii <- 0 until trailLength){
+      var idx = (ii + trailHead) % 500
+      if(trailQueue(idx) != null){
+        renderer.fillRect(
+          trailQueue(idx).x,
+          trailQueue(idx).y,
+          2,
+          2
+        )
+      }
+    }
+  }
+
+
   def draw(agent: Agent): Unit = {
 
     renderer.save();
+    drawTrail()
     drawAgent(agent)
     drawWalls
     renderer.fillStyle = "black"
@@ -135,12 +156,18 @@ class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.m
 
 
   def run(agent: Agent): Unit = {
+
+    // Renders horribly wrong lol.
+    trailQueue(trailHead) = agent.loc.toPixelCoordinates(canvas.width, canvas.height)
+    trailHead = (trailHead + 1) % 500
+
     renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
     renderer.fillStyle = "rgb(212, 212, 212)"
     renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
 
     draw(agent)
   }
+
 
   def update(a: Agent): Unit = {
     run(a)

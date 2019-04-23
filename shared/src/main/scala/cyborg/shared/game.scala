@@ -89,6 +89,16 @@ object wallAvoid {
       else
         update(0.0, 0.0)
 
+    def antiPilot: Agent = 
+      if(distances.min > params.game.sightRange)
+        update(0.0, 1.0)
+      else if(distances.head > distances.last)
+        update(1.0, 0.0)
+      else if(distances.head < distances.last)
+        update(0.0, 1.0)
+      else
+        update(0.0, 1.0)
+
     def neutral: Agent = update(0.0, 0.0)
       // if(distances.min > params.game.sightRange)
       //   update(0.0, 0.0)
@@ -130,7 +140,7 @@ object wallAvoid {
 
     val straightRun = Agent(Coord(2000.0, 5000.0), PI, 80)
 
-    val loc = Coord(6000.0, 5000.0)
+    val loc = Coord(7300.0, 5000.0)
     val firstAngle  = PI + PI/6.0
     val secondAngle = PI + PI/12.0
     val thirdAngle  = PI + .0
@@ -139,13 +149,12 @@ object wallAvoid {
 
     val agentPA = Agent(loc, _: Double, 80)
 
-    List(
-      // agentPA(firstAngle),
-      agentPA(secondAngle),
-      straightRun,
-      agentPA(fourthAngle),
-      // agentPA(fifthAngle)
-    )
+    println("yo")
+    scala.util.Random.shuffle(List(
+      agentPA(firstAngle),
+      // straightRun,
+      agentPA(fifthAngle),
+    ))
   }
 
   def traceObstacleDistance(loc: Coord, angleRad: Double): Double = {
@@ -158,11 +167,8 @@ object wallAvoid {
     val xDistance = xWallDistance/math.abs(math.cos(angleRad))
     val yDistance = yWallDistance/math.abs(math.sin(angleRad))
 
-    Math.max(
-      Math.min(params.game.sightRange, if(math.abs(xDistance) > math.abs(yDistance)) yDistance else xDistance),
-      params.game.deadZone
-    )
-
+    val closest = if(math.abs(xDistance) > math.abs(yDistance)) math.abs(yDistance) else math.abs(xDistance)
+    closest
   }
 
   def normalizeAngle(a: Double): Double =

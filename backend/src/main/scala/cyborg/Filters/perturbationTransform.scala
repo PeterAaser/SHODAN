@@ -15,18 +15,26 @@ object PerturbationTransform {
 
   // (TODO) (thomaav): Move me somewhere more fitting?
   /**
-    * Linearly transforms a sight range to a pulse period.
-    *
-    *            (d-c)
-    * f(t) = c + ----- (t-a), from [a,b] to [c,d]
-    *            (b-a)
+    * Linearly transforms a sight-range to a scalar if below max sight-range
+    * 
+    * At or below min-range the value is 1.0, at max-range 0.0
     */
-  def linearTransform(range: Double): Option[FiniteDuration] = {
-    // Mind the ns resolution -- should perhaps be rounded
-    val period = 1.0 /
-    (perturbationTransform.scaleRangeToFreq * (range - game.deadZone) + experiment.minFreq)
-    if (game.deadZone <= range && range <= game.sightRange) Some(period.seconds) else None
+  def linearTransform(range: Double): Option[Double] = for {
+    _ <- Option.when_(range <= game.sightRange)
+  } yield {
+    if(range <= game.deadZone)
+      1.0
+    else
+      1.0 - range/game.sightRange
   }
+
+  def scalarToPeriod(scalar: Double): FiniteDuration = {
+    val freq = (scalar*experiment.maxFreq) + ((1.0 - scalar)*experiment.minFreq)
+    (1.0/freq).seconds
+  }
+
+  def defaultTransform(range: Double): Option[FiniteDuration] =
+    linearTransform(range).map(scalarToPeriod)
 
 
   /** Checks whether a given threshold for the change of sight range
@@ -44,15 +52,16 @@ object PerturbationTransform {
     * that trigger a new pulse are outside the min/max ranges of the
     * agent.
     */
-  def toStimReq[F[_]](transform: Double => Option[FiniteDuration] = linearTransform)
+  def toStimReq[F[_]](transform: Double => Option[FiniteDuration] = defaultTransform)
       : Pipe[F,(Int, Double), (Int, Option[FiniteDuration])] = {
 
     def go(prev: List[Double], s: Stream[F, (Int, Double)])
         : Pull[F, (Int, Option[FiniteDuration]), Unit] = {
       s.pull.uncons1.flatMap {
         case None => Pull.done
-        case Some(((idx, range), tl)) if(rangeThreshExceeded(range, prev(idx))) =>
+        case Some(((idx, range), tl)) if(rangeThreshExceeded(range, prev(idx))) => {
           Pull.output1((idx, transform(range))) >> go(prev.updated(idx, range), tl)
+        }
 
         case Some(((idx, range), tl)) =>
           go(prev, tl)

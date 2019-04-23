@@ -33,11 +33,10 @@ object Launcher extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 
-
-    if(params.Network.mock){
-      say("Starting test server!")
-      cyborg.mockServer.unsafeStartTestServer
-    }
+    // if(params.Network.mock){
+    //   say("Starting test server!")
+    //   cyborg.mockServer.unsafeStartTestServer
+    // }
 
 
     def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {
@@ -89,26 +88,16 @@ object Launcher extends IOApp {
           dsp
         )
 
-        exitCode        <-  assembler.startSHODAN.compile.drain.as(ExitCode.Success)
+        exitCode <- assembler.startSHODAN.compile.drain.as(ExitCode.Success)
       } yield exitCode
     }
     gogo
 
-    // import wallAvoid._
-    // val initAgent = Agent.init.copy(loc = Coord(2000.0, 5000.0), heading = 0.3)
-    // val agentStream = Stream.iterate(initAgent)(_.autopilot).take(40)
-    // val zippedWithPrev = agentStream.zipWithPrevious.fold(0.0){
-    //   case (acc, (prevAgent, nextAgent)) => prevAgent.map{ prev =>
-    //     val autopilot = prev.autopilot
-    //     val diff = Math.abs(nextAgent.heading - autopilot.heading)
-    //     say(s"previous agent was ${prev}")
-    //     say(s"this agent was     ${nextAgent}")
-    //     say(s"autopilot agent:   ${autopilot}")
-    //     say(s"diff: " + "%.4f".format(diff) + "\n\n\n")
-    //     acc + diff
-    //   }.getOrElse(acc)
-    // }.toList.foreach(say(_))
-
-    // IO.unit.as(ExitCode.Success)
+    // import scala.util.hashing.MurmurHash3
+    // val huh = MurmurHash3.listHash(List(1.0,2.1), 0)
+    // val huh2 = MurmurHash3.listHash(List(1.0,2.101), 0)
+    // say(huh)
+    // say(huh2)
+    // ???
   }
 }

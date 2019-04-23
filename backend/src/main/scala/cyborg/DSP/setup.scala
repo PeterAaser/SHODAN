@@ -23,38 +23,37 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
   import client.DSP._
   import calls._
 
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[F,(Int,Option[FiniteDuration])]] = Kleisli(
-    conf => {
-      def sink: Sink[F, (Int,Option[FiniteDuration])] = {
-        def go(s: Stream[F, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
-          s.pull.uncons1.flatMap {
-            case Some(((idx, Some(period)), tl)) if !state(idx) =>
-              Pull.eval(stimGroupChangePeriod(idx, period)) >>
-                Pull.eval(enableStimReqGroup(idx)) >>
-                go(tl, state.updated(idx, true))
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[F,(Int,Option[FiniteDuration])]] = Kleisli{ conf =>
+    def sink: Sink[F, (Int,Option[FiniteDuration])] = {
+      def go(s: Stream[F, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
+        s.pull.uncons1.flatMap {
+          case Some(((idx, Some(period)), tl)) if !state(idx) =>
+            Pull.eval(stimGroupChangePeriod(idx, period)) >>
+            Pull.eval(enableStimReqGroup(idx)) >>
+            go(tl, state.updated(idx, true))
 
-            case Some(((idx, None), tl)) if state(idx) =>
-              Pull.eval(disableStimReqGroup(idx)) >>
-                go(tl, state.updated(idx, false))
+          case Some(((idx, None), tl)) if state(idx) =>
+            Pull.eval(disableStimReqGroup(idx)) >>
+            go(tl, state.updated(idx, false))
 
-            case Some(((idx, Some(period)), tl)) =>
-              Pull.eval(stimGroupChangePeriod(idx, period)) >>
-                go(tl, state)
+          case Some(((idx, Some(period)), tl)) =>
+            Pull.eval(stimGroupChangePeriod(idx, period)) >>
+            go(tl, state)
 
-            case Some((_, tl)) => go(tl, state)
+          case Some((_, tl)) => go(tl, state)
 
-            case None => Pull.done
-          }
+          case None => Pull.done
         }
-
-        ins => go(
-          ins.filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
-          conf.dsp.allowed.map((_, false)).toMap
-        ).stream
       }
 
-      sink: Id[Sink[F,(Int,Option[FiniteDuration])]]
-    })
+      ins => go(
+        ins.filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
+        conf.dsp.allowed.map((_, false)).toMap
+      ).stream
+    }
+
+    sink: Id[Sink[F,(Int,Option[FiniteDuration])]]
+  }
 
 
   /**

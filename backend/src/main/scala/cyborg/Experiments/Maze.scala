@@ -33,27 +33,26 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
   type TaskOutput         = Agent
   type PerturbationOutput = List[Double]
 
-  lazy val ticksPerEval = hardcode(300)
+  import conf.optimizer._
+  val ticksPerRun = ticksPerEval/2
 
   /**
     Sets up a single simulator run
-    
-    Maybe just have the task as an argument?
-    Rather than as 
     */
   def taskRunner: Pipe[F,ReadoutOutput, TaskOutput] = {
 
     def simRunner(agent: Agent): Pipe[F,FilterOutput, Agent] = {
-      def go(ticks: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
-        s.pull.uncons1 flatMap {
-          case Some((agentInput, tl)) => {
-            val nextAgent = Agent.updateAgent(agent, agentInput.toList)
-            // val nextAgent = agent.autopilot
-            if (ticks > 0){
-              Pull.output1(nextAgent) >> go(ticks - 1, nextAgent, tl)
+      def go(ticksRemaining: Int, agent: Agent, s: Stream[F,FilterOutput]): Pull[F,Agent,Unit] = {
+        s.pull.unconsLimit(ticksRemaining) flatMap {
+          case Some((agentInputs, tl)) => {
+            val (agents, nextAgent) = agentInputs.scanLeftCarry(agent){ case(agent, input) =>
+              agent.update(input(0), input(1))
+            }
+            if (ticksRemaining - agentInputs.size == 0){
+              Pull.output(agents)
             }
             else {
-              Pull.output1(nextAgent)
+              Pull.output(agents) >> go(ticksRemaining - agentInputs.size, nextAgent, tl)
             }
           }
           case None => {
@@ -61,7 +60,7 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
           }
         }
       }
-      in => go(ticksPerEval, agent, in).stream
+      in => go(ticksPerRun, agent, in).stream
     }
 
     val challenges = wallAvoid.createChallenges
@@ -71,14 +70,12 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
   }
 
 
-
-  // There are many ways we can fix this. For instance we can just use a mutable buffer, then
-  // as the stream is terminated just enqueue it, bypassing the spikeSink altogether.
   def run(
     inputStream      : Stream[F,FilterOutput],
     readoutLayer     : Pipe[F,FilterOutput,ReadoutOutput],
-    enqueueDataset   : Chunk[(Agent, Chunk[Chunk[Double]])] => F[Unit],
-    perturbationSink : Pipe[F,TaskOutput,Unit]): F[Unit] = {
+    perturbationSink : Pipe[F,TaskOutput,Unit])
+      : F[Array[(Agent, FilterOutput)]] = {
+
     val spikeBuf = scala.collection.mutable.ArrayBuffer[Chunk[Double]]()
     val taskBuf = scala.collection.mutable.ArrayBuffer[Agent]()
       inputStream
@@ -88,11 +85,10 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
         .map{x => taskBuf.append(x); x}
         .through(perturbationSink)
         .compile
-        .drain >> Fsay[F]("Okay, one maze run is done") >> {
-          val inputs = spikeBuf.grouped(spikeBuf.size/3).map(_.toChunk)
-          val agents = taskBuf.grouped(taskBuf.size/3).map(_.head)
-          val dataset = agents.zip(inputs).toList.toChunk
-          enqueueDataset(dataset)
+        .drain  >> Fsay[F]("Okay, one maze run is done")
+        .as{
+          val huh = (taskBuf.toList zip spikeBuf.toList).toArray
+          huh
         }
   }
 }

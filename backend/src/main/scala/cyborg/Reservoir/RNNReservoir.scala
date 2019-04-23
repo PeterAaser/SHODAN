@@ -67,7 +67,7 @@ class RecurrentReservoir[F[_] : Concurrent : Timer] {
 
   def start(messages: Ref[F, List[DspFuncCall]], topic: Topic[F,Chunk[Double]]): F[Unit] = {
     val myRNN = new RNN(500, 5, -0.2, 1.0, -0.5, 10, 2.0, 0.2)
-    val tickSource = Stream.fixedRate(20.millis)
+    val tickSource = Stream.fixedRate(2.millis)
 
     def step: F[Chunk[Double]] = for {
       msg <- messages.get

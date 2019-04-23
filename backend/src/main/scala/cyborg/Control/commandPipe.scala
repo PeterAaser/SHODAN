@@ -68,7 +68,8 @@ object ControlPipe {
           conf             <- confServer.get
           broadcast        <- assembler.startBroadcast(programState)(conf)
           frontendBrodcast <- assembler.broadcastToFrontend(conf)
-          mazeRunner       <- assembler.assembleMazeRunnerBasicReservoir(conf)
+          // mazeRunner       <- assembler.assembleMazeRunnerBasicReservoir(conf)
+          mazeRunner       <- assembler.assembleMazeRunnerRNN(conf)
           _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop >> mazeRunner.stop)))
           _                <- (broadcast.start, frontendBrodcast.start, mazeRunner.start).parMapN((_,_,_) => ())
         } yield {}

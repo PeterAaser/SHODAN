@@ -3,7 +3,7 @@ package cyborg
 object bonus {
 
   implicit class MQueueOps[A](xs: scala.collection.mutable.Queue[A]) {
-    def dequeue_(): Unit = xs.dequeue; ()
+    def dequeue_(): Unit = {val _ = xs.dequeue; ()}
   }
 
   implicit class SeqOps[A](xs: Seq[A]) {
@@ -18,6 +18,9 @@ object bonus {
     def minByOption(implicit ev: Ordering[A]): Option[A] =
       if (xs.isEmpty) None
       else Some(xs.min)
+
+    def decimate(dropEvery: Int): Seq[A] =
+      xs.grouped(dropEvery).map(_.head).toSeq
   }
 
   import cats._
@@ -30,6 +33,11 @@ object bonus {
   def minMonoid[A: Order](min: A): Monoid[A] = new Monoid[A] {
     def empty: A = min
     def combine(x: A, y: A): A = if((x compare y) > 0) y else x
+  }
+
+  implicit class OptionBonusOps(p: Option.type){
+    def when[A](p: Boolean)(a: A) = if(p) Some(a)  else None
+    def when_(p: Boolean)         = if(p) Some(()) else None
   }
 
   implicit class MapOps[K,V](m: Map[K,V]) {
@@ -121,5 +129,14 @@ object bonus {
     }
 
     def clamp(min: Int, max: Int): Int = if(i < min) min else if(i > max) max else i
+
+    def %%(that: Int): Int = if(i > 0) i % that else (i % that) + that
   }
+
+  // class mutableBoundedQueue[A](repr: Array[A]){
+  //   var first = 0
+  //   var last = 0
+
+  //   def take
+  // }
 }

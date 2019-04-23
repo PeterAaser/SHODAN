@@ -26,6 +26,7 @@ class RNN(
   outputNodesAmount : Int,
   stimAmplitude     : Double,
   perturbationRatio : Double,
+  seed              : Int = 0
 ){
 
   /**
@@ -46,6 +47,11 @@ class RNN(
 
   private val logArray    = Array.ofDim[String](100)
   private var logCount    = 0
+
+  private val rng = if(seed == 0)
+    new scala.util.Random(scala.util.Random.nextInt) // lel
+  else
+    new scala.util.Random(seed)
 
   private val connections: Array[Int] = ((0 until nodesAmount).toList >>
     scala.util.Random.shuffle((0 until nodesAmount).toList).take(k)).toArray

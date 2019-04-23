@@ -15,6 +15,8 @@ import cats.effect.IO
 import cats.effect._
 import cats.implicits._
 
+import cyborg.feedback._
+
 import cyborg.backend.server.ApplicationServer
 import cyborg.Settings._
 import cyborg.utilz._
@@ -45,55 +47,30 @@ class MazeExperiment[F[_]: Concurrent](conf: FullSettings, spikeStream: Stream[F
 
   val mazeRunner = new Maze(conf)
 
-  /**
-    Accumulates the diff between an ideal agent and actual agent,
-    returning a single element stream.
-    */
-  def evaluateMazeRunner: Pipe[F,Agent,Double] = { agentStream =>
-    agentStream.zipWithPrevious.fold(0.0){
-      case (acc, (prevAgent, nextAgent)) => prevAgent.map{ prev =>
-        // val autopilot = prev.neutral
-        val autopilot = prev.autopilot
-        val diff = Math.abs(nextAgent.heading - autopilot.heading)
-        // say(s"previous agent was ${prev}")    
-        // say(s"this agent was     ${nextAgent}")   
-        // say(s"autopilot agent:   ${autopilot}") 
-        // say(s"diff: " + "%.4f".format(diff) + "\n\n\n")
-
-        // Ensure skipping agent resets
-        if(diff > 2.1*params.game.maxTurnRate){
-          // say(s"diff: 0.0")
-          acc
-        }
-        else{
-          // say(s"diff: " + "%.4f".format(diff))
-          acc + diff
-        }
-      }.getOrElse(acc)
-    }
-      // .map{x => say(s"got $x", Console.CYAN); x}
-  }
-
-  def runMazeRunner      : Pipe[F,Chunk[Double],Agent]  = mazeRunner.taskRunner
-  def simRunnerEvaluator : Pipe[F,Chunk[Double],Double] = runMazeRunner andThen evaluateMazeRunner
+  def runMazeRunner : Pipe[F,Chunk[Double],Agent]  = mazeRunner.taskRunner
 
   def run: Stream[F,Unit] = {
-    Stream.eval(SignallingRef[F,(Double, Pipe[F,Chunk[Double], Chunk[Double]])]((Int.MaxValue, FFANN.ffPipe(FFANN.randomNet(conf.readout))))).flatMap{ bestResult =>
-      ReadoutOptimizer(conf, simRunnerEvaluator, bestResult).flatMap{ mazeOptimizer =>
+      Stream.eval(OnlineOptimizer.GA(conf)).flatMap{ optimizer =>
 
-        def runOne: F[Unit] = {
-          bestResult.get.flatMap{ readout =>
+        /**
+          * Runs a reservoir run, returning the next optimizer
+          */
+        def runOnce = for {
+          dataset <- optimizer.bestResult.get.flatMap{ readout =>
+            say("Picked up the best result so far")
+            say(readout)
             mazeRunner.run(
               spikeStream,
-              readout._2,
-              mazeOptimizer.enq(_),
-              perturbationSink)
+              FFANN.ffPipe(readout.phenotype),
+              perturbationSink
+            )
           }
-        }
+          _ <- optimizer.updateDataset(dataset)
+          _ <- optimizer.bestResult.update(r => r.copy(error = r.error + 0.1, score = r.score -0.1))
+        } yield ()
 
-        Stream.eval(runOne).repeat
-          .concurrently(mazeOptimizer.start)
+        Stream.eval(runOnce).repeat
+          .concurrently(optimizer.start)
       }
     }
   }
-}

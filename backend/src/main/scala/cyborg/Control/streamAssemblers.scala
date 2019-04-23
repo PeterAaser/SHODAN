@@ -24,10 +24,13 @@ import cyborg.utilz._
 import cyborg.State._
 import cyborg.VizState._
 
+import cyborg.bonus._
+
 import scala.concurrent.duration._
 
 import backendImplicits._
 import RPCmessages._
+
 
 import org.http4s.client.blaze._
 import org.http4s.client._
@@ -65,9 +68,10 @@ class Assembler(
 
   def assembleMazeRunner: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
     val perturbationSink: Pipe[IO,Agent,Unit] =
-      _.map(_.distances)
+      _.flatMap(x => Stream.emits(x.distances.zipIndexLeft))
         .through(PerturbationTransform.toStimReq())
         .to(dsp.stimuliRequestSink(conf))
+
 
     val spikeTools = new SpikeTools[IO](20.millis, conf)
 
@@ -86,10 +90,7 @@ class Assembler(
 
 
   def assembleMazeRunnerBasicReservoir: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
-
     val reservoir = new SimpleReservoir
-    // val reservoir = new EchoReservoir
-
     val perturbationSink: Pipe[IO,Agent,Unit] = agentStream =>
     agentStream
       .observe(agentTopic.publish)
@@ -97,7 +98,7 @@ class Assembler(
       .through(reservoir.perturbationSink)
 
     val reservoirOutput =
-      Stream.eval(IO(reservoir.reservoirState.clone.toChunk)).repeat.metered(30.millis)
+      Stream.eval(IO(reservoir.reservoirState.clone.toChunk)).repeat.metered(2.millis)
 
     val mazeRunner = {
       new MazeExperiment[IO](
@@ -111,6 +112,46 @@ class Assembler(
   }
   
 
+  def assembleMazeRunnerRNN: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
+    import cyborg.dsp.calls.DspCalls._
+    import cyborg.DspRegisters._
+    import cyborg.MEAMEmessages._
+
+    val buckets = 100
+    val inits = List.fill(buckets)(Chunk.seq(List.fill(40)(0.0)))
+
+    val huh = Stream.eval(Ref.of[IO,List[DspFuncCall]](Nil)) flatMap { messages =>
+      Stream.eval(Topic[IO,Chunk[Double]](Chunk.empty)) flatMap { topic =>
+
+        val reservoir = new RecurrentReservoir[IO]
+        val inputSink: Pipe[IO,DspFuncCall,Unit] = _.evalMap{ msg => messages.update(msgs => msg :: msgs) }
+
+        val perturbationSink: Pipe[IO,Agent,Unit] =
+          _.observe(agentTopic.publish)
+            .flatMap(x => Stream.emits(x.distances.zipIndexLeft))
+            .through(PerturbationTransform.toStimReq())
+            .through(reservoir.stimuliRequestPipe)
+            .through(inputSink)
+
+
+        val mazeRunner: Stream[IO,Unit] = {
+          new MazeExperiment[IO](
+            conf,
+            topic.subscribe(10)
+              .through(stridedSlideWithInit(buckets, buckets - 1)(inits.toChunk))
+              .map(_.flatten),
+            perturbationSink
+          ).run
+        }
+
+        mazeRunner.concurrently(Stream.eval(reservoir.start(messages, topic)))
+      }
+    }
+
+    assert(conf.readout.getLayout.head == conf.readout.buckets*10, "expected ")
+
+    InterruptableAction.apply(huh)
+  }
 
   /**
     Takes a multiplexed dataSource and a list of topics.

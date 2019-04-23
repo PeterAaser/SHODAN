@@ -5,7 +5,7 @@ object params {
 
   object experiment {
     val maxSpikesPerSec = 50
-    val minFreq = 0.33
+    val minFreq = 0.3333333333333333
     val maxFreq = 10.0
     val DSPticksPerSecond = 50000
   }
@@ -46,10 +46,10 @@ object params {
   object game {
     val width = 10000.0
     val height = 10000.0
-    val speed = 10.0
-    val turnRate = 0.025
+    val speed = 1.0
+    val turnRate = 0.0025
     val viewPoints = 2
-    val maxTurnRate = 0.0025
+    val maxTurnRate = 0.00025
 
     val sightRange = 3000.0
     val deadZone = 200.0

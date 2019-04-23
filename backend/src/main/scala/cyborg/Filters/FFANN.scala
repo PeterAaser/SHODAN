@@ -6,6 +6,8 @@ import scala.util.Random
 import utilz._
 import fs2._
 
+import scala.util.hashing.MurmurHash3
+
 object FFANN {
 
   val defaultActivator: Double => Double = x => x
@@ -91,10 +93,23 @@ object FFANN {
       res
     }
 
+    def feed(input: Chunk[Double]): Chunk[Double] = runNet(input)
+
     def toPipe[F[_]] = ffPipe[F](this)
 
-    override def toString: String = {
+    override def toString: String = name
+
+    def printNet: String = {
       weights.map(x => "[%.2f]".format(x)).mkString("")
+    }
+
+    def name: String = {
+      import cyborg.bonus._
+      val hash = MurmurHash3.listHash(weights, 0)
+      Greeks(hash %% 10) + " " +
+      Greeks(hash * 31 %% 10) + " " +
+      Greeks(hash * 13 %% 10) + " " +
+      Greeks(hash * 3  %% 10)
     }
   }
 
@@ -118,6 +133,8 @@ object FFANN {
 
   def ffPipe[F[_]](net: FeedForward): Pipe[F,Chunk[Double],Chunk[Double]] = {
 
+    say(s"creating pipe from net $net")
+
     def go(s: Stream[F, Chunk[Double]]): Pull[F,Chunk[Double],Unit] = {
       s.pull.uncons1 flatMap {
         case Some((chunk, tl)) => {
@@ -130,4 +147,20 @@ object FFANN {
     in => go(in).stream
 
   }
+
+  val Greeks = Map(
+    0 -> "Alpha",
+    1 -> "Beta",
+    2 -> "Gamma",
+    3 -> "Delta",
+    4 -> "Epsilon",
+    5 -> "Zeta",
+    6 -> "Eta",
+    7 -> "Theta",
+    8 -> "Iota",
+    9 -> "Kappa",
+    10 -> "Lambda"
+  )
+
+  val huh = MurmurHash3.orderedHash(List(1.0,2.0))
 }

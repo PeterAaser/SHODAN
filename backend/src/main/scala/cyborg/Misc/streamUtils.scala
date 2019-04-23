@@ -103,7 +103,9 @@ object utilz {
     def ++(that: Chunk[I]): Chunk[I] = Chunk.concat(List(c, that))
     def foldMonoid[I2 >: I](implicit I: Monoid[I2]): I2 =
       c.foldLeft(I.empty)(I.combine)
-    
+
+    def decimate(dropEvery: Int): Chunk[I] =
+      c.toList.grouped(dropEvery).map(_.head).toList.toChunk
   }
   implicit val intAdditionMonoid: Monoid[Int] = new Monoid[Int] {
     def empty: Int = 0

@@ -90,9 +90,17 @@ object Settings {
   case class FilterSettings(
     spikeCooldown   : Int,
     maxSpikesPerSec : Int,
-    threshold      : Int)
+    threshold       : Int)
+
+  case class OptimizerSettings(
+    decimationFactor : Int,
+    ticksPerEval     : Int,
+    dataSetWindow    : Int){
+    val dataSetSize  : Int = ticksPerEval/decimationFactor
+  }
 
   case class GAsettings(
+
     generationSize  : Int,
     childrenPerGen  : Int,
     mutantsPerGen   : Int){
@@ -107,8 +115,8 @@ object Settings {
     bucketSizeMillis  : Int,
     buckets           : Int,
     outputs           : Int){
-    // val getLayout         : List[Int] = inputChannels.size*buckets :: ANNinternalLayout ::: List(outputs)}
-    val getLayout         : List[Int] = 9 :: ANNinternalLayout ::: List(outputs)}
+    val getLayout         : List[Int] = 10*buckets :: ANNinternalLayout ::: List(outputs)}
+    // val getLayout         : List[Int] = 9 :: ANNinternalLayout ::: List(outputs)}
 
   case class DSPsettings(
     blanking           : Boolean,
@@ -127,12 +135,13 @@ object Settings {
     readBufSize : Int)
 
   case class FullSettings(
-    daq     : DAQSettings,
-    readout : ReadoutSettings,
-    ga      : GAsettings,
-    dsp     : DSPsettings,
-    filter  : FilterSettings,
-    source  : SourceSettings)
+    daq       : DAQSettings,
+    readout   : ReadoutSettings,
+    ga        : GAsettings,
+    dsp       : DSPsettings,
+    filter    : FilterSettings,
+    optimizer : OptimizerSettings,
+    source    : SourceSettings)
 
 
   ////////////////////////////////////////////////////////////////
@@ -146,9 +155,22 @@ object Settings {
 
   object GAsettings extends HasGenCodec[GAsettings] {
     val default = GAsettings(
-      generationSize = 1000,
-      childrenPerGen = 500,
-      mutantsPerGen  = 400
+
+      generationSize = 2000,
+      childrenPerGen = 1000,
+      mutantsPerGen  = 500
+
+      // generationSize = 1000,
+      // childrenPerGen = 500,
+      // mutantsPerGen  = 200
+
+      // generationSize = 500,
+      // childrenPerGen = 200,
+      // mutantsPerGen  = 100
+
+      // generationSize = 200,
+      // childrenPerGen = 100,
+      // mutantsPerGen  = 50
     )}
 
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
@@ -210,6 +232,14 @@ object Settings {
     )
   }
 
+  object OptimizerSettings extends HasGenCodec[OptimizerSettings] {
+    val default = OptimizerSettings(
+      decimationFactor = 200,
+      ticksPerEval     = 6000,
+      dataSetWindow    = 3
+    )
+  }
+
 
   object FullSettings extends HasGenCodecAndModelPropertyCreator[FullSettings] {
     val default = FullSettings(
@@ -218,6 +248,7 @@ object Settings {
       GAsettings.default,
       DSPsettings.default,
       FilterSettings.default,
+      OptimizerSettings.default,
       if(params.Network.mock) SourceSettings.mock else SourceSettings.live
     )
   }
