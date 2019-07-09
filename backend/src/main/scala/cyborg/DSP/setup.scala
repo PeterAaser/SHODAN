@@ -23,24 +23,31 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
   import client.DSP._
   import calls._
 
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Sink[F,(Int,Option[FiniteDuration])]] = Kleisli{ conf =>
-    def sink: Sink[F, (Int,Option[FiniteDuration])] = {
-      def go(s: Stream[F, (Int,Option[FiniteDuration])], state: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
+
+  /**
+    * End point for requesting stimuli.
+    * 
+    * Maintains activation state of electrodes allowing electrodes to be toggled on and off.
+    * Logic for how perturbations should be rendered should be handled elsewhere.
+    */
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F,(Int,Option[FiniteDuration]), Unit]] = Kleisli{ conf =>
+    def sink: Pipe[F, (Int,Option[FiniteDuration]), Unit] = {
+      def go(s: Stream[F, (Int,Option[FiniteDuration])], electrodeActivatedState: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
         s.pull.uncons1.flatMap {
-          case Some(((idx, Some(period)), tl)) if !state(idx) =>
+          case Some(((idx, Some(period)), tl)) if !electrodeActivatedState(idx) =>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
             Pull.eval(enableStimReqGroup(idx)) >>
-            go(tl, state.updated(idx, true))
+            go(tl, electrodeActivatedState.updated(idx, true))
 
-          case Some(((idx, None), tl)) if state(idx) =>
+          case Some(((idx, None), tl)) if electrodeActivatedState(idx) =>
             Pull.eval(disableStimReqGroup(idx)) >>
-            go(tl, state.updated(idx, false))
+            go(tl, electrodeActivatedState.updated(idx, false))
 
           case Some(((idx, Some(period)), tl)) =>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
-            go(tl, state)
+            go(tl, electrodeActivatedState)
 
-          case Some((_, tl)) => go(tl, state)
+          case Some((_, tl)) => go(tl, electrodeActivatedState)
 
           case None => Pull.done
         }
@@ -52,7 +59,7 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
       ).stream
     }
 
-    sink: Id[Sink[F,(Int,Option[FiniteDuration])]]
+    sink: Id[Pipe[F,(Int,Option[FiniteDuration]),Unit]]
   }
 
 

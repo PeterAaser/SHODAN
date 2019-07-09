@@ -3,38 +3,73 @@ package cyborg
 
 import cats.effect.IO
 import cats.effect._
+import cats.data.Kleisli
+import cats._
 
 import scala.concurrent.duration._
+
+import cyborg.Settings._
 import utilz._
 import fs2._
-import params._
+// import params._
 import bonus._
+import params.game._
+
+// Defines the relation between sensory input and perturbation frequency
+sealed trait PerturbationTransform
+case object Linear     extends PerturbationTransform
+case object Binary     extends PerturbationTransform
+// case object ExpFalloff extends PerturbationTransform
 
 
-object PerturbationTransform {
+/**
+  * Contains the filters that transform sensory input into perturbation requests.
+  */
+class PerturbationTransforms(conf: FullSettings) {
 
-  // (TODO) (thomaav): Move me somewhere more fitting?
+  val maxFreq = hardcode(10.0)
+  val minFreq = hardcode(0.33)
+
+
   /**
-    * Linearly transforms a sight-range to a scalar if below max sight-range
-    * 
-    * At or below min-range the value is 1.0, at max-range 0.0
+    * Normalizes a sightrange in accordance to minimum and maximum sight ranges.
+    * Values that fall outside of the maximum sightrange will become 0.0
+    * values that are inside will be truncated to the maximum of 1.0
     */
-  def linearTransform(range: Double): Option[Double] = for {
-    _ <- Option.when_(range <= game.sightRange)
-  } yield {
-    if(range <= game.deadZone)
+  def normalize(range: Double): Double = {
+    val actualRange = sightRange - deadZone
+    val a = 1.0/(deadZone - sightRange)
+    val b = 1.0 - a*deadZone
+
+    if(range < deadZone)
       1.0
+    else if(range > sightRange)
+      0.0
     else
-      1.0 - range/game.sightRange
+      a*range + b
   }
 
-  def scalarToPeriod(scalar: Double): FiniteDuration = {
-    val freq = (scalar*experiment.maxFreq) + ((1.0 - scalar)*experiment.minFreq)
-    (1.0/freq).seconds
+
+  def binary(range: Double): Double = {
+    if(range > sightRange)
+      1.0
+    else
+      0.0
+  }
+
+
+
+  def scalarToPeriod(scalar: Double): Option[FiniteDuration] = {
+    if(!scalar.isInRange(0.0, 1.0))
+      None
+    else {
+      val freq = (scalar*maxFreq) + ((1.0 - scalar)*minFreq)
+      Some((1.0/freq).seconds)
+    }
   }
 
   def defaultTransform(range: Double): Option[FiniteDuration] =
-    linearTransform(range).map(scalarToPeriod)
+    scalarToPeriod(normalize(range))
 
 
   /** Checks whether a given threshold for the change of sight range
@@ -52,8 +87,14 @@ object PerturbationTransform {
     * that trigger a new pulse are outside the min/max ranges of the
     * agent.
     */
-  def toStimReq[F[_]](transform: Double => Option[FiniteDuration] = defaultTransform)
-      : Pipe[F,(Int, Double), (Int, Option[FiniteDuration])] = {
+  def toStimReq[F[_]]: Pipe[F,(Int, Double), (Int, Option[FiniteDuration])] = {
+
+    val dummy: PerturbationTransform = Binary
+    val transform: Double => Option[FiniteDuration] = dummy match {
+      case Linear => normalize _ andThen scalarToPeriod
+      case Binary => binary _ andThen scalarToPeriod
+      // case ExpFalloff => normalize _ andThen scalarToPeriod
+    }
 
     def go(prev: List[Double], s: Stream[F, (Int, Double)])
         : Pull[F, (Int, Option[FiniteDuration]), Unit] = {

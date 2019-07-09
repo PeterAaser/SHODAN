@@ -23,6 +23,12 @@ object bonus {
       xs.grouped(dropEvery).map(_.head).toSeq
   }
 
+  implicit class DoubleBonusOps(d: Double) {
+    def isInRange(lower: Double, upper: Double): Boolean =
+      (d > lower) && (d < upper)
+  }
+
+
   import cats._
   import cats.implicits._
   import cats.Semigroup

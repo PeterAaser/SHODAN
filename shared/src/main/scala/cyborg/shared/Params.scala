@@ -31,7 +31,7 @@ object params {
 
   object Network {
     val mock = true
-    // val mock = true
+    // val mock = false
     val meameIP = if(mock) "0.0.0.0" else "10.20.92.130"
     val tcpPort = 12340
     val httpPort = 8888
@@ -63,10 +63,4 @@ object params {
     val toplevelPath     = workingDirectory + "/MEAdata/"
   }
 
-  object perturbationTransform {
-    val scaleRangeToFreq =
-      (experiment.maxFreq - experiment.minFreq) / (game.sightRange - game.deadZone)
-    val scaleFreqToRange =
-      (game.sightRange - game.deadZone) / (experiment.maxFreq - experiment.minFreq)
-  }
 }

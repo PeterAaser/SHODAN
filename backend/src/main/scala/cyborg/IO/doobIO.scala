@@ -13,6 +13,25 @@ import utilz._
 
 import java.nio.file.{ Path, Paths }
 
+object YOLO {
+  import cats.effect.IO
+  
+  import backendImplicits._
+
+  val username = "memer"
+  val superdupersecretPassword = "memes"
+
+  import doobie._
+  // import doobie.implicits._
+  val xa = Transactor.fromDriverManager[IO](
+    "org.postgresql.Driver",
+    "jdbc:postgresql:memestorage",
+    s"$username",
+    s"$superdupersecretPassword"
+  )
+
+  val yolo = xa.yolo
+}
 
 object DoobieQueries {
 
@@ -28,8 +47,8 @@ object DoobieQueries {
 
   case class ExperimentParams(id: Int, samplerate: Int, segmentLength: Int)
 
-  def checkQuery[A](q: Query0[A]): Unit = ()
-  // def checkQuery[A](q: Query0[A]): Unit = q.check.unsafeRunSync()
+
+  import YOLO.yolo._
 
   sealed trait FileEncoding
   case object CSV extends FileEncoding
@@ -54,7 +73,6 @@ object DoobieQueries {
       LIMIT 1
     """.query[Int]
 
-    checkQuery(q)
     q.unique
   }
 
@@ -66,7 +84,6 @@ object DoobieQueries {
         WHERE experimentId = $experimentId
       """.query[ExperimentParams]
 
-    checkQuery(q)
     q.unique
 
   }
@@ -80,7 +97,8 @@ object DoobieQueries {
       WHERE experimentId = $experimentId
     """.query[(Int, String, String)]
 
-    checkQuery(q)
+    say(q.toString)
+
     q.unique.map{ case(_, x, µ) => DataRecording(x, µ) }
   }
 
@@ -92,7 +110,7 @@ object DoobieQueries {
       WHERE id = $experimentId
     """.query[ExperimentInfo]
 
-    checkQuery(q)
+    say(q.toString)
     q.unique
 
   }

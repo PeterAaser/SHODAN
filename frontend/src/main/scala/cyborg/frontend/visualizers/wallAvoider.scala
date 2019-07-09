@@ -161,6 +161,7 @@ class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.m
     trailQueue(trailHead) = agent.loc.toPixelCoordinates(canvas.width, canvas.height)
     trailHead = (trailHead + 1) % 500
 
+    say("rendering agent called")
     renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
     renderer.fillStyle = "rgb(212, 212, 212)"
     renderer.fillRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)

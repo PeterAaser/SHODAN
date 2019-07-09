@@ -65,15 +65,22 @@ class Assembler(
     } yield ()
   }
 
-
+  /**
+    * Maze runner experiment using neural data as input
+    */
   def assembleMazeRunner: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
+
+    val spikeConst = hardcode(20.millis)
+    val spikeTools = new SpikeTools[IO](spikeConst, conf)
+
+    val perturbationTransform = new PerturbationTransforms(conf)
+
     val perturbationSink: Pipe[IO,Agent,Unit] =
       _.flatMap(x => Stream.emits(x.distances.zipIndexLeft))
-        .through(PerturbationTransform.toStimReq())
-        .to(dsp.stimuliRequestSink(conf))
+        .through(perturbationTransform.toStimReq)
+        .through(dsp.stimuliRequestSink(conf))
 
 
-    val spikeTools = new SpikeTools[IO](20.millis, conf)
 
     val spikeStream = wakeUp(topics)
 
@@ -89,6 +96,9 @@ class Assembler(
   }
 
 
+  /**
+    * Maze runner experiment using a linear toy reservoir
+    */
   def assembleMazeRunnerBasicReservoir: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
     val reservoir = new SimpleReservoir
     val perturbationSink: Pipe[IO,Agent,Unit] = agentStream =>
@@ -120,6 +130,8 @@ class Assembler(
     val buckets = 100
     val inits = List.fill(buckets)(Chunk.seq(List.fill(40)(0.0)))
 
+    val perturbationTransform = new PerturbationTransforms(conf)
+    
     val huh = Stream.eval(Ref.of[IO,List[DspFuncCall]](Nil)) flatMap { messages =>
       Stream.eval(Topic[IO,Chunk[Double]](Chunk.empty)) flatMap { topic =>
 
@@ -129,7 +141,7 @@ class Assembler(
         val perturbationSink: Pipe[IO,Agent,Unit] =
           _.observe(agentTopic.publish)
             .flatMap(x => Stream.emits(x.distances.zipIndexLeft))
-            .through(PerturbationTransform.toStimReq())
+            .through(perturbationTransform.toStimReq)
             .through(reservoir.stimuliRequestPipe)
             .through(inputSink)
 
@@ -186,6 +198,8 @@ class Assembler(
 
   /**
     BROADCAST --> FRONTEND
+    * 
+    * All visualization data is done here, this means waveform data, agent, spike visualizations et al.
     */
   def broadcastToFrontend: Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
 
@@ -217,7 +231,7 @@ class Assembler(
         // .concurrently(select1)
         // .concurrently(select2)
         .concurrently(agentStream)
-        // .concurrently(allChannelsSpikes)
+        .concurrently(allChannelsSpikes)
     }
 
 
@@ -252,7 +266,10 @@ class Assembler(
           broadcast <- broadcastDataStream(source)
         } yield broadcast
 
-        // TODO: This does not work the way I want it to. This needs to be rethought!
+          // TODO: This does not work the way I want it to. This needs to be rethought!
+          // The issue is that the config is changed mid-conf after picking up a recording from database.
+          // One possible solution is to split into two configs, the user config which stays immutable, and a state
+          // config that is being built (which at the moment only entails picking up settings from the database).
         case Playback(id) => cyborg.io.DB.streamFromDatabaseST(id).flatMapToKleisli { (source: Stream[IO,TaggedSegment]) =>
           for {
             broadcast <- broadcastDataStream(source)
@@ -264,6 +281,11 @@ class Assembler(
     }
 
 
+  /**
+    * Checks MEAME aliveness and flashes DSP.
+    * Consider adding a call for checking DSP aliveness before flashing as flashing tends to kill the DSP and
+    * wastes time.
+    */
   def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {
     for {
       meameAlive             <- client.pingMEAME

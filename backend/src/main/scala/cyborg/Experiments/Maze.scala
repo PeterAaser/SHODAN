@@ -78,17 +78,18 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
 
     val spikeBuf = scala.collection.mutable.ArrayBuffer[Chunk[Double]]()
     val taskBuf = scala.collection.mutable.ArrayBuffer[Agent]()
-      inputStream
-        .map{x => spikeBuf.append(x); x}
-        .through(readoutLayer)
-        .through(taskRunner)
-        .map{x => taskBuf.append(x); x}
-        .through(perturbationSink)
-        .compile
-        .drain  >> Fsay[F]("Okay, one maze run is done")
-        .as{
-          val huh = (taskBuf.toList zip spikeBuf.toList).toArray
-          huh
-        }
+
+    inputStream
+      .map{x => spikeBuf.append(x); x}
+      .through(readoutLayer)
+      .through(taskRunner)
+      .map{x => taskBuf.append(x); x}
+      .through(perturbationSink)
+      .compile
+      .drain  >> Fsay[F]("Okay, one maze run is done")
+      .as{
+        val huh = (taskBuf.toList zip spikeBuf.toList).toArray
+        huh
+      }
   }
 }

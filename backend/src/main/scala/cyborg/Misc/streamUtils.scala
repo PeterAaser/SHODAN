@@ -1072,12 +1072,12 @@ object utilz {
     def go(idx: Int): Pull[F,Chunk[Stream[F,I]],Unit] = {
       streams(idx).pull.uncons1.flatMap{
         case Some((_, tl)) if(idx == sl.size - 1) => {
-          say(s"Waking up $idx")
+          // say(s"Waking up $idx")
           streams(idx) = tl
           Pull.output1(Chunk.seq(streams.clone))
         }
         case Some((_, tl)) => {
-          say(s"Waking up $idx")
+          // say(s"Waking up $idx")
           streams(idx) = tl
           go(idx + 1)
         }

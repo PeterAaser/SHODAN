@@ -29,6 +29,7 @@ object DB {
     * For offline playback of data, select experiment id to publish on provided topics
     */
   def streamFromDatabase(experimentId: Int): Stream[IO, TaggedSegment] = {
+    say("streaming..")
     val experimentData = databaseIO.dbChannelStream(experimentId)
     val params = databaseIO.dbGetParams(experimentId)
     Stream.eval(params).flatMap ( p =>
@@ -38,6 +39,7 @@ object DB {
 
 
   def streamFromDatabaseThrottled(experimentId: Int): Stream[IO, TaggedSegment] = {
+    say("streaming throttled")
     val experimentData = databaseIO.dbChannelStream(experimentId)
     val params = databaseIO.dbGetParams(experimentId)
     say(params.unsafeRunSync())

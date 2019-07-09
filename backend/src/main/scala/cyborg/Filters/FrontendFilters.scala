@@ -93,6 +93,7 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
 
   /**
     * Create the datastream for rendering all 60 channels.
+    * This datastream is used by the frontend to populate the grid waveform visualizer
     */
   def renderAll(topics: Seq[Topic[IO,Chunk[Int]]]): Stream[IO,Array[Array[DrawCommand]]] = {
 
@@ -138,7 +139,10 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
 
 
   /**
-    Sure as hell ain't pretty...
+    * Not 100% sure if the description is correct. Sorry
+    * 
+    * Visualizes the raw datastream with the moving average superimposed.
+    * Used to tune the paratemers of the averaging function.
     */
   import cyborg.RPCmessages._
   def visualizeRawAvg: Pipe[IO, Chunk[Int], Array[Array[DrawCommand]]] = { inputs =>
@@ -166,6 +170,9 @@ class FrontendFilters(conf: FullSettings, vizState: VizState, spikeTools: SpikeT
   }
 
 
+  /**
+    * Visualizes the frequency of spikes on all channels as a conveyor
+    */
   def visualizeAllSpikes(topics: List[Topic[IO,Chunk[Int]]]): Stream[IO,Array[Array[DrawCommand]]] = {
     wakeUp(topics).flatMap{ sl =>
       val spikes = spikeTools.windowedSpikes(sl.toList)

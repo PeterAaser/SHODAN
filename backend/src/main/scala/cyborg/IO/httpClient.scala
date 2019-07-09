@@ -51,7 +51,9 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
   }
 
 
-  def pingMEAME(implicit ev: MonadError[F,Throwable]): F[Boolean] = {
+  import scala.concurrent.duration._
+  import scala.concurrent.CancellationException
+  def pingMEAME(implicit ev: MonadError[F,Throwable], timer: Timer[F], cs: ContextShift[F]): F[Boolean] = {
     val req = GET(buildUri("status"))
     httpClient.expect[String](req)
       .map(_ => true)
