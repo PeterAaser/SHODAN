@@ -33,10 +33,26 @@ case class BackPropOptimizer(
   agentInputBuffer : Array[(Double, Double)]
 ) extends Optimizer[Array[(Agent, Chunk[Double])], FeedForward] {
 
+  import conf.optimizer._
   type Dataset = Array[(Agent, Chunk[Double])]
   type Phenotype = FeedForward
 
-  def enqueueDataset(dataset: Dataset): Optimizer[Dataset, Phenotype] = ???
+
+  /**
+    * Copies the enqueued data into the optimizers internal datastore.
+    * In spite of the signature, the return type could just as well have
+    * beet Unit, so be careful.
+    * 
+    * Ignores dataset decimation which is more useful for the GA
+    */
+  def enqueueDataset(dataset: Dataset): Optimizer[Dataset, Phenotype] = {
+    val recordingIdx = enqCounter % dataSetWindow
+    val copyIndexBase = ticksPerEval*recordingIdx
+
+    dataset.copyToArray(recordings, copyIndexBase, dataset.size)
+    this.copy(enqCounter = enqCounter + 1)
+  }
+
 
   /**
     * Runs one iteration and returns the best result along with the new optimizer.
