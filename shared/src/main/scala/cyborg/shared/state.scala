@@ -12,6 +12,13 @@ import io.udash.rpc.HasGenCodecAndModelPropertyCreator
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext
 import cats.kernel.Eq
+
+// Defines the relation between sensory input and perturbation frequency
+sealed trait PerturbationTransform
+case object Linear     extends PerturbationTransform
+case object Binary     extends PerturbationTransform
+object PerturbationTransform extends HasGenCodec[PerturbationTransform]
+
 object State {
 
   import Settings._
@@ -92,6 +99,11 @@ object Settings {
     maxSpikesPerSec : Int,
     threshold       : Int)
 
+  case class PerturbationSettings(
+    minFreq               : Double,
+    maxFreq               : Double,
+    perturbationTransform : PerturbationTransform)
+
   case class OptimizerSettings(
     decimationFactor : Int,
     ticksPerEval     : Int,
@@ -135,13 +147,14 @@ object Settings {
     readBufSize : Int)
 
   case class FullSettings(
-    daq       : DAQSettings,
-    readout   : ReadoutSettings,
-    ga        : GAsettings,
-    dsp       : DSPsettings,
-    filter    : FilterSettings,
-    optimizer : OptimizerSettings,
-    source    : SourceSettings)
+    daq          : DAQSettings,
+    readout      : ReadoutSettings,
+    ga           : GAsettings,
+    dsp          : DSPsettings,
+    filter       : FilterSettings,
+    perturbation : PerturbationSettings,
+    optimizer    : OptimizerSettings,
+    source       : SourceSettings)
 
 
   ////////////////////////////////////////////////////////////////
@@ -171,6 +184,13 @@ object Settings {
       // generationSize = 200,
       // childrenPerGen = 100,
       // mutantsPerGen  = 50
+    )}
+
+  object PerturbationSettings extends HasGenCodec[PerturbationSettings] {
+    val default = PerturbationSettings(
+      minFreq               = 0.33,
+      maxFreq               = 10.0,
+      perturbationTransform = Binary
     )}
 
   object ReadoutSettings extends HasGenCodec[ReadoutSettings] {
@@ -248,8 +268,10 @@ object Settings {
       GAsettings.default,
       DSPsettings.default,
       FilterSettings.default,
+      PerturbationSettings.default,
       OptimizerSettings.default,
       if(params.Network.mock) SourceSettings.mock else SourceSettings.live
+
     )
   }
 

@@ -953,7 +953,6 @@ object utilz {
     }
   }
 
-
   def Ssay[F[_]](word: Any, color: String = Console.RESET)(implicit filename: sourcecode.File, line: sourcecode.Line, ev: Sync[F]): Stream[F,Unit] = {
     Stream.eval(ev.delay{
                   val fname = filename.value.split("/").last

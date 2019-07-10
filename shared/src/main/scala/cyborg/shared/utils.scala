@@ -25,9 +25,11 @@ object bonus {
 
   implicit class DoubleBonusOps(d: Double) {
     def isInRange(lower: Double, upper: Double): Boolean =
-      (d > lower) && (d < upper)
+      (d >= lower) && (d <= upper)
   }
 
+  // Although the fundamental theorem of engineering states e = pi = 3 we go with the real deal here.
+  def epow(d: Double): Double = scala.math.pow(scala.math.E, d)
 
   import cats._
   import cats.implicits._

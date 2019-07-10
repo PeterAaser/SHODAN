@@ -30,6 +30,11 @@ object DspRegisters {
     def apply(addresses: Int*): RegisterReadList = RegisterReadList(addresses.toList)
   }
 
+  object RegisterReadResponse {
+    def apply(tups: List[(Int, Int)]): RegisterReadResponse = RegisterReadResponse(tups.map(_._1), tups.map(_._2))
+  }
+
+
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////////////////////////////////////////

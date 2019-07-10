@@ -65,6 +65,7 @@ class Assembler(
     } yield ()
   }
 
+
   /**
     * Maze runner experiment using neural data as input
     */
@@ -75,8 +76,10 @@ class Assembler(
 
     val perturbationTransform = new PerturbationTransforms(conf)
 
-    val perturbationSink: Pipe[IO,Agent,Unit] =
-      _.flatMap(x => Stream.emits(x.distances.zipIndexLeft))
+    val perturbationSink: Pipe[IO,Agent,Unit] = agentStream =>
+      agentStream
+        .observe(agentTopic.publish)
+        .flatMap(x => Stream.emits(x.distances.zipIndexLeft))
         .through(perturbationTransform.toStimReq)
         .through(dsp.stimuliRequestSink(conf))
 
@@ -92,7 +95,7 @@ class Assembler(
       ).run
     }
 
-    InterruptableAction.apply(mazeRunner)
+    InterruptableAction.apply(Stream.eval(dsp.setup(conf)) >> mazeRunner)
   }
 
 
@@ -165,6 +168,7 @@ class Assembler(
     InterruptableAction.apply(huh)
   }
 
+
   /**
     Takes a multiplexed dataSource and a list of topics.
     Demultiplexes the data and publishes data to all channel topics.
@@ -173,9 +177,7 @@ class Assembler(
     */
   private def broadcastDataStream(source: Stream[IO,TaggedSegment]): Kleisli[IO,FullSettings,InterruptableAction[IO]] = Kleisli{ conf =>
 
-    say(s"Got a conf that looked like $conf")
-
-    def publishSink: Sink[IO,TaggedSegment] = {
+    def publishSink: Pipe[IO,TaggedSegment, Unit] = {
       val topicsV = topics.toVector
       def go(s: Stream[IO,TaggedSegment]): Pull[IO,Unit,Unit] = {
         s.pull.uncons1 flatMap {
@@ -231,7 +233,7 @@ class Assembler(
         // .concurrently(select1)
         // .concurrently(select2)
         .concurrently(agentStream)
-        .concurrently(allChannelsSpikes)
+        // .concurrently(allChannelsSpikes)
     }
 
 

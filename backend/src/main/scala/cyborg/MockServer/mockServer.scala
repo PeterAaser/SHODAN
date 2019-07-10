@@ -55,6 +55,13 @@ object mockServer {
     def fucked = init.copy(alive = false)
   }
 
+  import _root_.io.circe.generic.auto._
+  import _root_.io.circe.syntax._
+  import _root_.io.circe.Decoder
+  import _root_.io.circe.Encoder
+  import org.http4s.circe._
+  implicit def jsonDecoder[A <: Product: Decoder]: EntityDecoder[IO, A] = jsonOf[IO, A]
+  implicit def jsonEncoder[A <: Product: Encoder]: EntityEncoder[IO, A] = jsonEncoderOf[IO, A]
 
   def hello(s: SignallingRef[IO,ServerState]) = HttpRoutes.of[IO] {
     case GET -> Root => s.get flatMap { serverState =>
@@ -97,7 +104,6 @@ object mockServer {
     }
 
     case req @ POST -> Root / "call" => {
-      // say("mock call")
       req.decode[DspFuncCall] { data =>
         s.get.flatMap{ state =>
           if (!state.dspFlashed) say("Possible error: DSP is not flashed")
@@ -107,12 +113,14 @@ object mockServer {
     }
 
     case req @ POST -> Root / "read" => {
+      say("read")
       req.decode[DspRegisters.RegisterReadList] { data =>
-        // val resp = dspRegisterState.applySeq(data.addresses)
-        Fsay[IO](s"got dsp read request: ${data.addresses.map(_.toHexString)}") >> Ok("")
+        val resp = DspRegisters.RegisterReadResponse(data.addresses.map(x => (x,x)))
+        Fsay[IO](s"got dsp read request: ${data.addresses.map(_.toHexString)}") >> Ok(resp)
       }
     }
     case req @ POST -> Root / "write" => {
+      say("write")
       req.decode[DspRegisters.RegisterSetList] { data =>
         // (data.addresses zip data.values).foreach{ case(r,v) => dspRegisterState.update(r, v)}
         // Fsay[IO](s"got dsp write request: $data") >> Ok("")

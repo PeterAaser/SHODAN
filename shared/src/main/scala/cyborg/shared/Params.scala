@@ -3,18 +3,17 @@ package cyborg
 import scala.concurrent.duration._
 object params {
 
+  // TODO: Anachronism, should be moved
   object experiment {
     val maxSpikesPerSec = 50
-    val minFreq = 0.3333333333333333
-    val maxFreq = 10.0
     val DSPticksPerSecond = 50000
   }
 
-  object webSocket {
-    val textPort = 9090
-    val dataPort = 9091
-    val agentPort = 9092
-  }
+  // object webSocket {
+  //   val textPort = 9090
+  //   val dataPort = 9091
+  //   val agentPort = 9092
+  // }
 
   object waveformVisualizer {
     val vizHeight: Int = 100
@@ -43,13 +42,33 @@ object params {
   }
 
   // should possibly be dynamically configurable?
+  // object game {
+  //   val width = 10000.0
+  //   val height = 10000.0
+
+  //   // Distance covered per tick
+  //   val speed = 1.0
+
+  //   // Readout output turn multiplier
+  //   val turnRate = 0.0025
+  //   val viewPoints = 2
+  //   val maxTurnRate = 0.00025
+
+  //   val sightRange = 3000.0
+  //   val deadZone = 200.0
+  // }
+
   object game {
     val width = 10000.0
     val height = 10000.0
-    val speed = 1.0
-    val turnRate = 0.0025
+
+    // Distance covered per tick
+    val speed = 2.0
+
+    // Readout output turn multiplier
+    val turnRate = 0.005
     val viewPoints = 2
-    val maxTurnRate = 0.00025
+    val maxTurnRate = 0.0005
 
     val sightRange = 3000.0
     val deadZone = 200.0

@@ -15,10 +15,6 @@ import fs2._
 import bonus._
 import params.game._
 
-// Defines the relation between sensory input and perturbation frequency
-sealed trait PerturbationTransform
-case object Linear     extends PerturbationTransform
-case object Binary     extends PerturbationTransform
 // case object ExpFalloff extends PerturbationTransform
 
 
@@ -51,10 +47,10 @@ class PerturbationTransforms(conf: FullSettings) {
 
 
   def binary(range: Double): Double = {
-    if(range > sightRange)
+    if(range < sightRange)
       1.0
     else
-      0.0
+      -1.0
   }
 
 
@@ -89,23 +85,23 @@ class PerturbationTransforms(conf: FullSettings) {
     */
   def toStimReq[F[_]]: Pipe[F,(Int, Double), (Int, Option[FiniteDuration])] = {
 
-    val dummy: PerturbationTransform = Binary
-    val transform: Double => Option[FiniteDuration] = dummy match {
-      case Linear => normalize _ andThen scalarToPeriod
-      case Binary => binary _ andThen scalarToPeriod
+    val transform: Double => Option[FiniteDuration] = conf.perturbation.perturbationTransform match {
+      case Linear => x => scalarToPeriod(normalize(x))
+      case Binary => x => scalarToPeriod(binary(x))
       // case ExpFalloff => normalize _ andThen scalarToPeriod
     }
 
-    def go(prev: List[Double], s: Stream[F, (Int, Double)])
-        : Pull[F, (Int, Option[FiniteDuration]), Unit] = {
+    def go(prev: List[Double], s: Stream[F, (Int, Double)]): Pull[F, (Int, Option[FiniteDuration]), Unit] = {
       s.pull.uncons1.flatMap {
         case None => Pull.done
         case Some(((idx, range), tl)) if(rangeThreshExceeded(range, prev(idx))) => {
+          // say(idx)
           Pull.output1((idx, transform(range))) >> go(prev.updated(idx, range), tl)
         }
 
-        case Some(((idx, range), tl)) =>
+        case Some(((idx, range), tl)) => {
           go(prev, tl)
+        }
       }
     }
 

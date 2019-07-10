@@ -39,7 +39,6 @@ object wallAvoid {
       List(xDistLeft, xDistRight, yDistBot, yDistTop).min
     }
 
-    // def processInput(input: (Double, Double)): Double =
     def updateBearing(input: (Double, Double)): Double = {
 
       val angleDeltaRaw = (input._1 - input._2)*turnRate

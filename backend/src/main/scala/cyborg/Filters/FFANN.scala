@@ -4,23 +4,33 @@ import fs2.Chunk
 import scala.language.higherKinds
 import scala.util.Random
 import utilz._
+import bonus._
 import fs2._
 
 import scala.util.hashing.MurmurHash3
 
 object FFANN {
 
-  val defaultActivator: Double => Double = x => x
+  type Activator = Double => Double
+  val linear:  Activator = x => x
 
-  // Unlike the previous version bias is not a separate list
-  case class FeedForward(layout: List[Int], weights: List[Double], activator: Double => Double = defaultActivator) {
+  /**
+    * With sigmoid it is necessary to have two outputs since the range is (0.0, 1.0)
+    * We want the dude to be able to turn both ways..
+    */
+  val sigmoid: Activator = x => (1.0/(1.0 + epow(-x))) 
+
+  /**
+    * layout is a list specifying layer sizes. For a single layer net just pass a one-element list.
+    * The weights list also contains biases. Since these are not constructed manually it doesn't matter much.
+    */
+  case class FeedForward(layout: List[Int], weights: List[Double], activator: Activator = sigmoid) {
 
     val layers = layout.length
     val layout_ = layout.toArray
 
-
     /**
-      Ugly, but that's OK
+      * Ugly, but that's OK
       */
     val weightArray: Array[Array[Double]] = Array.ofDim(layers - 1)
     val nodeArray: Array[Array[Double]]   = Array.ofDim(layers)

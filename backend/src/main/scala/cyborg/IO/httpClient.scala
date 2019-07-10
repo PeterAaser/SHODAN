@@ -35,8 +35,6 @@ import backendImplicits._
   */
 class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError[F,Throwable]){
 
-  say(s"Using ${params.Network.meameIP}")
-
   implicit def jsonDecoder[A <: Product: Decoder]: EntityDecoder[F, A] = jsonOf[F, A]
   implicit def jsonEncoder[A <: Product: Encoder]: EntityEncoder[F, A] = jsonEncoderOf[F, A]
 
@@ -84,10 +82,6 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
       val what = regs.asJson
       val req = POST(regs.asJson, buildUri("DSP/write"))
 
-      val fw = new FileWriter("/home/peteraa/SHODANlog.txt", true) ;
-      fw.write(s"${regs.asJson.toString()},\n" ) ;
-      fw.close()
-
       httpClient.expect[String](req).void
     }
 
@@ -95,17 +89,14 @@ class MEAMEHttpClient[F[_]: Sync](httpClient: Client[F])(implicit ev: MonadError
     def readRegistersRequest(regs: RegisterReadList): F[RegisterReadResponse] = {
       val huh = implicitly[EntityDecoder[F, RegisterReadResponse]]
       val req = POST(regs.asJson, buildUri("DSP/read"))
-      httpClient.expect[RegisterReadResponse](req)
+
+      httpClient.expect[RegisterReadResponse](req) 
     }
 
 
     def dspCall(call: Int, args: (Int,Int)*): F[Unit] = {
       val funcCall = DspFuncCall(call, args.toList)
       val req = POST(funcCall.asJson, buildUri("DSP/call"))
-
-      val fw = new FileWriter("/home/peteraa/SHODANlog.txt", true) ;
-      fw.write(s"${funcCall.asJson.toString()},\n" ) ;
-      fw.close()
 
       httpClient.expect[String](req).void
     }

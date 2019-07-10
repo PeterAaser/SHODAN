@@ -232,19 +232,20 @@ class WaveformGenerator[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
   }
 
-  def squareWave(
-    channel: Int,
-    lowDuration: FiniteDuration,
-    period: FiniteDuration,
-    offset: mV,
-    amplitude: mV): F[Unit] = {
 
-    val z: mV = 0
+  // def squareWave(
+  //   channel: Int,
+  //   lowDuration: FiniteDuration,
+  //   period: FiniteDuration,
+  //   offset: mV,
+  //   amplitude: mV): F[Unit] = {
 
-    def generator(t: FiniteDuration) = offset + (if (t > lowDuration) amplitude else (z))
+  //   val z: mV = 0
 
-    uploadWave(period, channel, generator)
-  }
+  //   def generator(t: FiniteDuration) = offset + (if (t > lowDuration) amplitude else (z))
+
+  //   uploadWave(period, channel, generator)
+  // }
 
   /**
     Balanced signifies that the voltage integral over t is close to 0 which is better for electrode health.

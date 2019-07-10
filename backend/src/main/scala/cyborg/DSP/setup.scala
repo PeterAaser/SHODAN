@@ -29,6 +29,9 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     * 
     * Maintains activation state of electrodes allowing electrodes to be toggled on and off.
     * Logic for how perturbations should be rendered should be handled elsewhere.
+    * 
+    * TODO: Why is this in setup??
+    * Shouldn't it be in calls?
     */
   def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F,(Int,Option[FiniteDuration]), Unit]] = Kleisli{ conf =>
     def sink: Pipe[F, (Int,Option[FiniteDuration]), Unit] = {
@@ -54,7 +57,10 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
       }
 
       ins => go(
-        ins.filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
+        ins
+          // .map{ x => say(x); x}
+          .filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
+
         conf.dsp.allowed.map((_, false)).toMap
       ).stream
     }
@@ -177,6 +183,8 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
 
   def setup: Kleisli[F,FullSettings,Unit] = Kleisli(
     conf => {
+
+      say("SETTING UP DSP")
       val flashAndResetDsp = for {
         _ <- client.DSP.flashDsp
         _ <- stopStimQueue
