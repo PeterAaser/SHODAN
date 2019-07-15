@@ -33,20 +33,20 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     * TODO: Why is this in setup??
     * Shouldn't it be in calls?
     */
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F,(Int,Option[FiniteDuration]), Unit]] = Kleisli{ conf =>
-    def sink: Pipe[F, (Int,Option[FiniteDuration]), Unit] = {
-      def go(s: Stream[F, (Int,Option[FiniteDuration])], electrodeActivatedState: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F, StimReq, Unit]] = Kleisli{ conf =>
+    def sink: Pipe[F, StimReq, Unit] = {
+      def go(s: Stream[F, StimReq], electrodeActivatedState: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
         s.pull.uncons1.flatMap {
-          case Some(((idx, Some(period)), tl)) if !electrodeActivatedState(idx) =>
+          case Some((SetPeriod(idx, period), tl)) if !electrodeActivatedState(idx) =>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
             Pull.eval(enableStimReqGroup(idx)) >>
             go(tl, electrodeActivatedState.updated(idx, true))
 
-          case Some(((idx, None), tl)) if electrodeActivatedState(idx) =>
+          case Some((DisableStim(idx), tl)) if electrodeActivatedState(idx) =>
             Pull.eval(disableStimReqGroup(idx)) >>
             go(tl, electrodeActivatedState.updated(idx, false))
 
-          case Some(((idx, Some(period)), tl)) =>
+          case Some((SetPeriod(idx, period), tl)) =>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
             go(tl, electrodeActivatedState)
 
@@ -59,13 +59,13 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
       ins => go(
         ins
           // .map{ x => say(x); x}
-          .filter{ case(idx, req) => conf.dsp.allowed.contains(idx)},
+          .filter{ req => conf.dsp.allowed.contains(req.group)},
 
         conf.dsp.allowed.map((_, false)).toMap
       ).stream
     }
 
-    sink: Id[Pipe[F,(Int,Option[FiniteDuration]),Unit]]
+    sink: Id[Pipe[F,StimReq,Unit]]
   }
 
 
@@ -191,8 +191,18 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
         _ <- resetStimQueue
       } yield ()
 
+      val mVperUnit = 0.571
+      val voltage = conf.perturbation.amplitude
+      val rem = voltage % mVperUnit
+      val percent = rem/voltage
+      if(percent > 0.1){
+        say("### SIGNIFICANT MISMATCH BETWEEN DESIRED AND SUPPLIED VOLTAGE ###", Console.RED)
+        say("### YOUR REQUEST OF $voltage IS RENDERED " + f"${percent*100}%1.1f" + "% WRONG ###", Console.RED)
+      }
+
+      say(s"Uploading balanced square wave with amplitude: $voltage")
       val uploadWave = for {
-        _ <- uploadSquareTest(100.millis, 20)
+        _ <- uploadSquareTest(100.millis, voltage)
       } yield ()
 
       val commitConfigAndStart = for {

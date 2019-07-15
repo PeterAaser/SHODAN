@@ -82,8 +82,10 @@ class PerturbationTransforms(conf: FullSettings) {
     * Note that the output may consist of only None if sight ranges
     * that trigger a new pulse are outside the min/max ranges of the
     * agent.
+    * 
+    * TODO threshold should be parameter
     */
-  def toStimReq[F[_]]: Pipe[F,(Int, Double), (Int, Option[FiniteDuration])] = {
+  def toStimReq[F[_]]: Pipe[F, (Int, Double), StimReq] = {
 
     val transform: Double => Option[FiniteDuration] = conf.perturbation.perturbationTransform match {
       case Linear => x => scalarToPeriod(normalize(x))
@@ -91,12 +93,12 @@ class PerturbationTransforms(conf: FullSettings) {
       // case ExpFalloff => normalize _ andThen scalarToPeriod
     }
 
-    def go(prev: List[Double], s: Stream[F, (Int, Double)]): Pull[F, (Int, Option[FiniteDuration]), Unit] = {
+    def go(prev: List[Double], s: Stream[F, (Int, Double)]): Pull[F, StimReq, Unit] = {
       s.pull.uncons1.flatMap {
         case None => Pull.done
         case Some(((idx, range), tl)) if(rangeThreshExceeded(range, prev(idx))) => {
-          // say(idx)
-          Pull.output1((idx, transform(range))) >> go(prev.updated(idx, range), tl)
+          val req = transform(range).map(d => SetPeriod(idx, d)).getOrElse(DisableStim(idx))
+          Pull.output1(req) >> go(prev.updated(idx, range), tl)
         }
 
         case Some(((idx, range), tl)) => {

@@ -33,10 +33,11 @@ object Launcher extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 
-    // if(params.Network.mock){
-    //   say("Starting test server!")
-    //   cyborg.mockServer.unsafeStartTestServer
-    // }
+    if(params.Network.mock){
+      say("Starting test server!")
+      cyborg.mockServer.unsafeStartTestServer
+      say("test server started")
+    }
 
 
     def initProgramState(client: MEAMEHttpClient[IO], dsp: cyborg.dsp.DSP[IO]): IO[ProgramState] = {

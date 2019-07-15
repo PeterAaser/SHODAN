@@ -124,7 +124,6 @@ class WaveformGenerator[F[_]: Sync](client: MEAMEHttpClient[F]) {
       say(s"repeats: $repeats")
       say(s"params are: stimSelect: $stimSelect, stimSwitch: $stimSwitch, ampProtect: $ampProtect")
       say(s"config ID for list mode: 0x${configId.toHexString}")
-
     }
   }
 
@@ -232,20 +231,6 @@ class WaveformGenerator[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
   }
 
-
-  // def squareWave(
-  //   channel: Int,
-  //   lowDuration: FiniteDuration,
-  //   period: FiniteDuration,
-  //   offset: mV,
-  //   amplitude: mV): F[Unit] = {
-
-  //   val z: mV = 0
-
-  //   def generator(t: FiniteDuration) = offset + (if (t > lowDuration) amplitude else (z))
-
-  //   uploadWave(period, channel, generator)
-  // }
 
   /**
     Balanced signifies that the voltage integral over t is close to 0 which is better for electrode health.

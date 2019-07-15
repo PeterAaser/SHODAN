@@ -44,6 +44,12 @@ class RPCserver(
       IO {
         ci.foreach(ClientRPChandle(_).wf().drawCallPush((idx, data))) }
     }
+
+
+  def stimReqPush(req: StimReq): IO[Unit] =
+    listeners.get.flatMap{ci =>
+      IO { ci.foreach(ClientRPChandle(_).wf().stimfreqPush(req)) }
+    }
 }
 
 

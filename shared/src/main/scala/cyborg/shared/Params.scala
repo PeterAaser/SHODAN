@@ -9,11 +9,6 @@ object params {
     val DSPticksPerSecond = 50000
   }
 
-  // object webSocket {
-  //   val textPort = 9090
-  //   val dataPort = 9091
-  //   val agentPort = 9092
-  // }
 
   object waveformVisualizer {
     val vizHeight: Int = 100
@@ -29,8 +24,8 @@ object params {
   }
 
   object Network {
-    val mock = true
-    // val mock = false
+    // val mock = true
+    val mock = false
     val meameIP = if(mock) "0.0.0.0" else "10.20.92.130"
     val tcpPort = 12340
     val httpPort = 8888

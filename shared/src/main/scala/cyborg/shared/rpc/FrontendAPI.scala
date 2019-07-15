@@ -17,8 +17,11 @@ trait MainClientRPC {
 
 trait WfClientRPC {
 
-  // The int is the destination canvas
+  /**
+    * The int is the destination canvas
+    */
   def drawCallPush(data: (Int, Array[Array[DrawCommand]])): Unit
+  def stimfreqPush(req: cyborg.StimReq): Unit
 }
 
 trait AgentClientRPC {

@@ -39,23 +39,10 @@ class DSP[F[_]: Sync](client: MEAMEHttpClient[F]) {
 
 
   /**
-    Creates a square wave with only high duty at 400 mV
-
-    setup handles this, so you do not need to manually call this function.
-    Not sure if it deserves to be in the top level API...
-    */
-  // unbalanced squarewave is bad for electrodes
-  // def uploadSquareWaveform(duration: FiniteDuration, channel: Int): F[Unit] = for {
-  //   _ <- dspCalls.stopStimQueue
-  //   _ <- waveformGenerator.squareWave(channel, 0.milli, duration, 0.0, 400.0)
-  // } yield ()
-
-
-  /**
     Creates stimulus requests for the supplied period, or toggles the group off when the period is None.
     For debugging convenience the three electrode groups can be toggled in the config
     */
-  def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F,(Int,Option[FiniteDuration]),Unit] ] =
+  def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F,StimReq,Unit] ] =
     dspSetup.stimuliRequestSink
 
 

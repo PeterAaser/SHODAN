@@ -79,6 +79,8 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val bigwfCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
   val bigwfCanvas2: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
+  // nice meme
+  val stimFreqCanvas: html.Canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
 
   /**
     This is kinda very very bad...
@@ -113,6 +115,8 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
   val big2 = new cyborg.LargeWFviz(bigwfCanvas2)
   val spikey = new SpikeTrainViz(spikeCanvas)
 
+  val stimFreq = new StimVizControl(stimFreqCanvas)
+
   val canvasQueues = new scala.collection.mutable.HashMap[
     Int,
     Array[Array[DrawCommand]] => Unit
@@ -137,7 +141,9 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     agentQueue,
     confQueue,
     stateQueue,
-    handleDrawcallBatch)
+    handleDrawcallBatch,
+    stimFreq.pushData
+  )
 
 
   def onChannelClicked(c: Int) = {

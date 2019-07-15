@@ -29,7 +29,8 @@ import scala.concurrent.duration._
 class RecurrentReservoir[F[_] : Concurrent : Timer] {
 
   // Shitty stim req pipe. It's either on or off
-  def stimuliRequestPipe: Pipe[F,(Int,Option[FiniteDuration]), DspFuncCall] = {
+  // def stimuliRequestPipe: Pipe[F,(Int,Option[FiniteDuration]), DspFuncCall] = {
+  def stimuliRequestPipe: Pipe[F, StimReq, DspFuncCall] = {
 
     def setPeriod(idx: Int) = DspFuncCall(
       SET_ELECTRODE_GROUP_PERIOD,
@@ -43,15 +44,16 @@ class RecurrentReservoir[F[_] : Concurrent : Timer] {
       DISABLE_STIM_GROUP,
       List((STIM_QUEUE_GROUP, idx)))
 
-    def go(s: Stream[F, (Int,Option[FiniteDuration])]): Pull[F, DspFuncCall, Unit] = {
+    def go(s: Stream[F, StimReq]): Pull[F, DspFuncCall, Unit] = {
       s.pull.uncons1.flatMap {
-        case Some(((idx, Some(period)), tl)) => {
+        // case Some(((idx, Some(period)), tl)) => {
+        case Some((SetPeriod(idx, freq), tl)) => {
           Pull.output1(setPeriod(idx)) >>
           Pull.output1(enable(idx)) >>
           go(tl)
         }
 
-        case Some(((idx, None), tl)) => {
+        case Some((DisableStim(idx), tl)) => {
           Pull.output1(disable(idx)) >>
           go(tl)
         }

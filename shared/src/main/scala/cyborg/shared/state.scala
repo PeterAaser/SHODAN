@@ -102,6 +102,7 @@ object Settings {
   case class PerturbationSettings(
     minFreq               : Double,
     maxFreq               : Double,
+    amplitude             : Double,
     perturbationTransform : PerturbationTransform)
 
   case class OptimizerSettings(
@@ -190,6 +191,7 @@ object Settings {
     val default = PerturbationSettings(
       minFreq               = 0.33,
       maxFreq               = 10.0,
+      amplitude             = 10.0,
       perturbationTransform = Binary
     )}
 

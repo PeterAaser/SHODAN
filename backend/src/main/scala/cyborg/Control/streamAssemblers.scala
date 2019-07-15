@@ -60,7 +60,6 @@ class Assembler(
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
       _            <- Ssay[IO]("###### All systems go ######", Console.GREEN_B + Console.WHITE)
-
       _            <- commandQueue.dequeue.through(commandPipe)
     } yield ()
   }
@@ -81,9 +80,8 @@ class Assembler(
         .observe(agentTopic.publish)
         .flatMap(x => Stream.emits(x.distances.zipIndexLeft))
         .through(perturbationTransform.toStimReq)
+        .evalTap(RPCserver.stimReqPush)
         .through(dsp.stimuliRequestSink(conf))
-
-
 
     val spikeStream = wakeUp(topics)
 
@@ -95,7 +93,12 @@ class Assembler(
       ).run
     }
 
-    InterruptableAction.apply(Stream.eval(dsp.setup(conf)) >> mazeRunner)
+    val taskStream = for {
+      _ <- Stream.eval(dsp.setup(conf))
+      _ <- mazeRunner
+    } yield ()
+
+    InterruptableAction.apply(taskStream)
   }
 
 
@@ -230,6 +233,9 @@ class Assembler(
         .evalMap(RPCserver.drawCommandPush(3))
 
       allChannelsStream
+        // .concurrently(Stream.eval(RPCserver.stimReqPush(0, 1.0)))
+        // .concurrently(Stream.eval(RPCserver.stimReqPush(1, 2.0)))
+        // .concurrently(Stream.eval(RPCserver.stimReqPush(2, 3.0)))
         // .concurrently(select1)
         // .concurrently(select2)
         .concurrently(agentStream)
