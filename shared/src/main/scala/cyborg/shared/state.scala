@@ -217,9 +217,12 @@ object Settings {
       blankingProtection = true,
       allowed            = List(0,1,2),
       stimulusElectrodes = List(
-        List(54, 55, 56, 57, 58, 59),
-        List(0,   1,  2,  3,  4,  5),
-        List(6,  14, 22,     38, 46),
+        // List(54, 55, 56, 57, 58, 59),
+        // List(0,   1,  2,  3,  4,  5),
+        // List(6,  14, 22,     38, 46),
+        List(0, 6),
+        List(59, 53),
+        List(),
       ).map(_.map(getMCSstimChannel)),
     )
   }
@@ -256,8 +259,8 @@ object Settings {
 
   object OptimizerSettings extends HasGenCodec[OptimizerSettings] {
     val default = OptimizerSettings(
-      decimationFactor = 200,
-      ticksPerEval     = 6000,
+      decimationFactor = 5,
+      ticksPerEval     = 3000,
       dataSetWindow    = 3
     )
   }

@@ -17,7 +17,7 @@ import bonus._
 
 import Settings._
 import FFANN._
-import wallAvoid.Agent
+import WallAvoid.Agent
 
 import cyborg.feedback._
 
@@ -72,8 +72,8 @@ case class GAoptimizer(
     */
   private def evaluateNet(readoutLayer: FeedForward, errorFunction: (Agent, Agent) => Double): ScoredNet = {
 
-    val maxIndex = if(enqCounter > dataSetWindow) dataSetSize * dataSetWindow
-      else dataSetSize * enqCounter
+    val maxIndex = if(enqCounterRef > dataSetWindow) dataSetSize * dataSetWindow
+      else dataSetSize * enqCounterRef
 
 
     // Calculate the output from the net at recorded inputs
@@ -86,17 +86,22 @@ case class GAoptimizer(
     for(ii <- 0 until maxIndex){
       val ideal    = recordings(ii)._1.autopilot
       val observed = recordings(ii)._1.update(agentInputBuffer(ii)._1, agentInputBuffer(ii)._2)
+      val diff = errorFunction(ideal, observed)
       error += errorFunction(ideal, observed)
     }
+
+    // say(maxIndex)
+    // say(error)
 
     ScoredPhenotype[FeedForward](0.0, error, readoutLayer)
   }
 
 
-  def enqueueDataset(dataset: Array[(Agent, Chunk[Double])]): GAoptimizer = {
+  override def enqueueDataset(dataset: Array[(Agent, Chunk[Double])]): GAoptimizer = {
+    say("enqueuing dataset")
     decimateDataSet(dataset)
 
-    val nextPop = if(enqCounter > dataSetWindow){
+    val nextPop = if(enqCounterRef > dataSetWindow){
       population.copy(repr = population.repr.map(ph => ph.copy(error = ph.error * 1.1)))
     }
     else 
@@ -113,7 +118,7 @@ case class GAoptimizer(
 
   def iterate: (GAoptimizer, ScoredPhenotype[FeedForward]) = {
 
-    val nextGenScored = ga.generate(population).map(evaluateNet(_, linearDiff))
+    val nextGenScored = ga.generate(population).map(evaluateNet(_, squareDiff))
 
     val nextPopScored = population
       .copy(repr = population.repr ++ nextGenScored)

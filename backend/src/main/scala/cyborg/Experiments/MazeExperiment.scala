@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.effect.Timer
 import cats.effect.concurrent.{ Ref }
 
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import _root_.io.udash.rpc.ClientId
 import java.nio.file.Paths
 import org.joda.time.Seconds
@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 import backendImplicits._
 
-import wallAvoid.Agent
+import WallAvoid.Agent
 
 /**
   A closed loop experiment has the following topology:
@@ -57,14 +57,15 @@ class MazeExperiment[F[_]: Concurrent](conf: FullSettings, spikeStream: Stream[F
           */
         def runOnce = for {
           dataset <- optimizer.bestResult.get.flatMap{ readout =>
-            say("Picked up the best result so far")
-            say(readout)
+            // say("Picked up the best result so far")
+            // say(readout)
             mazeRunner.run(
               spikeStream,
               FFANN.ffPipe(readout.phenotype),
               perturbationSink
             )
           }
+          // _ <- Ssay[F]("Updating with new datasettu!")
           _ <- optimizer.updateDataset(dataset)
           _ <- optimizer.bestResult.update(r => r.copy(error = r.error + 0.1, score = r.score -0.1))
         } yield ()

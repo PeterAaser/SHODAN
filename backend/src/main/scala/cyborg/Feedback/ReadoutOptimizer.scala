@@ -17,7 +17,7 @@ import bonus._
 
 import Settings._
 import FFANN._
-import wallAvoid.Agent
+import WallAvoid.Agent
 
 
 trait Optimizer[Dataset, Phenotype]{
@@ -44,7 +44,14 @@ class OnlineOptimizer[F[_]: Concurrent, Dataset, Phenotype](
   val datasetUpdates : SignallingRef[F,List[Dataset]]
 ) {
 
+  /**
+    * Adds a dataset to the update queue.
+    * 
+    * It is up to the optimizer to fetch updates from the update queue, ensuring
+    * that updates to the dataset only happens inbetween iterations
+    */
   def updateDataset(rec: Dataset): F[Unit] = for {
+    _ <- Fsay[F]("Adding a dataset to optimizer update queue")
     _ <- datasetUpdates.update(c => rec :: c)
     _ <- pauseSignal.set(false)
   } yield ()
@@ -70,7 +77,8 @@ class OnlineOptimizer[F[_]: Concurrent, Dataset, Phenotype](
       // Doesn't need to be phrased in terms of Pull at all actually
       def go: Pull[F,Unit,Unit] = {
         val task = for {
-          next <- datasetUpdates.modify(set => (set, Nil))
+          next <- datasetUpdates.modify(set => (Nil, set))
+          _    <- Fsay[F](s"found dataset of size ${next.size}")
           _    <- optimizer.update(o => next.foldLeft(o){ case(acc, set) => acc.enqueueDataset(set)})
           best <- optimizer.modify(o => o.iterate)
           _    <- updateBest(best)

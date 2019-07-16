@@ -68,7 +68,7 @@ object compz {
   */
 import cyborg.State._
 import cyborg.Settings._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) {
 
   type DrawCall = Array[DrawCommand]

@@ -2,7 +2,7 @@ package cyborg
 
 // import utilz._
 
-object wallAvoid {
+object WallAvoid {
 
   import com.avsystem.commons.serialization.GenCodec
   import params.game._
@@ -148,7 +148,6 @@ object wallAvoid {
 
     val agentPA = Agent(loc, _: Double, 80)
 
-    println("yo")
     scala.util.Random.shuffle(List(
       agentPA(firstAngle),
       // straightRun,

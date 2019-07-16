@@ -9,7 +9,7 @@ import _root_.io.udash.rpc.ClientId
 import java.io.IOException
 
 import RPCmessages._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import fs2._
 import Settings._
 
@@ -18,7 +18,7 @@ import cats.effect._
 import cats._
 import cats.implicits._
 
-import wallAvoid.Agent
+import WallAvoid.Agent
 import utilz._
 import utilz.TaggedSegment
 
@@ -52,7 +52,7 @@ object ControlPipe {
     stateServer        : SignallingRef[IO,ProgramState],
     confServer         : Signal[IO,FullSettings],
     eventQueue         : Queue[IO,UserCommand]
-  ) : IO[Sink[IO,UserCommand]] = {
+  ) : IO[Pipe[IO,UserCommand,Unit]] = {
 
     for {
       actionRef <- SignallingRef[IO,ProgramActions](ProgramActions())
@@ -68,7 +68,9 @@ object ControlPipe {
           conf             <- confServer.get
           broadcast        <- assembler.startBroadcast(programState)(conf)
           frontendBrodcast <- assembler.broadcastToFrontend(conf)
-          mazeRunner       <- assembler.assembleMazeRunner(conf)
+          // mazeRunner       <- assembler.assembleMazeRunner(conf)
+          mazeRunner       <- assembler.assembleMazeRunnerRNN(conf)
+          _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop >> mazeRunner.stop)))
           _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop >> mazeRunner.stop)))
           _                <- (broadcast.start, frontendBrodcast.start, mazeRunner.start).parMapN((_,_,_) => ())
         } yield {}

@@ -1,7 +1,7 @@
 package cyborg.frontend.services.rpc
 
 import cyborg.shared.rpc.client._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import scala.collection.mutable
 import cyborg.frontend.Context
 

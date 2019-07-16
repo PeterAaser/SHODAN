@@ -1,24 +1,18 @@
 * ThoughtPad
   
 * Neste gang
+  Se på RNN optimizers
   
 * Doing
-** TODO Unfuckulate using RNN
-** DONE Render stim freqs?
-   Just gonna use a canvas like a knuckle dragging peasant
-*** DONE Render
-*** DONE Stim req case class
-*** DONE Generate stim req codec
-*** DONE Send render requests
-**** DONE Redo API to use case class
-**** DONE Redo frontend handler to use case class
-**** DONE Send requests in assembleMazeRunner
-** TODO Render stimulus graph?
-   Not realtime, that would be a mondo pain in the ass
-*** TODO Make amplitude a state setting
-*** TODO Make a stim wave class?
+** DONE Get the RNN concept to work with optimizer et al
+*** DONE Figure out why scores are so low
+*** DONE Figure out why enqueue dataset doesn't happen
+*** DONE See if it actually.. you know.. works.
+    With square error seems to be doing allright.
+
+** TODO Improve RNN optimizer
+   Figure out why enqueueing happens in a stilted manner.
 ** TODO Decouple the optimizer and do a run on real neurons.
-** TODO Speed up the agent
 * Now
 ** TODO Attempt adaptive spike detector
 *** TODO Create a threshold-visualizer
@@ -30,7 +24,19 @@
 ** TODO Fix fucking annoying warnings
 
 * Later
-** TODO Refactor the Mazerunner and optimizer
+** TODO Better game configuration
+   How to go from current game object to a class?
+   Agent gets reused a lot, but it's internal logic is strongly
+   coupled to the game object.
+   
+   Could use an implicit class to give the agent its secret sauce?
+   
+   Let's settle on a gamespeed variable and have every other value be
+   dependent on it?
+   
+   Come to think of it, fuckit, this shouldn't be a priority, the payoff
+   isn't there atm.
+   
 ** TODO Create an algebra for modifying program state
    Actually we'll instead create allowable actions from a given state
    It's "good enough" for now
@@ -80,6 +86,15 @@
     
 
 * Finished
+** DONE Render stim freqs?
+   Just gonna use a canvas like a knuckle dragging peasant
+*** DONE Render
+*** DONE Stim req case class
+*** DONE Generate stim req codec
+*** DONE Send render requests
+**** DONE Redo API to use case class
+**** DONE Redo frontend handler to use case class
+**** DONE Send requests in assembleMazeRunner
 ** DONE Figure out stimulus waveform thing
 *** DONE Stimulus upload is not being sent it seems
     Setup was just never called
@@ -778,6 +793,25 @@ we should totally find out what it is and find a way to incorporate it into the 
 *** Problem: ZIP not in path
     Minor issue, when deleting jvm while an sbt session is running this error occurs.
     Happened because I went from 11.03  to 8 for metals reasons.
+
+** Zero score GA
+   Spent way too much time finding the motivation on this one.
+   The problem was that the GA optimizer would just go HAM and produce filters which all
+   had zero error.
+   The problem was quickly identified to be a lack of input data, but the abstractions were
+   hard to cut through, with traits, classes and all that jazz.
+   In the end it turned out to be a ref modify statement which had its arguments switched.
+   This was apparent as the return type was Nil.type, rather than List[Dataset], however this
+   is legal and didn't give a type error (and I don't think it should).
+   
+   The only way I could have dogded this on the type level was to use some variation of NEL, but
+   which I'm not familiar enough with to do.
+
+   I think this is a case of abstractions not working out as well as I had hoped.
+   Maybe by using a trait for online optimizer I could have found the error quicker?
+   Also, I figured that it is very nice to override even if not mandatory because it allows
+   me to quickly figure out which methods /can/ be called (as long as only the interface
+   is passed)
 
 * Clogged stream checklist
   + NYI exceptions might end up being swallowed

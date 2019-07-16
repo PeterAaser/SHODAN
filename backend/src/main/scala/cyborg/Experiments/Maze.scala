@@ -9,7 +9,7 @@ import cats.effect.implicits._
 import cats.effect.Timer
 import cats.effect.concurrent.{ Ref }
 
-import cyborg.wallAvoid._
+import cyborg.WallAvoid._
 import java.nio.file.Paths
 import org.joda.time.Seconds
 import scala.Function1
@@ -63,7 +63,7 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
       in => go(ticksPerRun, agent, in).stream
     }
 
-    val challenges = wallAvoid.createChallenges
+    val challenges = WallAvoid.createChallenges
     val challengePipes = challenges.map(simRunner)
 
     joinPipes(Stream.emits(challengePipes).covary[F])

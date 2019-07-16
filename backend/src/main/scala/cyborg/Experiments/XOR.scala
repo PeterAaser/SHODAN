@@ -10,7 +10,7 @@
 // import cats.effect.Timer
 // import cats.effect.concurrent.{ Ref }
 
-// import cyborg.wallAvoid.Agent
+// import cyborg.WallAvoid.Agent
 // import _root_.io.udash.rpc.ClientId
 // import java.nio.file.Paths
 // import org.joda.time.Seconds

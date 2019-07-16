@@ -2,7 +2,7 @@ package cyborg.frontend.views
 
 import cyborg.State._
 import cyborg.Settings._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import io.udash.bootstrap.form.UdashInputGroup
 import org.scalajs.dom.html.Input
 import cyborg.frontend.routing._

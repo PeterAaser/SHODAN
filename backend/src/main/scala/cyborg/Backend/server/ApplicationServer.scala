@@ -16,7 +16,7 @@ import org.eclipse.jetty.server.{ Server => JettyServer }
 import cyborg.backend.rpc.ServerRPCendpoint
 import cyborg.shared.rpc.server.MainServerRPC
 import cats.effect._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import _root_.io.udash.rpc._
 
 import cyborg.backend.rpc.ClientRPChandle

@@ -57,8 +57,15 @@ object params {
     val width = 10000.0
     val height = 10000.0
 
+    /**
+      * This constant decides how much should happen per readout output.
+      * This means that the speed constant should ideally be 1.0, keeping at least
+      * one of the gamespeed dependents nice and simple
+      */
+    val gamespeed = 1.0
+
     // Distance covered per tick
-    val speed = 2.0
+    val speed = 1.0
 
     // Readout output turn multiplier
     val turnRate = 0.005

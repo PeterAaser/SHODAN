@@ -1,6 +1,6 @@
 package cyborg.backend.rpc
 
-import cyborg.wallAvoid.Coord
+import cyborg.WallAvoid.Coord
 import cats.effect.concurrent.{ Ref, Deferred }
 import fs2.concurrent.{ Queue, Signal, SignallingRef, Topic }
 import io.udash.rpc._
@@ -18,7 +18,7 @@ import cyborg.RPCmessages._
 import cats.effect._
 import cats.implicits._
 import fs2._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
 
 import sharedImplicits._

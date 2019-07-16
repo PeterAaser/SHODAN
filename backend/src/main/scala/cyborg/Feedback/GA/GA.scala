@@ -16,7 +16,7 @@ import scala.util.Random
   */
 package object ga {
 
-  type Datatype = Array[(cyborg.wallAvoid.Agent, fs2.Chunk[Double])]
+  type Datatype = Array[(cyborg.WallAvoid.Agent, fs2.Chunk[Double])]
 
   import Genetics._
   import ScoredSeqOps._

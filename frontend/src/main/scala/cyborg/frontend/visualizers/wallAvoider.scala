@@ -4,7 +4,7 @@ import org.scalajs.dom
 import org.scalajs.dom.html
 import frontilz._
 
-import wallAvoid._
+import WallAvoid._
 
 
 class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.mutable.Queue[Agent]) {

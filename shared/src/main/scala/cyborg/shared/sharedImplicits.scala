@@ -1,6 +1,6 @@
 package cyborg
 
-import cyborg.wallAvoid.{ Agent, Coord }
+import cyborg.WallAvoid.{ Agent, Coord }
 import cyborg.RPCmessages._
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
 

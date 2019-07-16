@@ -2,7 +2,7 @@ package cyborg.frontend.views
 
 import cyborg.State._
 import cyborg.Settings._
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 import cyborg.frontend._
 import cyborg.frontend.Context
 import cyborg.frontend.routing._

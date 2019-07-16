@@ -23,7 +23,7 @@ import cats._
 import cats.effect._
 import cats.implicits._
 
-import cyborg.wallAvoid.Agent
+import cyborg.WallAvoid.Agent
 
 import scala.concurrent.ExecutionContext
 

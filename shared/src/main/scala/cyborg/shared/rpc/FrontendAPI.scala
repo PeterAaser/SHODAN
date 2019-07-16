@@ -5,7 +5,7 @@ import cyborg.Settings._
 
 import cyborg.State._
 
-import cyborg.wallAvoid.{ Agent, Coord }
+import cyborg.WallAvoid.{ Agent, Coord }
 import com.avsystem.commons.serialization.{GenCodec, HasGenCodec}
 import io.udash.rpc._
 
