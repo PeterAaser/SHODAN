@@ -170,17 +170,17 @@ object Settings {
   object GAsettings extends HasGenCodec[GAsettings] {
     val default = GAsettings(
 
-      generationSize = 2000,
-      childrenPerGen = 1000,
-      mutantsPerGen  = 500
+      // generationSize = 2000,
+      // childrenPerGen = 1000,
+      // mutantsPerGen  = 500
 
       // generationSize = 1000,
       // childrenPerGen = 500,
       // mutantsPerGen  = 200
 
-      // generationSize = 500,
-      // childrenPerGen = 200,
-      // mutantsPerGen  = 100
+      generationSize = 500,
+      childrenPerGen = 200,
+      mutantsPerGen  = 100
 
       // generationSize = 200,
       // childrenPerGen = 100,

@@ -13,6 +13,8 @@ import org.jfree.data.time.{Second, Millisecond}
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.ChartFactory
 
+import cyborg.backend.Launcher.ioTimer
+
 import scala.concurrent.duration._
 
 object ReservoirPlot {

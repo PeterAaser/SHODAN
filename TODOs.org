@@ -12,6 +12,11 @@
 
 ** TODO Improve RNN optimizer
    Figure out why enqueueing happens in a stilted manner.
+   Iterate takes too long
+   
+   Atm the whole thing is a little wonky tbh.
+
+** DONE Reduce the concurrency implicits
 ** TODO Decouple the optimizer and do a run on real neurons.
 * Now
 ** TODO Attempt adaptive spike detector
@@ -959,3 +964,27 @@ we should totally find out what it is and find a way to incorporate it into the 
   $wg-quick up wg0
   on both endpoint and client
   
+
+* Concurrency and parallelism with cats
+** Terms
+*** Native thread: Scarce resource, one (two) per core
+    I thought you could have a lot of them, but only one (or two) running at a time.
+*** Logic thread: JVM construct
+ 
+** JVM threading
+   Uses logical threads. Has the usual overhead/buffering cost, i.e too few threads and
+   we're not issuing enough IO requests, too many threads and we're paying a too high
+   context shift price.
+ 
+** Thread pools
+   As creating threads come at a cost we use thread pools instead.
+   There are two types of pools, bounded and unbounded.
+
+** Green thread
+   Not scheduled on an OS level (so that means logical threads are then I take it) which
+   make them much more lightweight to create.
+   Green threads are cooperative, i.e they give up control rather than being preempted.
+   Fiber and shift in cats effect has a similarities with green threads.
+
+** Thread scheduling
+   

@@ -35,6 +35,7 @@ import RPCmessages._
 import org.http4s.client.blaze._
 import org.http4s.client._
 
+// import cats.effect.IO.timer
 
 class Assembler(
   httpClient      : MEAMEHttpClient[IO],
@@ -46,7 +47,9 @@ class Assembler(
   vizServer       : SignallingRef[IO,VizState],
   configServer    : SignallingRef[IO,FullSettings],
   stateServer     : SignallingRef[IO,ProgramState],
-  dsp             : cyborg.dsp.DSP[IO]) {
+  dsp             : cyborg.dsp.DSP[IO])
+  (implicit ioTimer: Timer[IO])
+{
 
   def startSHODAN: Stream[IO, Unit] = {
 

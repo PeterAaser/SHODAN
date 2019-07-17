@@ -22,6 +22,8 @@ import cyborg.io.database._
 import utilz._
 import backendImplicits._
 
+import cyborg.backend.Launcher.ioTimer
+
 object DB {
   import cyborg.io.database._
 

@@ -143,7 +143,8 @@ object FFANN {
 
   def ffPipe[F[_]](net: FeedForward): Pipe[F,Chunk[Double],Chunk[Double]] = {
 
-    say(s"creating pipe from net $net")
+    // uncomment to get pipe names like Alpha Iota Delta Sigma
+    // say(s"creating pipe from net $net")
 
     def go(s: Stream[F, Chunk[Double]]): Pull[F,Chunk[Double],Unit] = {
       s.pull.uncons1 flatMap {
@@ -166,7 +167,7 @@ object FFANN {
     4 -> "Epsilon",
     5 -> "Zeta",
     6 -> "Eta",
-    7 -> "Theta",
+    7 -> "Sigma", // sorry Theta, I did it all for the memes
     8 -> "Iota",
     9 -> "Kappa",
     10 -> "Lambda"

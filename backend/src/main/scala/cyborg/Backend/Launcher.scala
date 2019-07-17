@@ -30,6 +30,8 @@ import scala.concurrent.ExecutionContext
 object Launcher extends IOApp {
 
   val client = BlazeClientBuilder[IO](ExecutionContext.global).resource
+  implicit val ioTimer = implicitly[Timer[IO]]
+  implicit val ioCTS   = implicitly[ContextShift[IO]]
 
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 

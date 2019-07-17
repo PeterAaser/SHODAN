@@ -26,6 +26,7 @@ import backendImplicits._
 import cyborg.Settings._
 
 object ClientRPChandle {
+  implicit val ec = backendImplicits.ec
   def apply(target: ClientRPCTarget): MainClientRPC =
     new DefaultClientRPC[MainClientRPC](target).get
 }

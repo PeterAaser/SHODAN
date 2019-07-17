@@ -11,12 +11,9 @@ object backendImplicits {
   import fs2._
   import java.util.concurrent.Executors
 
-  implicit val ec       : ExecutionContext         = scala.concurrent.ExecutionContext.global
+  val ec                : ExecutionContext         = scala.concurrent.ExecutionContext.global
   implicit val tcpACG   : AsynchronousChannelGroup = namedACG.namedACG("tcp")
-  implicit val ct       : ContextShift[IO]         = cats.effect.IO.contextShift(ec)
-  implicit val executor : ScheduledExecutorService = Executors.newScheduledThreadPool(16, threadFactoryFactoryProxyBeanFactory.mkThreadFactory("scheduler", daemon = true))
-  implicit val ioTimer  : Timer[IO]                = cats.effect.IO.timer(ec, executor)
-
+  implicit val ct       : ContextShift[IO]         = cyborg.backend.Launcher.ioCTS
 }
 
 object namedACG {
@@ -51,37 +48,5 @@ object namedACG {
         }
       }
     )
-  }
-}
-
-object threadFactoryFactoryProxyBeanFactory {
-
-  import scala.util.control.NonFatal
-  import java.lang.Thread.UncaughtExceptionHandler
-  import java.util.concurrent.{Executors, ThreadFactory}
-  import java.util.concurrent.atomic.AtomicInteger
-
-  def mkThreadFactory(name: String, daemon: Boolean, exitJvmOnFatalError: Boolean = true): ThreadFactory = {
-    new ThreadFactory {
-      val idx = new AtomicInteger(0)
-      val defaultFactory = Executors.defaultThreadFactory()
-      def newThread(r: Runnable): Thread = {
-        val t = defaultFactory.newThread(r)
-        t.setName(s"$name-${idx.incrementAndGet()}")
-        t.setDaemon(daemon)
-        t.setUncaughtExceptionHandler(new UncaughtExceptionHandler {
-                                        def uncaughtException(t: Thread, e: Throwable): Unit = {
-                                          ExecutionContext.defaultReporter(e)
-                                          if (exitJvmOnFatalError) {
-                                            e match {
-                                              case NonFatal(_) => ()
-                                              case fatal => System.exit(-1)
-                                            }
-                                          }
-                                        }
-                                      })
-        t
-      }
-    }
   }
 }

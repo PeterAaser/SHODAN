@@ -56,6 +56,9 @@ class OnlineOptimizer[F[_]: Concurrent, Dataset, Phenotype](
     _ <- pauseSignal.set(false)
   } yield ()
 
+  /**
+    * Listens for the start signal before starting the inner machinery.
+    */
   def start: Stream[F, Unit] = {
     pauseSignal.discrete.tail.changes.flatMap{ _ =>
 
@@ -77,11 +80,15 @@ class OnlineOptimizer[F[_]: Concurrent, Dataset, Phenotype](
       // Doesn't need to be phrased in terms of Pull at all actually
       def go: Pull[F,Unit,Unit] = {
         val task = for {
+          _    <- Fsay[F]("optimizer run loop start")
           next <- datasetUpdates.modify(set => (Nil, set))
           _    <- Fsay[F](s"found dataset of size ${next.size}")
           _    <- optimizer.update(o => next.foldLeft(o){ case(acc, set) => acc.enqueueDataset(set)})
+          _    <- Fsay[F]("performing 1 iteration")
           best <- optimizer.modify(o => o.iterate)
+          _    <- Fsay[F]("Iteration complete")
           _    <- updateBest(best)
+          _    <- Fsay[F]("optimizer run loop end")
         } yield ()
 
         Pull.eval(task)

@@ -30,6 +30,8 @@ import org.http4s.HttpApp
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 
+import cyborg.backend.Launcher.ioTimer
+
 object mockServer {
 
   import backendImplicits._
