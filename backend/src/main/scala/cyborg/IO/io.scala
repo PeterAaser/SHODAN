@@ -72,7 +72,7 @@ object DB {
   /**
     * Writes data to a CSV file. The metadata is stored to database
     */
-  def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment],
+  def streamToDatabase(rawDataStream: Stream[IO,Int],
                        comment: String): Kleisli[IO,FullSettings,InterruptableAction[IO]] =
     databaseIO.streamToDatabase(rawDataStream, comment)
 }

@@ -63,9 +63,12 @@ object databaseIO {
       }
     }
 
-    say("DOWNSCALING DATABASE OUTPUT", Console.RED)
-
-    data.map(x => (x.toDouble * 5.9605e-5).toInt)
+    if(experimentId == 14){
+      say("DOWNSCALING DATABASE OUTPUT", Console.RED)
+      data.map(x => (x.toDouble * 5.9605e-5).toInt)
+    }
+    else
+      data
   }
 
   def newestRecordingId: IO[Int] = getNewestExperimentId.transact(xa)
@@ -93,19 +96,15 @@ object databaseIO {
 
 
   /**
-    TODO kinda not a conf reader
+    * Upon experiment completion inserts duration of the experiment.
     */
-  def streamToDatabase(rawDataStream: Stream[IO,TaggedSegment], comment: String)
-    : Kleisli[IO,FullSettings,InterruptableAction[IO]] = {
+  def streamToDatabase(rawDataStream: Stream[IO,Int], comment: String): Kleisli[IO,FullSettings,InterruptableAction[IO]] = {
 
     def runStream(recordingSink: RecordingSink) = {
       SignallingRef[IO,Boolean](false).map { interruptSignal =>
         InterruptableAction(
           interruptSignal.set(true) >> recordingSink.finalizer,
           rawDataStream
-            .dropWhile(seg => seg.channel != 0)
-            .through(_.map(_.data))
-            .through(chunkify)
             .through(recordingSink.sink)
             .interruptWhen(interruptSignal.discrete).compile.drain
         )
@@ -166,7 +165,7 @@ object databaseIO {
   /**
     TODO: Uhh, what does this actually do??
     */
-  case class RecordingSink(finalizer: IO[Unit], sink: Sink[IO,Int])
+  case class RecordingSink(finalizer: IO[Unit], sink: Pipe[IO,Int,Unit])
   def createRecordingSink(comment: String) = Kleisli[IO, FullSettings, RecordingSink]{ conf =>
     SignallingRef[IO,IO[Unit]](IO.unit) map { finalizer =>
 
@@ -177,7 +176,7 @@ object databaseIO {
         _            <- finalizer.set(finalizeExperiment(experimentId).transact(xa).void)
       } yield (pathAndSink._2)
 
-      RecordingSink(finalizer.get.flatten, createOnFirstElement(onFirstElement, identity[Sink[IO,Int]]))
+      RecordingSink(finalizer.get.flatten, createOnFirstElement(onFirstElement, identity[Pipe[IO,Int,Unit]]))
     }
   }
 

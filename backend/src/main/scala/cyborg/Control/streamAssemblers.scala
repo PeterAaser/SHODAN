@@ -82,7 +82,7 @@ class Assembler(
       agentStream
         .observe(agentTopic.publish)
         .flatMap(x => Stream.emits(x.distances.zipIndexLeft))
-        .through(perturbationTransform.toStimReq)
+        .through(perturbationTransform.toStimReqBinary)
         .evalTap(RPCserver.stimReqPush)
         .through(dsp.stimuliRequestSink(conf))
 
@@ -242,7 +242,7 @@ class Assembler(
         // .concurrently(select1)
         // .concurrently(select2)
         .concurrently(agentStream)
-        // .concurrently(allChannelsSpikes)
+        .concurrently(allChannelsSpikes)
     }
 
 
@@ -310,15 +310,12 @@ class Assembler(
   }
 
 
-  def doDspTestStuff(dsp: cyborg.dsp.DSP[IO], conf: FullSettings): IO[Unit] = {
-    // say("Running DSP test methods!!", Console.RED)
-    // say("Ensure that the MOCK EXECUTOR is being run!!", Console.RED)
-    // dsp.setup(conf) >>
-    //   dsp.setStimgroupPeriod(0, 100.millis) >>
-    //   dsp.enableStimGroup(0)
-    // IO{ Thread.sleep(1000) } >>
-    // dsp.dspCalls.readStimQueueState >>
-    // dsp.dspCalls.checkForErrors.map(x => say(x))
-    IO.unit
+  /**
+    * Starts a recording to the database.
+    * This action will upon receiving data create a file and a database entry (but not before)
+    */
+  def recordToFile = Kleisli[IO,FullSettings,InterruptableAction[IO]]{ conf =>
+    val dataStream: Stream[IO, Int] = wakeUp(topics).flatMap{ (sl: Chunk[Stream[IO,Chunk[Int]]]) => roundRobinC(sl.toList) }.hideChunks.hideChunks
+    io.database.databaseIO.streamToDatabase(dataStream, "Just a test")(conf)
   }
 }

@@ -150,12 +150,14 @@ class WaveformComp(state: Property[ProgramState], conf: Property[FullSettings]) 
     val _ = Context.serverRpc.selectLargeChannel(c)
   }
 
-  def onStopClicked(btn: UdashButton) = state.modify{ s =>
-    s.copy(isRunning = false, isRecording = false)
+  def onStopClicked(btn: UdashButton) = {
+    state.modify{ s => s.copy(isRunning = false, isRecording = false) }
+    fireStateChange
   }
 
-  def onStopRecordingClicked(btn: UdashButton) = state.modify{ s =>
-    s.copy(isRecording = false)
+  def onStopRecordingClicked(btn: UdashButton) = {
+    state.modify{ s => s.copy(isRecording = false) }
+    fireStateChange
   }
 
   def onRangeUpClicked(btn: UdashButton) = {

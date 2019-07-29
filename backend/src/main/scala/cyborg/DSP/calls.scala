@@ -75,12 +75,13 @@ class DspCalls[F[_]: Sync](client: MEAMEHttpClient[F], waveformGenerator: Wavefo
   } yield ()
 
   def enableStimReqGroup(group: Int): F[Unit] = for {
-    // _ <- Fsay[F](s"enable stim group $group (dsp call $ENABLE_STIM_GROUP)")
+    _ <- Fsay[F](s"enable stim group $group (dsp call $ENABLE_STIM_GROUP)")
     _ <- dspCall(ENABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()
 
   def disableStimReqGroup(group: Int): F[Unit] = for {
+    _ <- Fsay[F](s"Disabling group $group")
     _ <- dspCall(DISABLE_STIM_GROUP,
                  group -> STIM_QUEUE_GROUP ).void
   } yield ()

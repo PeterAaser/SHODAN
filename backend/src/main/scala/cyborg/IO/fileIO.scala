@@ -26,6 +26,9 @@ object fileIO {
   implicit val dtfmt = DateTimeFormat.forPattern("dd.MM.yyyy, HH:mm:ss")
   implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
 
+  /**
+    * It's probably not /that/ dangerous...
+    */
   def getTimeStringUnsafe: String = DateTime.now().toString(tfmt)
 
   // TODO might be perf loss to go from Array to List and all that
@@ -61,7 +64,7 @@ object fileIO {
 
     getDateTimeString map { s =>
       val path: Path = Paths.get(toplevelPath + s)
-      val sink: Sink[F,Int] = _
+      val sink: Pipe[F,Int,Unit] = _
         .chunkN(1000, true)
         .map(_.toList.mkString("",", ", "\n"))
         .through(text.utf8Encode)

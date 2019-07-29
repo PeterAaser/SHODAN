@@ -120,7 +120,7 @@ class AgentVisualizerControl(canvas: html.Canvas, agentQueue: scala.collection.m
     renderer.restore()
   }
 
-  val trailLength = 500
+  val trailLength = 1500
   val trailQueue = Array.ofDim[Coord](trailLength)
   var trailHead = 0
   def drawTrail(): Unit = {

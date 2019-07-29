@@ -33,6 +33,9 @@ object Launcher extends IOApp {
   implicit val ioTimer = implicitly[Timer[IO]]
   implicit val ioCTS   = implicitly[ContextShift[IO]]
 
+  // val blockingExecutionContext =
+  //   Resource.make(IO(ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(2))))(ec => IO(ec.shutdown()))
+
   def run(args: List[String]): IO[ExitCode] = {                                                                                                                                                                                                                                                                                                               say("wello")
 
     if(params.Network.mock){

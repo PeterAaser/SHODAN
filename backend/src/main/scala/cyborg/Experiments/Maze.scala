@@ -86,7 +86,7 @@ class Maze[F[_]: Concurrent](conf: FullSettings){
       .map{x => taskBuf.append(x); x}
       .through(perturbationSink)
       .compile
-      .drain  >> Fsay[F]("Okay, one maze run is done")
+      .drain  >> Fsay[F]("")
       .as{
         val huh = (taskBuf.toList zip spikeBuf.toList).toArray
         huh

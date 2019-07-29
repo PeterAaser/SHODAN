@@ -109,4 +109,52 @@ class PerturbationTransforms(conf: FullSettings) {
 
     in => go(List.fill(3)(Double.MaxValue), in).stream
   }
+
+
+  /**
+    * Sometimes we must do as the gohpers do
+    */
+  def toStimReqBinary[F[_]]: Pipe[F, (Int, Double), StimReq] = {
+
+    def go(prev: List[Option[Boolean]], s: Stream[F, (Int, Double)]): Pull[F, StimReq, Unit] = {
+      s.pull.uncons1.flatMap {
+        case None => Pull.done
+
+        // The case when an eye sees something for the first time
+        case Some(((idx, range), tl)) if(!(prev(idx).isDefined)) => {
+          if(range < params.game.sightRange){
+            val req = SetPeriod(idx, scalarToPeriod(1.0).get)
+            Pull.output1(req) >> go(prev.updated(idx, Some(true)), tl)
+          }
+          else {
+            val req = DisableStim(idx)
+            Pull.output1(req) >> go(prev.updated(idx, Some(false)), tl)
+          }
+        }
+
+        case Some(((idx, range), tl)) if((range < params.game.sightRange) && (!prev(idx).get)) => {
+          if(idx == 0){
+            // say(s"idx: $idx, range: $range, prev: ${prev(idx)}")
+            // say(s"setting $idx to enabled")
+          }
+          val req = SetPeriod(idx, scalarToPeriod(1.0).get)
+          Pull.output1(req) >> go(prev.updated(idx, Some(true)), tl)
+        }
+
+        // The case when an eye goes into range when it was previously out of range
+        case Some(((idx, range), tl)) if((range > params.game.sightRange) && (prev(idx).get)) => {
+          // say(s"idx: $idx, range: $range, prev: $prev")
+          // say(s"setting $idx to disabled")
+          val req = DisableStim(idx)
+          Pull.output1(req) >> go(prev.updated(idx, Some(false)), tl)
+        }
+
+        // No others cases are interesting for binary
+        case Some(((idx, range), tl)) => {
+          go(prev, tl)
+        }
+      }
+    }
+     in => go(List.fill(3)(None), in).stream
+  }
 }

@@ -64,7 +64,7 @@ class LiveView(model: ModelProperty[LiveModel],
 
   model.streamTo( playButton.disabled, initUpdate       = true)(m => !m.state.canStartLive)
   model.streamTo( recordButton.disabled, initUpdate     = true)(m => !m.state.canRecord)
-  model.streamTo( stopRecordButton.disabled, initUpdate = true)(m => m.state.canStopRecording)
+  model.streamTo( stopRecordButton.disabled, initUpdate = true)(m => !m.state.canStopRecording)
   model.streamTo( stopButton.disabled, initUpdate       = true)(m => !m.state.canStop)
 
   val uploadButton = UdashButton()("flash DSP")
@@ -78,7 +78,7 @@ class LiveView(model: ModelProperty[LiveModel],
       canvasController.wfCanvas.render,
       canvasController.agentCanvas.render,
       canvasController.stimFreqCanvas.render,
-      // canvasController.spikeCanvas.render,
+      canvasController.spikeCanvas.render,
       // canvasController.bigwfCanvas.render,
       showIf(model.subProp(_.state.isRecording).transform(!_))(recordButton.render),
       showIf(model.subProp(_.state.isRecording))(stopRecordButton.render),

@@ -43,6 +43,18 @@ object State {
       case Live => isRunning
       case _    => false
     }.getOrElse(false) && !isRecording
+
+    override def toString: String = {
+      val dsString = dataSource.map{
+        case Live => "Datasource: LIVE"
+        case Playback(id) => "Datasource: PLAYBACK"
+      }.getOrElse("Datasource: NOT SELECTED")
+
+      val dspString = s"DSP flashed: ${dsp.isFlashed}, responding: ${dsp.dspResponds}"
+
+
+      s"$dsString. $dspString. recording: $isRecording. running: $isRunning"
+    }
   }
 
   case class DSPstate(
@@ -127,8 +139,9 @@ object Settings {
     ANNinternalLayout : List[Int],
     bucketSizeMillis  : Int,
     buckets           : Int,
-    outputs           : Int){
-    val getLayout         : List[Int] = 10*buckets :: ANNinternalLayout ::: List(outputs)}
+    outputs           : Int){ 
+    val getLayout         : List[Int] = inputChannels.size*buckets :: ANNinternalLayout ::: List(outputs)}
+    // val getLayout         : List[Int] = 10*buckets :: ANNinternalLayout ::: List(outputs)}
     // val getLayout         : List[Int] = 9 :: ANNinternalLayout ::: List(outputs)}
 
   case class DSPsettings(
@@ -170,17 +183,17 @@ object Settings {
   object GAsettings extends HasGenCodec[GAsettings] {
     val default = GAsettings(
 
-      // generationSize = 2000,
-      // childrenPerGen = 1000,
-      // mutantsPerGen  = 500
+      generationSize = 2000,
+      childrenPerGen = 1000,
+      mutantsPerGen  = 500
 
       // generationSize = 1000,
       // childrenPerGen = 500,
       // mutantsPerGen  = 200
 
-      generationSize = 500,
-      childrenPerGen = 200,
-      mutantsPerGen  = 100
+      // generationSize = 500,
+      // childrenPerGen = 200,
+      // mutantsPerGen  = 100
 
       // generationSize = 200,
       // childrenPerGen = 100,
@@ -191,7 +204,7 @@ object Settings {
     val default = PerturbationSettings(
       minFreq               = 0.33,
       maxFreq               = 10.0,
-      amplitude             = 10.0,
+      amplitude             = 300.0,
       perturbationTransform = Binary
     )}
 
@@ -200,28 +213,52 @@ object Settings {
     val default = ReadoutSettings(
       weightMin         = -2.0,
       weightMax         = 2.0,
-      MAGIC_THRESHOLD   = 1000,
-      ANNinternalLayout = List(), // empty list encodes a network with no hidden outputs
+      // MAGIC_THRESHOLD   = 1000,
+      MAGIC_THRESHOLD   = 700,
+      ANNinternalLayout = List(), // empty list encodes a network with no hidden neurons
       outputs           = 2,
-      bucketSizeMillis  = 20,
-      buckets           = 50,
-      inputChannels     = List(16, 17, 18, 19, 20, 21,
-        24, 25, 26, 27, 28, 29,
-        32, 33, 34, 35, 36, 37,
-        40, 41, 42, 43, 44, 45).map(getMCSdataChannel),
+      bucketSizeMillis  = 200,
+      buckets           = 10,
+      inputChannels     = List(
+        //          1,  2,  3,  4,  5,
+        //      7,  8,  9, 10, 11, 12, 13,
+        // 14, 15, 16, 17, 18, 19, 20, 21,
+        // 22, 23, 24, 25, 26, 27, 28, 29,
+        // 30, 31, 32, 33, 34, 35, 36, 37,
+        // 38, 39, 40, 41, 42, 43, 44, 45,
+        // 46, 47, 48, 49, 50, 51, 52,
+        //     54, 55, 56, 57, 58, 
+        //      0,  1,  2,  3,  4,  5,
+        //  6,  7,  8,  9, 10, 11, 12, 13,
+        // 14, 15, 16, 17, 18, 19, 20, 21,
+        // 22, 23, 24, 25, 26, 27, 28, 29,
+        // 30, 31, 32, 33, 34, 35, 36, 37,
+        // 38, 39, 40, 41, 42, 43, 44, 45,
+        // 46, 47, 48, 49, 50, 51, 52, 53,
+        //     54, 55, 56, 57, 58, 59,
+             0,  1,  2,  3,  4,  5,
+         6,  7,  8,  9, 10, 11, 12, 13,
+        14, 15, 16, 17, 18, 19, 20, 21,
+        22, 23, 24, 25, 26, 27, 28, 29,
+        30, 31, 32, 33, 34, 35, 36, 37,
+            39, 40, 41, 42, 43, 44, 45,
+        46, 47, 48, 49, 50, 51, 52, 53,
+            54, 55,     57, 58, 59,
+      ).map(getMCSdataChannel),
     )}
 
   object DSPsettings extends HasGenCodec[DSPsettings] {
     val default = DSPsettings(
       blanking           = true,
       blankingProtection = true,
-      allowed            = List(0,1,2),
+      // allowed            = List(0,1,2),
+      allowed            = List(0),
       stimulusElectrodes = List(
         // List(54, 55, 56, 57, 58, 59),
         // List(0,   1,  2,  3,  4,  5),
         // List(6,  14, 22,     38, 46),
-        List(0, 6),
-        List(59, 53),
+        List(38),
+        List(56),
         List(),
       ).map(_.map(getMCSstimChannel)),
     )
@@ -231,7 +268,7 @@ object Settings {
     val default = FilterSettings(
       spikeCooldown   = 10,
       maxSpikesPerSec = 10,
-      threshold       = 1
+      threshold       = 1700,
     )
   }
 
@@ -259,8 +296,8 @@ object Settings {
 
   object OptimizerSettings extends HasGenCodec[OptimizerSettings] {
     val default = OptimizerSettings(
-      decimationFactor = 5,
-      ticksPerEval     = 3000,
+      decimationFactor = 50,
+      ticksPerEval     = 100,
       dataSetWindow    = 3
     )
   }

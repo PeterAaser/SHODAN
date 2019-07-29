@@ -97,8 +97,6 @@ object DoobieQueries {
       WHERE experimentId = $experimentId
     """.query[(Int, String, String)]
 
-    say(q.toString)
-
     q.unique.map{ case(_, x, µ) => DataRecording(x, µ) }
   }
 

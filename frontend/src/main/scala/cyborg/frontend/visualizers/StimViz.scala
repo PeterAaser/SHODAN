@@ -36,5 +36,6 @@ class StimVizControl(canvas: Canvas) {
     renderer.clearRect(0, 0, canvas.width.toDouble, canvas.height.toDouble)
     renderer.fillText(render(req), 10, 80 + (req.group*40))
     state.foreach{ case(_, req) => renderer.fillText(render(req), 10, 80 + (req.group*40))}
+    
   }
 }

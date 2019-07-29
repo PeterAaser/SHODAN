@@ -103,9 +103,9 @@ class ServerRPCendpoint(
   }
 
   def printState = state.discrete.map{x => say(s"state is $x", Console.GREEN); x}.drain
-  def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain
+  // def printStateChanges = state.discrete.changes.map{x => say(s"state is $x", Console.RED); x}.drain
 
-  (printState merge printStateChanges).compile.drain.unsafeRunAsyncAndForget()
+  printState.compile.drain.unsafeRunAsyncAndForget()
   
 
   val startStop = state.discrete

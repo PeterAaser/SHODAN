@@ -84,7 +84,7 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
     */
   def spikeDetectorPipe: Pipe[F,Int,Boolean] = {
 
-    lazy val thresh = hardcode(1700)
+    // lazy val thresh = hardcode(1700)
 
     def go(s: Stream[F,Int], canSpike: Boolean): Pull[F,Boolean,Unit] =
       s.pull.uncons.flatMap {
@@ -92,11 +92,11 @@ class SpikeTools[F[_]: Concurrent](kernelWidth: FiniteDuration, conf: FullSettin
           val spikes = Array.ofDim[Boolean](chunk.size)
           var canSpikeRef = canSpike
           for(ii <- 0 until chunk.size){
-            if(canSpikeRef && math.abs(chunk(ii)) > thresh){
+            if(canSpikeRef && math.abs(chunk(ii)) > conf.filter.threshold){
               spikes(ii) = true
               canSpikeRef = false
             }
-            else if(!canSpikeRef && chunk(ii) < thresh){
+            else if(!canSpikeRef && chunk(ii) < conf.filter.threshold){
               spikes(ii) = false
               canSpikeRef = true
             }

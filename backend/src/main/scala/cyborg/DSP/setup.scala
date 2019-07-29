@@ -30,38 +30,81 @@ class DspSetup[F[_]: Sync](client: MEAMEHttpClient[F], calls: DspCalls[F]) {
     * Maintains activation state of electrodes allowing electrodes to be toggled on and off.
     * Logic for how perturbations should be rendered should be handled elsewhere.
     * 
-    * TODO: Why is this in setup??
-    * Shouldn't it be in calls?
+    * The way this pipe is used currently is a problem, seeing as it keeps getting reset.
+    * Not really sure where this happens, not that convenient to fix sadly, so for now
+    * the awkward tristate logic remains
     */
   def stimuliRequestSink: Kleisli[Id,FullSettings,Pipe[F, StimReq, Unit]] = Kleisli{ conf =>
     def sink: Pipe[F, StimReq, Unit] = {
-      def go(s: Stream[F, StimReq], electrodeActivatedState: Map[Int, Boolean]): Pull[F, Unit, Unit] = {
+      say("making an NEW stim req sink")
+      def go(s: Stream[F, StimReq], electrodeActivatedState: Map[Int, Option[Boolean]]): Pull[F, Unit, Unit] = {
         s.pull.uncons1.flatMap {
-          case Some((SetPeriod(idx, period), tl)) if !electrodeActivatedState(idx) =>
+
+          case Some((SetPeriod(idx, period), tl)) if !(electrodeActivatedState(idx).isDefined) => {
+            Pull.eval(enableStimReqGroup(idx)) >>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
             Pull.eval(enableStimReqGroup(idx)) >>
-            go(tl, electrodeActivatedState.updated(idx, true))
+            (if(idx == 0){
+              Pull.eval(Fsay[F](s"Group $idx changed to enabled")) >>
+              // Pull.eval(Fsay[F](s"State is now ${electrodeActivatedState.updated(idx, true).toList}")) >>
+              go(tl, electrodeActivatedState.updated(idx, Some(true)))
+            }
+            else
+              go(tl, electrodeActivatedState.updated(idx, Some(true))))
+          }
 
-          case Some((DisableStim(idx), tl)) if electrodeActivatedState(idx) =>
+          case Some((DisableStim(idx), tl)) if !(electrodeActivatedState(idx).isDefined) => {
             Pull.eval(disableStimReqGroup(idx)) >>
-            go(tl, electrodeActivatedState.updated(idx, false))
+            Pull.eval(Fsay[F](s"Group $idx changed to disabled")) >>
+            // Pull.eval(Fsay[F](s"State is now ${electrodeActivatedState.updated(idx, false).toList}")) >>
+            go(tl, electrodeActivatedState.updated(idx, Some(false)))
+          }
 
-          case Some((SetPeriod(idx, period), tl)) =>
+          case Some((SetPeriod(idx, period), tl)) if !(electrodeActivatedState(idx).get) => {
+            Pull.eval(enableStimReqGroup(idx)) >>
             Pull.eval(stimGroupChangePeriod(idx, period)) >>
-            go(tl, electrodeActivatedState)
+            Pull.eval(enableStimReqGroup(idx)) >>
+            (if(idx == 0){
+              Pull.eval(Fsay[F](s"Group $idx changed to enabled")) >>
+              // Pull.eval(Fsay[F](s"State is now ${electrodeActivatedState.updated(idx, true).toList}")) >>
+              go(tl, electrodeActivatedState.updated(idx, Some(true)))
+            }
+            else
+              go(tl, electrodeActivatedState.updated(idx, Some(true))))
+          }
 
-          case Some((_, tl)) => go(tl, electrodeActivatedState)
+          case Some((DisableStim(idx), tl)) if (electrodeActivatedState(idx).get) => {
+            Pull.eval(disableStimReqGroup(idx)) >>
+            Pull.eval(Fsay[F](s"Group $idx changed to disabled")) >>
+            // Pull.eval(Fsay[F](s"State is now ${electrodeActivatedState.updated(idx, false).toList}")) >>
+            go(tl, electrodeActivatedState.updated(idx, Some(false)))
+          }
+
+          case Some((SetPeriod(idx, period), tl)) if period == 0 => {
+            say("wat")
+            go(tl, electrodeActivatedState)
+          }
+
+          case Some((SetPeriod(idx, period), tl)) => {
+            Pull.eval(stimGroupChangePeriod(idx, period)) >>
+            Pull.eval(Fsay[F](s"Group $idx period changed")) >>
+            Pull.eval(Fsay[F](s"State is now ${electrodeActivatedState.toList}")) >>
+            go(tl, electrodeActivatedState)
+          }
+
+          case Some((a, tl)) => {
+            say(s"got unexpected $a")
+            go(tl, electrodeActivatedState)
+          }
 
           case None => Pull.done
         }
       }
 
       ins => go(
-        ins
-          // .map{ x => say(x); x}
-          .filter{ req => conf.dsp.allowed.contains(req.group)},
+        ins.filter{ req => conf.dsp.allowed.contains(req.group)},
 
-        conf.dsp.allowed.map((_, false)).toMap
+        conf.dsp.allowed.map((_, None)).toMap
       ).stream
     }
 

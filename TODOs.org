@@ -4,21 +4,21 @@
   Se på RNN optimizers
   
 * Doing
-** DONE Get the RNN concept to work with optimizer et al
-*** DONE Figure out why scores are so low
-*** DONE Figure out why enqueue dataset doesn't happen
-*** DONE See if it actually.. you know.. works.
-    With square error seems to be doing allright.
-
-** TODO Improve RNN optimizer
-   Figure out why enqueueing happens in a stilted manner.
-   Iterate takes too long
-   
-   Atm the whole thing is a little wonky tbh.
-
-** DONE Reduce the concurrency implicits
+** TODO Pararellize fitness workloads
+   Another crack in the optimizer abstraction.
+   Everything is Optimizer => Optimizer, can't really parallelize that
+   without being drastic.
 ** TODO Decouple the optimizer and do a run on real neurons.
+
 * Now
+** TODO Better abstraction for perturb filters
+   At the moment perturb filters get "thrown out with the bathwater" each
+   time the stream is remade. This is quite tricky to deal with, so a compromise
+   is to use tri-state logic (unknown, true, false) for previous SG state.
+   It's fugly, but it works, however it could certainly stand to be made a little prettier.
+
+   This goes doubly for toStimReq and toStimReqBinary
+
 ** TODO Attempt adaptive spike detector
 *** TODO Create a threshold-visualizer
 
@@ -27,6 +27,7 @@
 *** TODO Create a valid/invalid stream to "blank"
 
 ** TODO Fix fucking annoying warnings
+
 
 * Later
 ** TODO Better game configuration
@@ -91,6 +92,18 @@
     
 
 * Finished
+** DONE Fix record stop issue
+** DONE Figure out why SGs won't disable.
+** DONE Get the RNN concept to work with optimizer et al
+*** DONE Figure out why scores are so low
+*** DONE Figure out why enqueue dataset doesn't happen
+*** DONE See if it actually.. you know.. works.
+    With square error seems to be doing allright.
+
+** DONE Enable DB streaming
+*** DONE Enable the stream
+*** DONE Enable the frontend and command component
+** DONE Reduce the concurrency implicits
 ** DONE Render stim freqs?
    Just gonna use a canvas like a knuckle dragging peasant
 *** DONE Render

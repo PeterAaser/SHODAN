@@ -62,45 +62,47 @@ object ControlPipe {
         May start a playback or live recording based on datasource
         */
       def start: IO[Unit] = {
-
         for {
           programState     <- stateServer.get
           conf             <- confServer.get
           broadcast        <- assembler.startBroadcast(programState)(conf)
           frontendBrodcast <- assembler.broadcastToFrontend(conf)
-          // mazeRunner       <- assembler.assembleMazeRunner(conf)
-          mazeRunner       <- assembler.assembleMazeRunnerRNN(conf)
-          _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop >> mazeRunner.stop)))
+          mazeRunner       <- assembler.assembleMazeRunner(conf)
           _                <- actionRef.update(state => (state.copy(stopData = broadcast.stop >> frontendBrodcast.stop >> mazeRunner.stop)))
           _                <- (broadcast.start, frontendBrodcast.start, mazeRunner.start).parMapN((_,_,_) => ())
-        } yield {}
+        } yield()
       }
 
       def stop: IO[Unit] = {
         for {
+          _         <- Fsay[IO]("crashing now I think")
           interrupt <- actionRef.get.map(_.stopData)
+          _         <- Fsay[IO]("or now")
           _         <- interrupt
+          _         <- Fsay[IO]("or now")
           _         <- actionRef.update(_.copy(stopData = IO.unit))
+          _         <- Fsay[IO]("or not...")
         } yield()
       }
 
 
       def startRecording: IO[Unit] = {
-        say("NYI WARNING!!!", Console.RED)
         for {
           programState <- stateServer.get
           conf         <- confServer.get
-          // recordAction <- io.database.databaseIO.streamToDatabase(rawTopic.subscribe(10000), "Just a test")(conf)
-          // _            <- actionRef.update(_.copy(stopRecording = recordAction.interrupt))
-          // _            <- recordAction.start
+          recordAction <- assembler.recordToFile(conf)
+          _            <- actionRef.update(_.copy(stopRecording = recordAction.interrupt))
+          _            <- recordAction.start
         } yield()
       }
 
       def stopRecording: IO[Unit] = {
         for {
+          _         <- Fsay[IO]("Stopping recording")
           interrupt <- actionRef.get.map(_.stopRecording)
           _         <- interrupt
           _         <- actionRef.update(_.copy(stopRecording = IO.unit))
+          _         <- Fsay[IO]("Recording stopped")
         } yield()
       }
 
@@ -115,7 +117,10 @@ object ControlPipe {
             case StartRecord => Pull.output1(startRecording) >> go(tl)
             case StopRecord  => Pull.output1(stopRecording)  >> go(tl)
 
-            case _ => ???
+            case _ => {
+              say("NYI")
+              ???
+            }
           }
           }
         }
