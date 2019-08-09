@@ -204,7 +204,7 @@ object Settings {
     val default = PerturbationSettings(
       minFreq               = 0.33,
       maxFreq               = 10.0,
-      amplitude             = 300.0,
+      amplitude             = 50.0,
       perturbationTransform = Binary
     )}
 
@@ -251,8 +251,8 @@ object Settings {
     val default = DSPsettings(
       blanking           = true,
       blankingProtection = true,
-      // allowed            = List(0,1,2),
-      allowed            = List(0),
+      allowed            = List(0,1,2),
+      // allowed            = List(0),
       stimulusElectrodes = List(
         // List(54, 55, 56, 57, 58, 59),
         // List(0,   1,  2,  3,  4,  5),

@@ -113,6 +113,10 @@ class PerturbationTransforms(conf: FullSettings) {
 
   /**
     * Sometimes we must do as the gohpers do
+    * 
+    * The way this pipe is used currently is a problem, seeing as it keeps getting reset.
+    * Not really sure where this happens, not that convenient to fix sadly, so for now
+    * the awkward tristate logic remains
     */
   def toStimReqBinary[F[_]]: Pipe[F, (Int, Double), StimReq] = {
 
@@ -132,10 +136,10 @@ class PerturbationTransforms(conf: FullSettings) {
           }
         }
 
+
+        // The case when an eye goes out of range when it was previously in range
         case Some(((idx, range), tl)) if((range < params.game.sightRange) && (!prev(idx).get)) => {
           if(idx == 0){
-            // say(s"idx: $idx, range: $range, prev: ${prev(idx)}")
-            // say(s"setting $idx to enabled")
           }
           val req = SetPeriod(idx, scalarToPeriod(1.0).get)
           Pull.output1(req) >> go(prev.updated(idx, Some(true)), tl)
@@ -143,8 +147,6 @@ class PerturbationTransforms(conf: FullSettings) {
 
         // The case when an eye goes into range when it was previously out of range
         case Some(((idx, range), tl)) if((range > params.game.sightRange) && (prev(idx).get)) => {
-          // say(s"idx: $idx, range: $range, prev: $prev")
-          // say(s"setting $idx to disabled")
           val req = DisableStim(idx)
           Pull.output1(req) >> go(prev.updated(idx, Some(false)), tl)
         }
